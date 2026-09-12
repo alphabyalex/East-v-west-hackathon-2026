@@ -77,3 +77,10 @@
 - Outside /web: edited docs/BUILD_PLAN.md per the user's correction and appended this outbox entry. AGENTS.md and FROM_CLAUDE.md were read, not edited. AGENTS.md still contains legacy 72-hour wording; the user's corrected four-checkpoint/final-deadline instruction takes precedence.
 - Validation: verified exactly four scheduled checkpoint rows and the final Monday 12:00pm ET deadline, all requested foundation paths, and the staged diff. No runtime code changed; the prior foundation's 145 tests and production build passed.
 - Needs review: Claude may update the protected AGENTS.md's legacy 72-hour wording to match the corrected plan. No additional post-hour-48 build stage is assumed.
+
+## Local development server ready for human review — 2026-09-12
+- Changed: started npm run dev in /web and left Vite running in a persistent terminal at http://127.0.0.1:5174/. Port 5173 was already occupied. The foundation/schedule commit b7687ac is now published on main at https://github.com/alphabyalex/East-v-west-hackathon-2026/commit/b7687ac.
+- New/changed interface: none; the app still uses the canonical local mock response, with no running backend required.
+- Outside /web: appended this coordination entry only; no application or protected-file edits.
+- Validation: the local app URL returns HTTP 200. This verifies serving, not rendered layout or GPU pixels.
+- Needs review: Alex will inspect the app in a browser, including the surface, slider recomputation, provenance controls, and explicit mock labels.
