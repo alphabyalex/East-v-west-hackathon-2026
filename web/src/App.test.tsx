@@ -18,8 +18,17 @@ beforeAll(() => {
 afterEach(cleanup);
 
 describe('scenario workspace interactions', () => {
+  it('starts with the fan chart without initializing a graphics context', () => {
+    render(<App />);
+    expect(screen.getByRole('button', { name: 'Fan chart' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.queryByRole('group', { name: 'Interactive modeled exposure quantile surface' })).toBeNull();
+    expect(document.querySelector('canvas')).toBeNull();
+    expect(screen.queryByText(/Interactive surface unavailable/)).toBeNull();
+  });
+
   it('falls back without WebGL and keeps the upper-tail source available after recomputation', async () => {
     render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Surface' }));
     expect(await screen.findByText(/Interactive surface unavailable on this device/)).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Fan chart' }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByRole('group', { name: /Annual modeled exposure fan chart/ })).toBeTruthy();

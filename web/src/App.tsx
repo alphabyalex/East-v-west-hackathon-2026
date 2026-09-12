@@ -146,7 +146,7 @@ function FanTooltip({ active, row, confidence }: { active?: boolean; row?: Chart
 function ExposurePanel() {
   const { result, inputs } = useScenario();
   const [tableOpen, setTableOpen] = useState(false);
-  const [view, setView] = useState<'surface' | 'fan'>('surface');
+  const [view, setView] = useState<'surface' | 'fan'>('fan');
   const [surfaceUnavailable, setSurfaceUnavailable] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   useEffect(() => {
@@ -170,7 +170,7 @@ function ExposurePanel() {
       </div>)}
     </div>
     <div className="chart-section">
-      <div className="chart-heading"><div><h3>Exposure over the contract term</h3><p>Illustrative quantiles · fixed inputs · no live simulation</p></div><div className="chart-view-controls" role="group" aria-label="Exposure visualization"><button aria-pressed={view === 'surface'} onClick={() => { setSurfaceUnavailable(false); setView('surface'); }}>Surface</button><button aria-pressed={view === 'fan'} onClick={() => setView('fan')}>Fan chart</button></div></div>
+      <div className="chart-heading"><div><h3>Exposure over the contract term</h3><p>Illustrative quantiles · fixed inputs · no live simulation</p></div><div className="chart-view-controls" role="group" aria-label="Exposure visualization"><button aria-pressed={view === 'fan'} onClick={() => setView('fan')}>Fan chart</button><button aria-pressed={view === 'surface'} onClick={() => { setSurfaceUnavailable(false); setView('surface'); }}>Surface</button></div></div>
       {surfaceUnavailable && <p className="surface-fallback" role="status">Interactive surface unavailable on this device. Fan chart shown; exact sourced values remain below.</p>}
       {view === 'surface' ? <SurfaceBoundary onUnavailable={showFallback}><Suspense fallback={<div className="surface-loading" role="status">Preparing exposure surface…</div>}><ExposureSurface rows={result.annual_series} maximumHours={maximum} confidence={result.confidence} onUnavailable={showFallback} /></Suspense></SurfaceBoundary> : <>
       <div className="chart-legend fan-legend"><span><i className="legend-line" /><Percentile value={50} /></span><span><i className="legend-band" /><Percentile value={50} />–<Percentile value={90} /></span><span><i className="legend-line legend-upper" /><Percentile value={99} /></span></div>

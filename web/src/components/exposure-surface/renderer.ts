@@ -18,15 +18,24 @@ const source = (value: number, ref: string): SourcedValue => ({ value, source_ty
 
 /** A small, demand-rendered scene: only a camera interaction or data transition draws frames. */
 export function createSurfaceRenderer(host: HTMLDivElement, callbacks: Callbacks) {
-  const renderer = new WebGLRenderer({ antialias: true, powerPreference: 'low-power' });
+  // Multisampling is unnecessary for this small instrument and can be expensive
+  // on the software WebGL implementations used by remote desktops/capture tools.
+  const renderer = new WebGLRenderer({ antialias: false, powerPreference: 'low-power' });
+  // React cannot dispose a controller that never returned. Release partial setup
+  // here as well, including contexts allocated before a later setup step failed.
+  const setupCleanup: (() => void)[] = [() => {
+    renderer.dispose(); renderer.forceContextLoss(); renderer.domElement.remove();
+  }];
+  try {
   renderer.setClearColor('#14161a');
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
   renderer.domElement.setAttribute('aria-hidden', 'true');
   host.appendChild(renderer.domElement);
 
   const scene = new Scene();
   const camera = new OrthographicCamera(-9, 9, 5.5, -5.5, 0.1, 100);
   const controls = new OrbitControls(camera, renderer.domElement);
+  setupCleanup.push(() => controls.dispose());
   controls.target.set(0, 1.7, 0);
   controls.enableDamping = false;
   controls.enablePan = false;
@@ -65,8 +74,15 @@ export function createSurfaceRenderer(host: HTMLDivElement, callbacks: Callbacks
   let frame: number | undefined;
   let disposed = false;
   let initialized = false;
+  let layoutKey = '';
+  let labelsDirty = true;
+  let resizePending = true;
+  let selectionDirty = true;
+  let pendingRows: { rows: BaselineYear[]; maximumHours: number } | undefined;
+  let pendingPointer: { clientX: number; clientY: number } | undefined;
   let transition: { from: Float32Array; to: Float32Array; started: number } | undefined;
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  setupCleanup.push(() => { if (frame !== undefined) window.cancelAnimationFrame(frame); });
 
   function clearGroup(group: Group) {
     group.traverse(object => {
@@ -78,6 +94,7 @@ export function createSurfaceRenderer(host: HTMLDivElement, callbacks: Callbacks
     });
     group.clear();
   }
+  setupCleanup.push(() => { clearGroup(dataGroup); clearGroup(gridGroup); });
 
   function projected(point: Vector3) {
     const projected = point.clone().project(camera);
@@ -104,10 +121,20 @@ export function createSurfaceRenderer(host: HTMLDivElement, callbacks: Callbacks
     callbacks.labels(labels);
   }
 
-  function render() {
+  function schedule() {
+    if (disposed || document.hidden || frame !== undefined) return;
+    frame = window.requestAnimationFrame(drawFrame);
+  }
+
+  function cameraChanged() {
+    labelsDirty = true;
+    schedule();
+  }
+
+  function fail() {
     if (disposed) return;
-    renderer.render(scene, camera);
-    drawLabels();
+    dispose();
+    callbacks.unavailable();
   }
 
   function syncSelection() {
@@ -154,16 +181,38 @@ export function createSurfaceRenderer(host: HTMLDivElement, callbacks: Callbacks
     syncSelection();
   }
 
-  function animate(time: number) {
+  function drawFrame(time: number) {
     frame = undefined;
-    if (!transition || disposed) return;
-    const progress = reducedMotion.matches ? 1 : Math.min(1, (time - transition.started) / 280);
-    const eased = 1 - (1 - progress) ** 3;
-    for (let i = 0; i < positions.length; i++) positions[i] = transition.from[i] + (transition.to[i] - transition.from[i]) * eased;
-    syncGeometry();
-    render();
-    if (progress < 1) frame = window.requestAnimationFrame(animate);
-    else transition = undefined;
+    if (disposed || document.hidden) return;
+    try {
+      if (resizePending) { resizePending = false; resize(); }
+      if (pendingRows) {
+        const latest = pendingRows;
+        pendingRows = undefined;
+        applyUpdate(latest.rows, latest.maximumHours, time);
+      }
+      if (transition) {
+        const progress = reducedMotion.matches ? 1 : Math.max(0, Math.min(1, (time - transition.started) / 280));
+        const eased = 1 - (1 - progress) ** 3;
+        for (let i = 0; i < positions.length; i++) positions[i] = transition.from[i] + (transition.to[i] - transition.from[i]) * eased;
+        syncGeometry();
+        if (progress >= 1) transition = undefined;
+      }
+      if (pendingPointer) {
+        const latest = pendingPointer;
+        pendingPointer = undefined;
+        // OrbitControls may have moved the camera since the previous GPU draw.
+        camera.updateMatrixWorld();
+        scene.updateMatrixWorld();
+        pick(latest);
+      }
+      if (selectionDirty) { selectionDirty = false; syncSelection(); }
+      renderer.render(scene, camera);
+      if (labelsDirty) { labelsDirty = false; drawLabels(); }
+      // A data transition is the sole source of consecutive frames. Camera,
+      // resize and pointer events request at most one frame, then remain idle.
+      if (transition) schedule();
+    } catch { fail(); }
   }
 
   function line(points: number[], color: string, group: Group, segments = false) {
@@ -176,13 +225,34 @@ export function createSurfaceRenderer(host: HTMLDivElement, callbacks: Callbacks
   }
 
   function update(rows: BaselineYear[], maximumHours: number) {
+    if (disposed) return;
+    pendingRows = { rows, maximumHours };
+    schedule();
+  }
+
+  function applyUpdate(rows: BaselineYear[], maximumHours: number, time: number) {
     const data = buildSurfaceData(rows, maximumHours);
-    if (frame !== undefined) window.cancelAnimationFrame(frame);
-    frame = undefined;
     const previous = positions;
     const canAnimate = initialized && previous.length === data.positions.length && !reducedMotion.matches;
+    const nextLayout = `${maximumHours}:${rows.map(row => row.year.value).join(',')}`;
+    const reuseGeometry = initialized && layoutKey === nextLayout;
+    layoutKey = nextLayout;
     samples = data.samples;
     positions = canAnimate ? new Float32Array(previous) : new Float32Array(data.positions);
+    transition = canAnimate ? { from: new Float32Array(previous), to: data.positions, started: time } : undefined;
+    if (reuseGeometry) {
+      // Slider movement changes vertex heights, not topology or materials. Keep
+      // buffers/programs alive instead of reallocating and recompiling each input.
+      syncGeometry();
+      axisLabels.forEach(label => {
+        if (label.kind !== 'year') return;
+        const datum = rows.find(row => row.year.value === label.datum.value)!.year;
+        if (datum.ref !== label.datum.ref || datum.source_type !== label.datum.source_type) labelsDirty = true;
+        label.datum = datum;
+      });
+      return;
+    }
+    labelsDirty = true;
     clearGroup(dataGroup);
     clearGroup(gridGroup);
     quantileLines = [];
@@ -239,22 +309,19 @@ export function createSurfaceRenderer(host: HTMLDivElement, callbacks: Callbacks
     selected = Math.min(selected, samples.length - 1);
     syncSelection();
     initialized = true;
-    if (canAnimate) {
-      transition = { from: new Float32Array(previous), to: data.positions, started: performance.now() };
-      frame = window.requestAnimationFrame(animate);
-    } else transition = undefined;
-    render();
   }
 
   function select(index: number) {
-    selected = Math.max(0, Math.min(index, samples.length - 1));
-    syncSelection();
-    render();
+    if (disposed) return;
+    selected = Math.max(0, index);
+    selectionDirty = true;
+    schedule();
   }
 
-  function pick(event: PointerEvent) {
+  function pick(event: { clientX: number; clientY: number }) {
     if (!points || !mesh || !samples.length || transition) return;
     const rect = renderer.domElement.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
     pointer.set((event.clientX - rect.left) / rect.width * 2 - 1, -(event.clientY - rect.top) / rect.height * 2 + 1);
     raycaster.setFromCamera(pointer, camera);
     let index = raycaster.intersectObject(points)[0]?.index;
@@ -264,18 +331,30 @@ export function createSurfaceRenderer(host: HTMLDivElement, callbacks: Callbacks
         index = [hit.face.a, hit.face.b, hit.face.c].sort((a, b) => new Vector3().fromArray(positions, a * 3).distanceToSquared(hit.point) - new Vector3().fromArray(positions, b * 3).distanceToSquared(hit.point))[0];
       }
     }
-    if (index !== undefined && index !== selected) { select(index); callbacks.select(index); }
+    if (index !== undefined && index !== selected) {
+      selected = index;
+      selectionDirty = true;
+      callbacks.select(index);
+    }
   }
   let pointerStart = { x: 0, y: 0 };
   const down = (event: PointerEvent) => { pointerStart = { x: event.clientX, y: event.clientY }; };
-  const move = (event: PointerEvent) => { if (event.buttons === 0) pick(event); };
-  const up = (event: PointerEvent) => { if (Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y) < 5) pick(event); };
-  const lost = (event: Event) => { event.preventDefault(); callbacks.unavailable(); };
+  const queuePick = (event: PointerEvent) => { pendingPointer = { clientX: event.clientX, clientY: event.clientY }; schedule(); };
+  const move = (event: PointerEvent) => { if (event.buttons === 0) queuePick(event); };
+  const up = (event: PointerEvent) => { if (Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y) < 5) queuePick(event); };
+  const lost = (event: Event) => { event.preventDefault(); fail(); };
   renderer.domElement.addEventListener('pointerdown', down);
   renderer.domElement.addEventListener('pointermove', move);
   renderer.domElement.addEventListener('pointerup', up);
   renderer.domElement.addEventListener('webglcontextlost', lost);
-  controls.addEventListener('change', render);
+  controls.addEventListener('change', cameraChanged);
+  setupCleanup.push(() => {
+    controls.removeEventListener('change', cameraChanged);
+    renderer.domElement.removeEventListener('pointerdown', down);
+    renderer.domElement.removeEventListener('pointermove', move);
+    renderer.domElement.removeEventListener('pointerup', up);
+    renderer.domElement.removeEventListener('webglcontextlost', lost);
+  });
 
   function resize() {
     width = Math.max(1, host.clientWidth);
@@ -288,39 +367,57 @@ export function createSurfaceRenderer(host: HTMLDivElement, callbacks: Callbacks
     camera.right = span * aspect / 2;
     camera.updateProjectionMatrix();
     renderer.setSize(width, height, false);
-    render();
+    labelsDirty = true;
   }
-  const observer = new ResizeObserver(resize);
+  const observer = new ResizeObserver(() => { resizePending = true; schedule(); });
+  setupCleanup.push(() => observer.disconnect());
   observer.observe(host);
   function reset() {
+    if (disposed) return;
     camera.position.set(12, 9, 13);
     camera.zoom = 1;
     camera.updateProjectionMatrix();
     controls.target.set(0, 1.7, 0);
     controls.update();
-    render();
+    cameraChanged();
   }
   function rotate(horizontal: number, vertical = 0) {
+    if (disposed) return;
     const spherical = new Spherical().setFromVector3(camera.position.clone().sub(controls.target));
     spherical.theta = Math.max(controls.minAzimuthAngle, Math.min(controls.maxAzimuthAngle, spherical.theta + horizontal));
     spherical.phi = Math.max(controls.minPolarAngle, Math.min(controls.maxPolarAngle, spherical.phi + vertical));
     camera.position.copy(controls.target).add(new Vector3().setFromSpherical(spherical));
     controls.update();
-    render();
+    cameraChanged();
   }
   function zoom(factor: number) {
+    if (disposed) return;
     camera.zoom = Math.max(controls.minZoom, Math.min(controls.maxZoom, camera.zoom * factor));
     camera.updateProjectionMatrix();
-    render();
+    cameraChanged();
   }
+  function visibilityChanged() {
+    if (document.hidden) {
+      if (frame !== undefined) window.cancelAnimationFrame(frame);
+      frame = undefined;
+      pendingPointer = undefined;
+    } else { resizePending = true; schedule(); }
+  }
+  document.addEventListener('visibilitychange', visibilityChanged);
+  setupCleanup.push(() => document.removeEventListener('visibilitychange', visibilityChanged));
   reset();
-  resize();
 
-  return { update, select, reset, rotate, zoom, dispose() {
+  function dispose() {
+    if (disposed) return;
     disposed = true;
     if (frame !== undefined) window.cancelAnimationFrame(frame);
+    frame = undefined;
+    transition = undefined;
+    pendingRows = undefined;
+    pendingPointer = undefined;
+    document.removeEventListener('visibilitychange', visibilityChanged);
     observer.disconnect();
-    controls.removeEventListener('change', render);
+    controls.removeEventListener('change', cameraChanged);
     controls.dispose();
     renderer.domElement.removeEventListener('pointerdown', down);
     renderer.domElement.removeEventListener('pointermove', move);
@@ -331,5 +428,12 @@ export function createSurfaceRenderer(host: HTMLDivElement, callbacks: Callbacks
     renderer.dispose();
     renderer.forceContextLoss();
     renderer.domElement.remove();
-  } };
+  }
+  return { update, select, reset, rotate, zoom, dispose };
+  } catch (error) {
+    for (const cleanup of setupCleanup.reverse()) {
+      try { cleanup(); } catch { /* Preserve the original initialization error. */ }
+    }
+    throw error;
+  }
 }

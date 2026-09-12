@@ -102,3 +102,10 @@
 - Validation: font assets serve successfully; TypeScript/production build checked. Browser inventory is empty, so rendered desktop/mobile appearance remains unverified here.
 - Outside /web: this outbox entry only. AGENTS.md and FROM_CLAUDE.md remain untouched.
 - Needs review: human visual review of the new type/palette; proceeding next to the reported surface freeze.
+
+## Item 2 — surface scheduling and safe default — 2026-09-12
+- Changed: fan chart is now the default; Surface remains an explicit opt-in lazy import. Found synchronous draws on OrbitControls changes (including duplicate rotate/reset draws), unthrottled hover raycasts, redundant React label updates, and geometry/material recreation on every slider update. Replaced these with one coalesced demand frame, reused buffers, dirty-label updates, hidden-tab suspension, and complete initialization/error/context-loss/disposal cleanup. Reduced unnecessary multisampling/pixel load.
+- New/changed interface: none; quantiles, provenance, and surface controls remain available.
+- Validation: all 153 frontend tests and TypeScript/production build pass. New regressions cover event bursts, geometry reuse, idle frames, hidden tabs, initialization/draw failure, and numeric-animation cancellation. No unbounded mount-effect loop was found.
+- Needs review: the reported real-Chrome capture hang cannot be reproduced here because no browser is connected. GPU/driver behavior is not claimed fixed; keeping WebGL off initial load is the requested demo safeguard. Existing chart bundle-size warnings remain non-fatal.
+- Outside /web: this outbox entry only.

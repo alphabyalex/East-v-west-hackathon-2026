@@ -37,14 +37,14 @@ npm run preview  # serve the production build locally
 - Every numeric output uses `Sourced`; inputs use `SourceInfo` and native provenance
   titles; Recharts axis ticks use `SourcedTick`. Hover, focus, or click to inspect the
   exact `{value, source_type, ref}` JSON. Click to pin; Escape or outside click closes.
-- The default Three.js surface plots relative contract year × percentile × modeled
+- The opt-in Three.js surface plots relative contract year × percentile × modeled
   exposure (hours/year). Drag or use the camera buttons to rotate and zoom. With the
   plot focused, arrow keys rotate, plus/minus zoom, and Home resets the view.
 - Hover or select a supplied vertex, or use the year/percentile inspector, to inspect
   its sourced value. The vertical scale stays fixed as site exposure changes, so
   the surface visibly rises or falls. Motion stops between updates and respects
   reduced-motion preferences.
-- The Fan chart view uses the Recharts median line, p50–p90 band, and p99 line. It is also
+- The default Fan chart view uses the Recharts median line, p50–p90 band, and p99 line. It is also
   the automatic fallback if WebGL is unavailable or the graphics context is lost.
   The annual values table includes p50/p90/p99 and remains keyboard accessible.
 - Confidence badges accompany exposure readouts, the surface inspector, and annual
@@ -158,3 +158,9 @@ local JavaScript chunk. No remote chart service or runtime simulation is involve
 ## Type and color system
 
 Fraunces handles the brand and section headings; IBM Plex Sans handles controls and prose; IBM Plex Mono handles numbers with tabular figures. The requested [Google Fonts](https://developers.google.com/fonts/docs/css2) files and their OFL licenses are bundled in `public/fonts`, with local `@font-face` rules in `src/fonts.css`, so the demo does not depend on a font CDN. Near-black surfaces, warm off-white text, amber active controls, steel-teal chart series, and muted semantic colors share the tokens in `src/styles.css`.
+
+## Surface stability
+
+The fan chart is the initial view; Three.js is imported and initialized only after selecting **Surface**. This keeps WebGL startup off the demo entry path. The reported real-Chrome screenshot hang cannot be reproduced through the available browser tools (no browser is connected), so this release does not claim GPU-driver verification. Surface failures return to the fan and preserve the sourced annual table.
+
+The surface scheduler coalesces camera, hover picking, resize, and data events into one animation frame, reuses geometry/materials when only heights change, and only publishes axis labels when their placement/provenance changes. It suspends draws in hidden tabs, cancels on disposal/context loss, and keeps automatic rotation/damping disabled. Numeric interpolation also has finite completion/cancellation tests. These are CPU/lifecycle regressions; they do not emulate the browser GPU driver.
