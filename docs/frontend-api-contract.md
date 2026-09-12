@@ -105,9 +105,9 @@ The React state uses a plain `ScenarioInputs` object, derived from `defaults` by
   "flexibility_percent": 60,
   "site_exposure": 0.4,
   "firm_wait_years": 3,
-  "gpu_per_mw": 750,
-  "gpu_hour_value_usd": 2.8,
-  "early_margin_usd_per_mw_year": 550000
+  "gpu_per_mw": 1000,
+  "gpu_hour_value_usd": 2,
+  "early_margin_usd_per_mw_year": 500000
 }
 ```
 
@@ -180,7 +180,9 @@ If interruptible capacity or the value of interrupted compute is zero, both brea
 
 The close-call zone is explicitly supplied as an assumption: `close_call_fraction = 0.05`. A result is `"close call"` when `abs(net_value_usd) <= early_access_value_usd × close_call_fraction`; otherwise its sign determines `"worth it"` or `"not worth it"`. The decision is conditional on this simplified comparison, not an underwriting recommendation.
 
-At the defaults, average annualized median-path exposure is `87.8` hours/year and earlier-access value is `$165,000,000`. The break-even site factor is approximately `0.5966`; this gives the intended visible decision transition as the user moves the slider. These are illustrative arithmetic outputs, not findings about SPP or any site.
+At the defaults, average annualized median-path exposure is `87.8` hours/year and earlier-access value is `$150,000,000`. Break-even is `125` hours/year, or a site factor of approximately `0.5695`. Slider values `0.4`, `0.55`, and `0.9` demonstrate “worth it,” “close call,” and “not worth it.” These are arithmetic outputs from round dummy economics, not findings about SPP or any site.
+
+Economic default refs use `mock://illustrative/economics-placeholder/inputs/<key>?pending=docs/ASSUMPTIONS.md` with `source_type: "assumption"`. These pending refs identify missing sourcing, not an existing citation. The panel, decision, and slider crossover remain explicitly marked mock. Kristian/Tharun's sourced values arrive through `main` in `docs/ASSUMPTIONS.md`; integrate those defaults and refs together as soon as available, retaining assumption labels for any unsourced or user-edited inputs. Derive break-even from the adopted values instead of treating the current demo crossover as an independent sourced fact.
 
 ## Provenance and integration rules
 

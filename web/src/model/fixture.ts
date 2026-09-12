@@ -45,10 +45,12 @@ export const defaultInputs: ScenarioInputs = {
   contract_years: 10,
   flexibility_percent: 60,
   site_exposure: 0.4,
+  // Round UI-development placeholders, not sourced economic estimates.
+  // Replace from the team's docs/ASSUMPTIONS.md once it is available on main.
   firm_wait_years: 3,
-  gpu_per_mw: 750,
-  gpu_hour_value_usd: 2.8,
-  early_margin_usd_per_mw_year: 550_000,
+  gpu_per_mw: 1_000,
+  gpu_hour_value_usd: 2,
+  early_margin_usd_per_mw_year: 500_000,
 }
 
 export const mockResponse: MockResponse = {
@@ -72,10 +74,10 @@ export const mockResponse: MockResponse = {
     contract_years: mockAssumption(defaultInputs.contract_years, 'inputs/contract_years'),
     flexibility_percent: mockAssumption(defaultInputs.flexibility_percent, 'inputs/flexibility_percent'),
     site_exposure: mockAssumption(defaultInputs.site_exposure, 'inputs/site_exposure'),
-    firm_wait_years: mockAssumption(defaultInputs.firm_wait_years, 'inputs/firm_wait_years'),
-    gpu_per_mw: mockAssumption(defaultInputs.gpu_per_mw, 'inputs/gpu_per_mw'),
-    gpu_hour_value_usd: mockAssumption(defaultInputs.gpu_hour_value_usd, 'inputs/gpu_hour_value_usd'),
-    early_margin_usd_per_mw_year: mockAssumption(defaultInputs.early_margin_usd_per_mw_year, 'inputs/early_margin_usd_per_mw_year'),
+    firm_wait_years: mockAssumption(defaultInputs.firm_wait_years, 'economics-placeholder/inputs/firm_wait_years?pending=docs/ASSUMPTIONS.md'),
+    gpu_per_mw: mockAssumption(defaultInputs.gpu_per_mw, 'economics-placeholder/inputs/gpu_per_mw?pending=docs/ASSUMPTIONS.md'),
+    gpu_hour_value_usd: mockAssumption(defaultInputs.gpu_hour_value_usd, 'economics-placeholder/inputs/gpu_hour_value_usd?pending=docs/ASSUMPTIONS.md'),
+    early_margin_usd_per_mw_year: mockAssumption(defaultInputs.early_margin_usd_per_mw_year, 'economics-placeholder/inputs/early_margin_usd_per_mw_year?pending=docs/ASSUMPTIONS.md'),
   },
   decision_policy: {
     close_call_fraction: mockAssumption(0.05, 'decision_policy/close_call_fraction-of-early-access-value'),

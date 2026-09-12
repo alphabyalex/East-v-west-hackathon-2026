@@ -71,9 +71,10 @@ describe('illustrative scenario arithmetic', () => {
   it('changes the decision at the calculated crossover with an explicit close-call zone', () => {
     const base = deriveScenario(defaultInputs)
     const crossover = base.economics.break_even_site_exposure.value!
-    expect(crossover).toBeGreaterThan(0.5)
-    expect(crossover).toBeLessThan(0.7)
+    expect(crossover).toBeCloseTo(125 / 219.5, 12)
+    expect(base.economics.break_even_exposure_hours.value).toBe(125)
     expect(base.decision).toBe('worth it')
+    expect(deriveScenario({ ...defaultInputs, site_exposure: 0.55 }).decision).toBe('close call')
     expect(deriveScenario({ ...defaultInputs, site_exposure: crossover }).decision).toBe('close call')
     expect(deriveScenario({ ...defaultInputs, site_exposure: 0.9 }).decision).toBe('not worth it')
   })

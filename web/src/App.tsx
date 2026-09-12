@@ -118,10 +118,10 @@ function ExposureControl() {
         <span className="slider-progress" style={{ width: `calc(10px + (100% - 20px) * ${inputs.site_exposure})` }} aria-hidden="true" />
         <input type="range" min={0} max={1} step={0.01} value={inputs.site_exposure} onChange={event => update('site_exposure', Number(event.target.value))}
           aria-label="Site exposure factor" aria-describedby="exposure-explanation" aria-valuetext={`${inputs.site_exposure.toFixed(2)}, user-set assumption`} />
-        {marker !== null && <span className="break-even-marker" style={{ left: `calc(10px + (100% - 20px) * ${marker})` }} title="Economic break-even under current assumptions" />}
+        {marker !== null && <span className="break-even-marker" style={{ left: `calc(10px + (100% - 20px) * ${marker})` }} title="Mock economic break-even under current assumptions" />}
       </div>
       <div className="slider-endpoints"><span><Sourced value={0} source={uiSource('site_exposure/min')} format={v => v.toFixed(1)} animate={false} /> No exposure</span><span>Full modeled exposure <Sourced value={1} source={uiSource('site_exposure/max')} format={v => v.toFixed(1)} animate={false} /></span></div>
-      <div className="slider-caption" id="exposure-explanation"><span className="tiny-diamond" />{marker !== null ? <span>Decision break-even at <Value datum={crossover as SourcedValue} format={fixed} /> under these assumptions</span> : <span>No decision crossover within this slider range</span>}</div>
+      <div className="slider-caption" id="exposure-explanation"><span className="tiny-diamond" />{marker !== null ? <span>Mock decision break-even at <Value datum={crossover as SourcedValue} format={fixed} /> under these assumptions</span> : <span>No decision crossover within this slider range</span>}</div>
     </div>
   </section>;
 }
@@ -194,8 +194,9 @@ function EconomicsPanel() {
   const { result, inputs, sourceFor } = useScenario();
   const { economics: e, decision } = result;
   const state = decision === 'worth it' ? 'positive' : decision === 'not worth it' ? 'negative' : 'neutral';
-  return <section className={`panel economics-panel decision-${state}`} aria-labelledby="economics-title">
-    <div className="panel-heading"><div className="flex items-center gap-2"><span className="dollar-icon">$</span><h2 id="economics-title">Connection economics</h2></div><span className="eyebrow muted">MEDIAN-PATH SCENARIO</span></div>
+  return <section className={`panel economics-panel decision-${state}`} aria-labelledby="economics-title" aria-describedby="economics-mock-notice">
+    <div className="panel-heading"><div className="flex items-center gap-2"><span className="dollar-icon">$</span><h2 id="economics-title">Connection economics</h2></div><span className="eyebrow text-amber">MOCK ECONOMICS</span></div>
+    <p className="economics-mock-notice" id="economics-mock-notice"><strong>Unverified placeholder inputs.</strong> GPU-hours, dollar values, break-even and the decision are for demonstration only.</p>
     <div className="economics-flow">
       <div className="economics-row"><div><span className="economics-label">Interruptible capacity</span><span className="economics-detail">Load × flexibility split</span></div><span><Value datum={e.interruptible_mw} /> <small>MW</small></span></div>
       <div className="flow-connector"><ArrowDownRight size={14} /><span>Modeled exposure × compute density</span></div>
@@ -211,7 +212,7 @@ function EconomicsPanel() {
     </div>
     <div className="decision-readout" role="status" aria-live="polite" aria-atomic="true">
       <div className="decision-icon">{state === 'positive' ? <ArrowUpRight size={22} /> : state === 'negative' ? <ArrowDownRight size={22} /> : <ArrowRight size={22} />}</div>
-      <div><span className="eyebrow">UNDER THESE ASSUMPTIONS</span><h3>{decision}</h3><p>{state === 'positive' ? 'Earlier-access contribution exceeds modeled losses.' : state === 'negative' ? 'Modeled losses exceed earlier-access contribution.' : 'The modeled trade is near economic break-even.'}</p></div>
+      <div><span className="eyebrow">MOCK DECISION · UNDER THESE ASSUMPTIONS</span><h3>{decision}</h3><p>{state === 'positive' ? 'Earlier-access contribution exceeds modeled losses.' : state === 'negative' ? 'Modeled losses exceed earlier-access contribution.' : 'The modeled trade is near economic break-even.'}</p></div>
     </div>
     <div className="break-even-row"><span>Break-even modeled exposure</span><strong>{e.break_even_exposure_hours.value === null ? 'No modeled cost' : <><Value datum={e.break_even_exposure_hours as SourcedValue} /> <small>h/yr</small></>}</strong></div>
   </section>;
@@ -220,7 +221,7 @@ function EconomicsPanel() {
 function Assumptions() {
   const { inputs, result, sourceFor } = useScenario();
   return <section className="assumptions-panel" aria-labelledby="assumptions-title">
-    <div className="assumptions-heading"><div className="flex items-center gap-2"><SlidersHorizontal size={14} /><h2 id="assumptions-title">Economic assumptions</h2></div><span className="eyebrow text-amber">ALL EDITABLE · ALL ILLUSTRATIVE</span></div>
+    <div className="assumptions-heading"><div className="flex items-center gap-2"><SlidersHorizontal size={14} /><h2 id="assumptions-title">Economic assumptions</h2></div><span className="eyebrow text-amber">ALL EDITABLE · MOCK VALUES</span></div>
     <div className="assumption-fields">
       <NumberField compact name="firm_wait_years" label="EARLIER ACCESS" unit="years" min={0} max={20} step={0.25} />
       <NumberField compact name="gpu_per_mw" label="COMPUTE DENSITY" unit="GPU / MW" min={1} max={2000} />

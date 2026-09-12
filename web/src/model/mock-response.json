@@ -1671,22 +1671,22 @@
     "firm_wait_years": {
       "value": 3,
       "source_type": "assumption",
-      "ref": "mock://illustrative/inputs/firm_wait_years"
+      "ref": "mock://illustrative/economics-placeholder/inputs/firm_wait_years?pending=docs/ASSUMPTIONS.md"
     },
     "gpu_per_mw": {
-      "value": 750,
+      "value": 1000,
       "source_type": "assumption",
-      "ref": "mock://illustrative/inputs/gpu_per_mw"
+      "ref": "mock://illustrative/economics-placeholder/inputs/gpu_per_mw?pending=docs/ASSUMPTIONS.md"
     },
     "gpu_hour_value_usd": {
-      "value": 2.8,
+      "value": 2,
       "source_type": "assumption",
-      "ref": "mock://illustrative/inputs/gpu_hour_value_usd"
+      "ref": "mock://illustrative/economics-placeholder/inputs/gpu_hour_value_usd?pending=docs/ASSUMPTIONS.md"
     },
     "early_margin_usd_per_mw_year": {
-      "value": 550000,
+      "value": 500000,
       "source_type": "assumption",
-      "ref": "mock://illustrative/inputs/early_margin_usd_per_mw_year"
+      "ref": "mock://illustrative/economics-placeholder/inputs/early_margin_usd_per_mw_year?pending=docs/ASSUMPTIONS.md"
     }
   },
   "decision_policy": {

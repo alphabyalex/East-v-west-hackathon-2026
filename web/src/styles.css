@@ -120,6 +120,8 @@ select option { background: #191b1e; font-size: 14px; }
 .economics-panel .panel-heading { padding-left: 20px; padding-right: 20px; }
 .economics-panel .panel-heading .eyebrow { font-size: 10px; letter-spacing: .35px; }
 .dollar-icon { font-family: var(--font-mono); color: #afb8c0; font-size: 15px; }
+.economics-mock-notice { margin: 0; padding: 12px 20px; border-bottom: 1px solid #34373b; color: #aeb8c1; font-size: 11px; line-height: 1.6; }
+.economics-mock-notice strong { color: #d4bd96; font-weight: 500; }
 .economics-flow { padding: 20px 20px 16px; }
 .economics-row { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
 .economics-label { display: block; font-size: 11px; color: #c8cfd5; }

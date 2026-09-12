@@ -40,7 +40,7 @@ describe('scenario workspace interactions', () => {
     render(<App />);
     const slider = screen.getByRole('slider', { name: 'Site exposure factor' });
     expect(screen.getByRole('heading', { name: 'worth it' })).toBeTruthy();
-    fireEvent.change(slider, { target: { value: '0.6' } });
+    fireEvent.change(slider, { target: { value: '0.55' } });
     expect(screen.getByRole('heading', { name: 'close call' })).toBeTruthy();
     fireEvent.change(slider, { target: { value: '0.9' } });
     expect(screen.getByRole('heading', { name: 'not worth it' })).toBeTruthy();

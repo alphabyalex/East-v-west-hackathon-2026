@@ -49,7 +49,7 @@ npm run preview  # serve the production build locally
   The annual values table includes p10/p50/p90/p99 and remains keyboard accessible.
 - Reset restores the fixture defaults. Export downloads inputs, derived results, and
   their baseline fixture as local JSON. Neither action contacts a backend.
-- At the default assumptions, moving site exposure from 0.4 through 0.6 to 0.9 produces
+- At the default assumptions, moving site exposure from 0.4 through 0.55 to 0.9 produces
   “worth it,” “close call,” then “not worth it.” Zero exposure and zero interruption
   cost are defined, with `null` break-even values displayed as “No modeled cost.”
 
@@ -68,6 +68,19 @@ nodes. Replace them with pipeline-validated identifiers during integration. Ever
 fixture value uses `source_type: "assumption"`; mock references do not claim real
 dataset or tariff support. The twenty-year selectable horizon is an illustrative
 comparison range, not a representation of an allowed tariff term.
+
+Economics are explicitly marked **MOCK ECONOMICS**, including the decision and the
+slider's break-even caption. The round fixture defaults (1,000 GPUs/MW, $2/GPU-hour,
+$500,000/MW-year early margin, and three years of earlier access) are dummy values,
+not sourced estimates. Their provenance references identify economics placeholders
+pending `docs/ASSUMPTIONS.md`; editable inputs remain user assumptions.
+
+Kristian/Tharun's economics sourcing will arrive through `main` in
+`docs/ASSUMPTIONS.md`. Check main at integration checkpoints. When it arrives, replace
+the applicable defaults and their refs together using the documented units, sources,
+retrieval dates, and ranges; recalculate derived break-even values. Keep any remaining
+placeholder dependencies visibly marked. Do this during integration, without adding
+runtime GitHub requests or data fetching to the offline demo.
 
 Annual summaries average the marginal quantile paths. The economics follow the median
 path and do not claim to be the median of total contract losses. Public grid stress
