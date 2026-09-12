@@ -24,11 +24,11 @@ describe('scenario workspace interactions', () => {
     expect(screen.getByRole('button', { name: 'Fan chart' }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByRole('group', { name: /Annual modeled exposure fan chart/ })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Inspect annual values' }));
-    const table = screen.getByRole('table');
-    expect(within(table).getAllByRole('columnheader')).toHaveLength(5);
+    const table = screen.getByRole('table', { name: /Sourced annual modeled exposure/ });
+    expect(within(table).getAllByRole('columnheader')).toHaveLength(4);
     fireEvent.change(screen.getByRole('slider', { name: 'Site exposure factor' }), { target: { value: '0' } });
-    const upperTail = within(table).getAllByRole('cell')[4];
-    fireEvent.click(within(upperTail).getByRole('button'));
+    const upperTail = within(table).getAllByRole('cell')[3];
+    fireEvent.click(within(upperTail).getAllByRole('button')[0]);
     const provenance = JSON.parse(screen.getByRole('tooltip').querySelector('pre')!.textContent!);
     expect(provenance.value).toBe(0);
     expect(provenance.source_type).toBe('assumption');
@@ -62,7 +62,7 @@ describe('scenario workspace interactions', () => {
     const split = screen.getByRole('spinbutton', { name: 'FLEXIBILITY SPLIT' });
     fireEvent.change(split, { target: { value: '0' } });
     expect(screen.getByText('No modeled cost')).toBeTruthy();
-    expect(screen.getByText('No decision crossover within this slider range')).toBeTruthy();
+    expect(screen.getByText('No cost crossover within this slider range')).toBeTruthy();
     expect(document.body.textContent).not.toMatch(/NaN|Infinity/);
   });
 
@@ -83,8 +83,8 @@ describe('scenario workspace interactions', () => {
   it('keeps sourced annual values synchronized with the horizon, location, and slider', () => {
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: 'Inspect annual values' }));
-    const table = screen.getByRole('table');
-    expect(within(table).getAllByRole('row')).toHaveLength(11);
+    const table = screen.getByRole('table', { name: /Sourced annual modeled exposure/ });
+    expect(within(table).getAllByRole('row')).toHaveLength(8);
     const originalFirstValue = within(table).getAllByRole('cell')[2].textContent;
     fireEvent.change(screen.getByRole('combobox', { name: 'SPP LOCATION' }), { target: { value: 'spp-oklahoma-city-demo' } });
     expect(within(table).getAllByRole('cell')[2].textContent).not.toBe(originalFirstValue);

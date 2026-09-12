@@ -44,30 +44,39 @@ npm run preview  # serve the production build locally
   its sourced value. The vertical scale stays fixed as site exposure changes, so
   the surface visibly rises or falls. Motion stops between updates and respects
   reduced-motion preferences.
-- The Fan chart view retains the Recharts median line and p10–p90 band. It is also
+- The Fan chart view uses the Recharts median line, p50–p90 band, and p99 line. It is also
   the automatic fallback if WebGL is unavailable or the graphics context is lost.
-  The annual values table includes p10/p50/p90/p99 and remains keyboard accessible.
-- Reset restores the fixture defaults. Export downloads inputs, derived results, and
-  their baseline fixture as local JSON. Neither action contacts a backend.
+  The annual values table includes p50/p90/p99 and remains keyboard accessible.
+- Confidence badges accompany exposure readouts, the surface inspector, and annual
+  values. They preserve the supplied level and expose the exact signal score/basis.
+  The current fixed Medium / 0.5 signal is explicitly MOCK, not an ensemble result
+  or the probability of a future outcome.
+- The economics panel includes annual cost scenarios for each supplied quantile.
+  Tariff evidence displays the mock term record and its provenance, without claiming
+  that a real clause has been extracted.
+- Reset restores fixture defaults. Export downloads the canonical request/response,
+  sourced local assumptions, and view results as JSON. Neither action contacts a backend.
 - At the default assumptions, moving site exposure from 0.4 through 0.55 to 0.9 produces
   “worth it,” “close call,” then “not worth it.” Zero exposure and zero interruption
-  cost are defined, with `null` break-even values displayed as “No modeled cost.”
+  cost are defined, with `null` hours thresholds displayed as “No modeled cost.”
+  The slider marks the median cost crossover, not a decision-rule boundary.
 
 ## FastAPI handoff
 
 The canonical shared endpoint is **`POST /api/estimate` in
-[`docs/BUILD_PLAN.md`](../docs/BUILD_PLAN.md)**. The existing shell still uses the
-earlier local fixture, [`src/model/mock-response.json`](src/model/mock-response.json).
-The [fixture notes and migration checklist](../docs/frontend-api-contract.md) document
-the differences, units, formulas, and provenance mapping. The [TypeScript interface](src/model/types.ts)
-describes the current local shell; a test checks fixture/JSON parity. The new endpoint
-contract and confidence block are not wired into the shell yet.
+[`docs/BUILD_PLAN.md`](../docs/BUILD_PLAN.md)**. The shell now consumes that response
+shape through a local provider. The complete current mock is
+[`src/model/mock-response.json`](src/model/mock-response.json), and the canonical
+[TypeScript interface](src/model/contract.ts) matches it. A parity test checks both.
+The [integration notes](../docs/frontend-api-contract.md) define block-to-value
+provenance mapping, formulas, nullable break-even, and complete yearly horizons.
+API-scaled exposure is never scaled again by the view adapter.
 
 The shell deliberately uses illustrative SPP-region location IDs, not verified grid
 nodes. Replace them with pipeline-validated identifiers during integration. Every
 fixture value uses `source_type: "assumption"`; mock references do not claim real
-dataset or tariff support. The twenty-year selectable horizon is an illustrative
-comparison range, not a representation of an allowed tariff term.
+dataset or tariff support. The one-to-seven-year horizon matches the pipeline
+contract, not a claim about an allowed tariff term.
 
 Economics are explicitly marked **MOCK ECONOMICS**, including the decision and the
 slider's break-even caption. The round fixture defaults (1,000 GPUs/MW, $2/GPU-hour,
@@ -82,17 +91,22 @@ retrieval dates, and ranges; recalculate derived break-even values. Keep any rem
 placeholder dependencies visibly marked. Do this during integration, without adding
 runtime GitHub requests or data fetching to the offline demo.
 
-Annual summaries average the marginal quantile paths. The economics follow the median
-path and do not claim to be the median of total contract losses. Public grid stress
+Annual summaries average the marginal quantile paths. The ledger follows the median
+path; the decision compares p50/p90 term-cost proxies with total earlier benefit using
+5% margins. These are not quantiles of total contract losses. Public grid stress
 cannot establish a particular site's actual curtailment. The slider, conditional
 decision wording, and visible model limitations must remain during integration.
 
-The surface connects four supplied quantiles per year, with proportional percentile
+The surface connects three supplied quantiles per year, with proportional percentile
 spacing. Faces are display interpolation, not additional samples or a probability
 density estimate. A single-year horizon shows a quantile cross-section with no
 invented time width. A true density surface requires additional precomputed density
-bins or samples from the pipeline. The response schema is unchanged: yearly p99 was
-already present in the fixture and is now retained in derived results and exports.
+bins or samples from the pipeline. The canonical response has no p10, so the UI does
+not invent a lower-tail quantile.
+
+Economic controls remain local mock overrides; only the five fields in BUILD_PLAN.md
+belong in a real API request. Resolve a supported override interface with the team
+before switching the workspace to HTTP. No backend connection is enabled by this shell.
 
 ## Structure
 
@@ -100,10 +114,13 @@ already present in the fixture and is now retained in derived results and export
 src/App.tsx                 Workspace, controls, chart, economics, assumptions
 src/ScenarioContext.tsx     Shared inputs and synchronous derived scenario
 src/components/Sourced.tsx  Reusable provenance values, info controls, SVG ticks
+src/components/ConfidenceBadge.tsx  Supplied confidence level/score with mock status
 src/components/ExposureSurface.tsx  Sourced controls and labels for the 3D plot
 src/components/exposure-surface/   Three.js renderer and pure quantile geometry
 src/hooks/                 Reduced-motion-aware numeric animation
-src/model/                 Types, fixed fixture, lightweight arithmetic, tests
+src/model/contract.ts       Canonical request/response types
+src/model/estimate.ts       Local mock provider and canonical response view adapter
+src/model/                  Supporting types, fixture, and contract/math tests
 src/styles.css             Tailwind theme and responsive terminal layout
 ```
 

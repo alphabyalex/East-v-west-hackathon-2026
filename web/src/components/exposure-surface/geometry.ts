@@ -1,6 +1,6 @@
 import type { BaselineYear, SourcedValue } from '../../model'
 
-export const QUANTILES = [10, 50, 90, 99] as const
+export const QUANTILES = [50, 90, 99] as const
 export type SurfaceQuantile = typeof QUANTILES[number]
 
 export const SURFACE_SIZE = { width: 10, height: 5, depth: 6 } as const
@@ -22,8 +22,8 @@ export function buildSurfaceData(rows: BaselineYear[], maximumHours: number) {
   if (!Number.isFinite(maximumHours) || maximumHours <= 0) {
     throw new RangeError('maximumHours must be a finite positive number.')
   }
-  if (rows.length < 1 || rows.length > 20) {
-    throw new RangeError('The exposure surface requires between 1 and 20 yearly rows.')
+  if (rows.length < 1 || rows.length > 7) {
+    throw new RangeError('The exposure surface requires between 1 and 7 yearly rows.')
   }
 
   let previousYear = -Infinity
@@ -58,7 +58,7 @@ export function buildSurfaceData(rows: BaselineYear[], maximumHours: number) {
       const position: [number, number, number] = [
         x,
         exposure.value / maximumHours * SURFACE_SIZE.height,
-        SURFACE_SIZE.depth / 2 - (quantile - 10) / 89 * SURFACE_SIZE.depth,
+        SURFACE_SIZE.depth / 2 - (quantile - QUANTILES[0]) / (QUANTILES[QUANTILES.length - 1] - QUANTILES[0]) * SURFACE_SIZE.depth,
       ]
       positions.set(position, (yearIndex * QUANTILES.length + quantileIndex) * 3)
       samples.push({ yearIndex, quantile, year: row.year, exposure, position })

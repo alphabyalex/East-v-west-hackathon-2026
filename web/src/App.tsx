@@ -3,7 +3,8 @@ import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, Check, ChevronDown,
 import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { ScenarioProvider, useScenario } from './ScenarioContext';
 import { Sourced, SourceInfo, SourcedTick } from './components/Sourced';
-import { deriveScenario, mockResponse, type ScenarioInputs, type Source, type SourcedValue } from './model';
+import { ConfidenceBadge, type ConfidenceEstimate } from './components/ConfidenceBadge';
+import { deriveScenario, mockResponse, toEstimateRequest, type ScenarioInputs, type Source, type SourcedValue } from './model';
 
 const ExposureSurface = lazy(() => import('./components/ExposureSurface'));
 class SurfaceBoundary extends Component<{ children: ReactNode; onUnavailable: () => void }, { failed: boolean }> {
@@ -22,6 +23,10 @@ const uiSource = (ref: string): Source => ({ source_type: 'assumption', ref: `mo
 
 function Value({ datum, className, format = numeric.format }: { datum: SourcedValue; className?: string; format?: (value: number) => string }) {
   return <Sourced value={datum.value} source={datum} className={className} format={format} />;
+}
+
+function ExposureValue({ datum, confidence }: { datum: SourcedValue; confidence: ConfidenceEstimate }) {
+  return <span className="exposure-value-with-confidence"><Value datum={datum} /><ConfidenceBadge confidence={confidence} compact /></span>;
 }
 
 function Percentile({ value }: { value: number }) {
@@ -67,7 +72,7 @@ function Header() {
   const [exported, setExported] = useState(false);
   useEffect(() => { if (exported) { const timer = setTimeout(() => setExported(false), 2400); return () => clearTimeout(timer); } }, [exported]);
   function exportScenario() {
-    const blob = new Blob([JSON.stringify({ mode: 'illustrative', inputs, result, fixture: mockResponse }, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify({ mode: 'illustrative', request: toEstimateRequest(inputs), response: result.canonical_response, local_assumptions: result.inputs, result }, null, 2)], { type: 'application/json' });
     const href = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = href;
@@ -97,7 +102,7 @@ function Inputs() {
       <span className="field-note">Illustrative node · no site-specific grid data</span>
     </div>
     <NumberField name="load_mw" label="LOAD SIZE" unit="MW" min={1} max={2000} icon={<Zap size={13} />} />
-    <NumberField name="contract_years" label="CONTRACT TERM" unit="years" min={1} max={20} icon={<Activity size={13} />} />
+    <NumberField name="contract_years" label="CONTRACT TERM" unit="years" min={1} max={7} icon={<Activity size={13} />} />
     <NumberField name="flexibility_percent" label="FLEXIBILITY SPLIT" unit="% interruptible" min={0} max={100} icon={<SlidersHorizontal size={13} />} />
   </section>;
 }
@@ -118,22 +123,22 @@ function ExposureControl() {
         <span className="slider-progress" style={{ width: `calc(10px + (100% - 20px) * ${inputs.site_exposure})` }} aria-hidden="true" />
         <input type="range" min={0} max={1} step={0.01} value={inputs.site_exposure} onChange={event => update('site_exposure', Number(event.target.value))}
           aria-label="Site exposure factor" aria-describedby="exposure-explanation" aria-valuetext={`${inputs.site_exposure.toFixed(2)}, user-set assumption`} />
-        {marker !== null && <span className="break-even-marker" style={{ left: `calc(10px + (100% - 20px) * ${marker})` }} title="Mock economic break-even under current assumptions" />}
+        {marker !== null && <span className="break-even-marker" style={{ left: `calc(10px + (100% - 20px) * ${marker})` }} title="Mock median cost crossover under current assumptions" />}
       </div>
       <div className="slider-endpoints"><span><Sourced value={0} source={uiSource('site_exposure/min')} format={v => v.toFixed(1)} animate={false} /> No exposure</span><span>Full modeled exposure <Sourced value={1} source={uiSource('site_exposure/max')} format={v => v.toFixed(1)} animate={false} /></span></div>
-      <div className="slider-caption" id="exposure-explanation"><span className="tiny-diamond" />{marker !== null ? <span>Mock decision break-even at <Value datum={crossover as SourcedValue} format={fixed} /> under these assumptions</span> : <span>No decision crossover within this slider range</span>}</div>
+      <div className="slider-caption" id="exposure-explanation"><span className="tiny-diamond" />{marker !== null ? <span>Mock median cost crossover at <Value datum={crossover as SourcedValue} format={fixed} /> under these assumptions</span> : <span>No cost crossover within this slider range</span>}</div>
     </div>
   </section>;
 }
 
 type AnnualPoint = ReturnType<typeof deriveScenario>['annual_series'][number];
-type ChartRow = { year: number; band: [number, number]; median: number; original: AnnualPoint };
-function FanTooltip({ active, row }: { active?: boolean; row?: ChartRow }) {
+type ChartRow = { year: number; band: [number, number]; median: number; upper: number; original: AnnualPoint };
+function FanTooltip({ active, row, confidence }: { active?: boolean; row?: ChartRow; confidence: ConfidenceEstimate }) {
   if (!active || !row) return null;
   return <div className="chart-tooltip"><div className="eyebrow">CONTRACT YEAR <Value datum={row.original.year} format={integer.format} /></div>
-    <div><span><Percentile value={90} /> modeled exposure</span><span><Value datum={row.original.p90} /> h/yr</span></div>
-    <div><span><Percentile value={50} /> modeled exposure</span><span><Value datum={row.original.p50} /> h/yr</span></div>
-    <div><span><Percentile value={10} /> modeled exposure</span><span><Value datum={row.original.p10} /> h/yr</span></div>
+    <div><span><Percentile value={99} /> modeled exposure · h/yr</span><ExposureValue datum={row.original.p99} confidence={confidence} /></div>
+    <div><span><Percentile value={90} /> modeled exposure · h/yr</span><ExposureValue datum={row.original.p90} confidence={confidence} /></div>
+    <div><span><Percentile value={50} /> modeled exposure · h/yr</span><ExposureValue datum={row.original.p50} confidence={confidence} /></div>
     <small>Illustrative quantiles · hover or tap a value for its source</small>
   </div>;
 }
@@ -150,10 +155,9 @@ function ExposurePanel() {
     sync(); query.addEventListener('change', sync);
     return () => query.removeEventListener('change', sync);
   }, []);
-  const data: ChartRow[] = result.annual_series.map(row => ({ year: row.year.value, band: [row.p10.value, row.p90.value], median: row.p50.value, original: row }));
+  const data: ChartRow[] = result.annual_series.map(row => ({ year: row.year.value, band: [row.p50.value, row.p90.value], median: row.p50.value, upper: row.p99.value, original: row }));
   const baseline = deriveScenario({ ...inputs, site_exposure: 1 });
-  const maximum = Math.ceil(Math.max(...baseline.annual_series.map(row => row.p90.value)) / 100) * 100;
-  const surfaceMaximum = Math.ceil(Math.max(...baseline.annual_series.map(row => row.p99.value)) / 100) * 100;
+  const maximum = Math.ceil(Math.max(...baseline.annual_series.map(row => row.p99.value)) / 100) * 100;
   const yTicks = Array.from({ length: 5 }, (_, i) => maximum * i / 4);
   const showFallback = () => { setSurfaceUnavailable(true); setView('fan'); };
   return <section className="panel exposure-panel" aria-labelledby="exposure-panel-title">
@@ -162,31 +166,34 @@ function ExposurePanel() {
       {([['p50', 50, 'Median scenario'], ['p90', 90, 'Upper-tail scenario'], ['p99', 99, 'Extreme-tail scenario']] as const).map(([key, percentile, label]) => <div className={`metric metric-${key}`} key={key}>
         <div className="metric-label"><Percentile value={percentile} /><span>{label}</span></div>
         <div className="metric-number"><Value datum={result.annual_exposure[key]} format={numeric.format} /><span className="metric-unit">h/yr</span></div>
+        <ConfidenceBadge confidence={result.confidence} />
       </div>)}
     </div>
     <div className="chart-section">
       <div className="chart-heading"><div><h3>Exposure over the contract term</h3><p>Illustrative quantiles · fixed inputs · no live simulation</p></div><div className="chart-view-controls" role="group" aria-label="Exposure visualization"><button aria-pressed={view === 'surface'} onClick={() => { setSurfaceUnavailable(false); setView('surface'); }}>Surface</button><button aria-pressed={view === 'fan'} onClick={() => setView('fan')}>Fan chart</button></div></div>
       {surfaceUnavailable && <p className="surface-fallback" role="status">Interactive surface unavailable on this device. Fan chart shown; exact sourced values remain below.</p>}
-      {view === 'surface' ? <SurfaceBoundary onUnavailable={showFallback}><Suspense fallback={<div className="surface-loading" role="status">Preparing exposure surface…</div>}><ExposureSurface rows={result.annual_series} maximumHours={surfaceMaximum} onUnavailable={showFallback} /></Suspense></SurfaceBoundary> : <>
-      <div className="chart-legend fan-legend"><span><i className="legend-line" /><Percentile value={50} /></span><span><i className="legend-band" /><Percentile value={10} />–<Percentile value={90} /></span></div>
+      {view === 'surface' ? <SurfaceBoundary onUnavailable={showFallback}><Suspense fallback={<div className="surface-loading" role="status">Preparing exposure surface…</div>}><ExposureSurface rows={result.annual_series} maximumHours={maximum} confidence={result.confidence} onUnavailable={showFallback} /></Suspense></SurfaceBoundary> : <>
+      <div className="chart-legend fan-legend"><span><i className="legend-line" /><Percentile value={50} /></span><span><i className="legend-band" /><Percentile value={50} />–<Percentile value={90} /></span><span><i className="legend-line legend-upper" /><Percentile value={99} /></span></div>
       <div className="axis-caption">MODELED EXPOSURE · H/YR</div>
-      <div className="fan-chart" role="group" aria-label="Annual modeled exposure fan chart. Median line and p10 to p90 band. Exact sourced values are available in the annual data table below.">
+      <div className="fan-chart" role="group" aria-label="Annual modeled exposure fan chart. Median line, p50 to p90 band, and p99 line. Exact sourced values are available in the annual data table below.">
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
           <ComposedChart data={data} margin={{ top: 15, right: 18, bottom: 12, left: 8 }} accessibilityLayer>
             <CartesianGrid vertical={false} stroke="#303236" />
             <XAxis dataKey="year" tickLine={false} axisLine={{ stroke: '#404348' }} interval="preserveStartEnd" minTickGap={35} height={30} tick={<SourcedTick source={uiSource('contract_year; ordinal year in selected contract')} axis="x" />} />
             <YAxis domain={[0, maximum]} ticks={yTicks} axisLine={false} tickLine={false} width={44} tick={<SourcedTick source={uiSource('axis/hours_per_year; chart scale, not an observation')} axis="y" />} />
-            <Tooltip content={({ active, payload }) => <FanTooltip active={active} row={payload?.[0]?.payload as ChartRow | undefined} />} cursor={{ stroke: '#a4a9ae', strokeDasharray: '3 4' }} wrapperStyle={{ pointerEvents: 'auto', zIndex: 30 }} />
+            <Tooltip content={({ active, payload }) => <FanTooltip active={active} row={payload?.[0]?.payload as ChartRow | undefined} confidence={result.confidence} />} cursor={{ stroke: '#a4a9ae', strokeDasharray: '3 4' }} wrapperStyle={{ pointerEvents: 'auto', zIndex: 30 }} />
             <Area type="linear" dataKey="band" stroke="#6f767e" strokeOpacity={0.65} fill="#9aa3ac" fillOpacity={0.12} activeDot={false} animationDuration={280} isAnimationActive={!reducedMotion} />
             <Line type="linear" dataKey="median" stroke="#b9c2c9" strokeWidth={2} dot={data.length === 1 ? { r: 3 } : false} activeDot={{ r: 4, fill: '#b9c2c9', stroke: '#101214', strokeWidth: 2 }} animationDuration={280} isAnimationActive={!reducedMotion} />
+            <Line type="linear" dataKey="upper" stroke="#919ba4" strokeWidth={1} strokeDasharray="4 4" dot={data.length === 1 ? { r: 3 } : false} activeDot={{ r: 3 }} animationDuration={280} isAnimationActive={!reducedMotion} />
           </ComposedChart>
         </ResponsiveContainer>
       </div>
       </>}
       <div className="chart-bottom"><span className="eyebrow muted">{view === 'fan' ? 'CONTRACT YEAR' : 'SUPPLIED QUANTILES'}</span><button onClick={() => setTableOpen(!tableOpen)} className="text-button" aria-expanded={tableOpen} aria-controls="annual-values">{tableOpen ? 'Hide annual values' : 'Inspect annual values'}<ChevronDown size={12} className={tableOpen ? 'rotate-180' : ''} /></button></div>
-      {tableOpen && <div id="annual-values" className="annual-table-wrap"><table className="annual-table"><caption className="sr-only">Sourced annual modeled exposure in hours per year</caption><thead><tr><th>Year</th><th><Percentile value={10} /> h/yr</th><th><Percentile value={50} /> h/yr</th><th><Percentile value={90} /> h/yr</th><th><Percentile value={99} /> h/yr</th></tr></thead><tbody>{result.annual_series.map(row => <tr key={row.year.value}><td><Value datum={row.year} /></td><td><Value datum={row.p10} /></td><td><Value datum={row.p50} /></td><td><Value datum={row.p90} /></td><td><Value datum={row.p99} /></td></tr>)}</tbody></table></div>}
+      {tableOpen && <div id="annual-values" className="annual-table-wrap"><table className="annual-table"><caption className="sr-only">Sourced annual modeled exposure in hours per year</caption><thead><tr><th>Year</th><th><Percentile value={50} /> h/yr</th><th><Percentile value={90} /> h/yr</th><th><Percentile value={99} /> h/yr</th></tr></thead><tbody>{result.annual_series.map(row => <tr key={row.year.value}><td><Value datum={row.year} /></td><td><ExposureValue datum={row.p50} confidence={result.confidence} /></td><td><ExposureValue datum={row.p90} confidence={result.confidence} /></td><td><ExposureValue datum={row.p99} confidence={result.confidence} /></td></tr>)}</tbody></table></div>}
     </div>
     <div className="panel-footnote"><CircleHelp size={13} /><span>Annual summaries average each percentile across the selected term. They do not describe the distribution of total contract exposure.</span></div>
+    <div className="panel-footnote confidence-footnote"><CircleHelp size={13} /><span>Confidence describes support for an estimate, not the chance that the future matches it.{/^mock:/i.test(result.confidence.source.ref) && ' The mock confidence signal has not been computed by an ensemble.'}</span></div>
   </section>;
 }
 
@@ -204,6 +211,7 @@ function EconomicsPanel() {
       <div className="flow-connector"><ArrowDownRight size={14} /><span>Lost GPU-hours × value per GPU-hour</span></div>
       <div className="economics-row loss-row"><div><span className="economics-label">Modeled interruption cost</span><span className="economics-detail">Annual equivalent</span></div><span className="text-amber"><Value datum={e.annual_loss_usd} format={money} /> <small>/yr</small></span></div>
     </div>
+    <div className="economics-quantiles"><table><caption>MOCK ANNUAL COST SCENARIOS · USD / YEAR</caption><thead><tr>{([50, 90, 99] as const).map(percentile => <th key={percentile}><Percentile value={percentile} /></th>)}</tr></thead><tbody><tr>{(['p50', 'p90', 'p99'] as const).map(key => <td key={key}><Value datum={e.annual_loss_by_quantile[key]} format={money} /></td>)}</tr></tbody></table></div>
     <div className="term-ledger">
       <div className="ledger-heading">OVER YOUR <Sourced value={inputs.contract_years} source={sourceFor('contract_years')} format={integer.format} />-YEAR TERM</div>
       <div><span>Earlier-access contribution</span><Value datum={e.early_access_value_usd} format={signedMoney} className="text-mint" /></div>
@@ -212,7 +220,7 @@ function EconomicsPanel() {
     </div>
     <div className="decision-readout" role="status" aria-live="polite" aria-atomic="true">
       <div className="decision-icon">{state === 'positive' ? <ArrowUpRight size={22} /> : state === 'negative' ? <ArrowDownRight size={22} /> : <ArrowRight size={22} />}</div>
-      <div><span className="eyebrow">MOCK DECISION · UNDER THESE ASSUMPTIONS</span><h3>{decision}</h3><p>{state === 'positive' ? 'Earlier-access contribution exceeds modeled losses.' : state === 'negative' ? 'Modeled losses exceed earlier-access contribution.' : 'The modeled trade is near economic break-even.'}</p></div>
+      <div><span className="eyebrow">MOCK DECISION · UNDER THESE ASSUMPTIONS</span><h3>{decision}</h3><p>{state === 'positive' ? 'Earlier-access contribution exceeds the upper-tail term cost.' : state === 'negative' ? 'Median term cost exceeds earlier-access contribution.' : 'The quantiles straddle the trade-off or sit near break-even.'}</p></div>
     </div>
     <div className="break-even-row"><span>Break-even modeled exposure</span><strong>{e.break_even_exposure_hours.value === null ? 'No modeled cost' : <><Value datum={e.break_even_exposure_hours as SourcedValue} /> <small>h/yr</small></>}</strong></div>
   </section>;
@@ -228,14 +236,25 @@ function Assumptions() {
       <NumberField compact name="gpu_hour_value_usd" label="LOST COMPUTE VALUE" unit="$ / GPU-h" min={0} max={100} step={0.1} />
       <NumberField compact name="early_margin_usd_per_mw_year" label="EARLY OPERATING MARGIN" unit="$ / MW / yr" min={0} max={10000000} step={1000} />
     </div>
-    <div className="assumption-notes"><p><span className="note-label">VALUE OF TIME</span>Earlier contribution = total load × operating margin × earlier-access years, capped at your contract term. Interruption losses apply to the interruptible share across the full term.</p><p><span className="note-label">DECISION RULE</span>“Close call” means net value is within <Sourced value={result.decision_policy.close_call_fraction.value * 100} source={{ ...result.decision_policy.close_call_fraction, ref: `${result.decision_policy.close_call_fraction.ref}; display_percent = fraction * 100` }} format={integer.format} />% of earlier-access contribution. This scenario excludes discounting, restart overhead, and SLA penalties.</p></div>
+    <div className="assumption-notes"><p><span className="note-label">VALUE OF TIME</span>Earlier contribution = total load × operating margin × earlier-access years, capped at your contract term. Losses apply to the interruptible share across the full term. The ledger follows the median path; percentile paths are comparisons, not percentiles of total contract loss.</p><p><span className="note-label">DECISION RULE</span>Compare full-term costs with earlier-access contribution, using a <Sourced value={result.decision_policy.close_call_fraction.value * 100} source={{ ...result.decision_policy.close_call_fraction, ref: `${result.decision_policy.close_call_fraction.ref}; display_percent = fraction * 100` }} format={integer.format} />% margin: “not worth it” when <Percentile value={50} /> cost exceeds it; “worth it” when <Percentile value={90} /> cost stays below it; “close call” otherwise. This scenario excludes discounting, restart overhead, and SLA penalties.</p></div>
     {inputs.firm_wait_years > inputs.contract_years && <p className="assumption-notice">Earlier-access contribution is capped at <Sourced value={inputs.contract_years} source={sourceFor('contract_years')} /> years for this contract.</p>}
     <div className="honesty-note"><CircleHelp size={15} /><p><strong>A scenario, not a site forecast.</strong> All values are illustrative assumptions. Public grid data can establish system stress; local transmission headroom determines whether a specific site would be curtailed. A flexible share does not establish eligibility for a particular tariff.</p></div>
   </section>;
 }
 
+function TariffEvidence() {
+  const { result } = useScenario();
+  const { tariff } = result;
+  const mocked = tariff.curtailment_triggers.some(clause => /^mock:/i.test(clause.source.ref));
+  return <section className="tariff-panel" aria-labelledby="tariff-title">
+    <div className="panel-heading"><div className="flex items-center gap-2"><CircleHelp size={14} /><h2 id="tariff-title">Tariff evidence</h2></div><span className="eyebrow muted">{tariff.operator} / {tariff.service}</span></div>
+    {mocked && <p className="tariff-placeholder"><strong>MOCK TERMS</strong> These records are placeholders, not extracted contract clauses.</p>}
+    <div className="tariff-clauses">{tariff.curtailment_triggers.map((clause, index) => <div className="tariff-clause" key={`${clause.source.ref}-${index}`}><p>{clause.text} <SourceInfo value={clause.text} source={clause.source} label="Contract term provenance" /></p><span className="eyebrow muted">{clause.observable ? 'PUBLIC PROXY AVAILABLE' : 'NOT DIRECTLY OBSERVABLE'}</span></div>)}</div>
+  </section>;
+}
+
 function Workspace() {
-  return <div className="app-shell"><a className="skip-link" href="#main">Skip to analysis</a><Header /><main id="main"><Inputs /><ExposureControl /><div className="results-grid"><ExposurePanel /><EconomicsPanel /></div><Assumptions /></main><footer><span className="flex items-center gap-2"><Unplug size={12} />OFFLINE-READY FIXTURE · NO LIVE GRID DATA</span><span>Every number has a source. Hover, focus, or click its <span className="source-example">a</span> tag.</span></footer></div>;
+  return <div className="app-shell"><a className="skip-link" href="#main">Skip to analysis</a><Header /><main id="main"><Inputs /><ExposureControl /><div className="results-grid"><ExposurePanel /><EconomicsPanel /></div><Assumptions /><TariffEvidence /></main><footer><span className="flex items-center gap-2"><Unplug size={12} />OFFLINE-READY FIXTURE · NO LIVE GRID DATA</span><span>Every number has a source. Hover, focus, or click a value or source tag.</span></footer></div>;
 }
 
 export default function App() { return <ScenarioProvider><Workspace /></ScenarioProvider>; }

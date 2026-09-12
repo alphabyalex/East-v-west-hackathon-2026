@@ -7,29 +7,16 @@ export const mockAssumption = <T>(value: T, ref: string): SourcedValue<T> => ({
   ref: `mock://illustrative/${ref}`,
 })
 
-// Fixed fan-chart fixture: [year, p10, p50, p90, p99], in hours/year.
+// Fixed quantile fixture: [year, p50, p90, p99], in hours/year.
 // These tuples are authored demo values. No simulation or random sampling runs here.
 const baseline = [
-  [1, 102, 200, 336, 510],
-  [2, 104, 203, 344, 525],
-  [3, 108, 211, 352, 540],
-  [4, 105, 208, 358, 558],
-  [5, 112, 219, 372, 575],
-  [6, 114, 223, 381, 591],
-  [7, 117, 226, 393, 612],
-  [8, 116, 224, 401, 630],
-  [9, 121, 237, 415, 655],
-  [10, 125, 244, 428, 680],
-  [11, 124, 241, 440, 705],
-  [12, 129, 253, 452, 730],
-  [13, 130, 255, 466, 758],
-  [14, 132, 260, 480, 786],
-  [15, 131, 257, 491, 812],
-  [16, 135, 267, 505, 842],
-  [17, 138, 272, 519, 872],
-  [18, 139, 275, 531, 902],
-  [19, 141, 281, 546, 934],
-  [20, 144, 286, 560, 965],
+  [1, 200, 336, 510],
+  [2, 203, 344, 525],
+  [3, 211, 352, 540],
+  [4, 208, 358, 558],
+  [5, 219, 372, 575],
+  [6, 223, 381, 591],
+  [7, 226, 393, 612],
 ] as const
 
 // Labels identify SPP-region examples, not validated pricing nodes or interconnections.
@@ -42,7 +29,7 @@ const locations = [
 export const defaultInputs: ScenarioInputs = {
   location_id: 'spp-wichita-demo',
   load_mw: 100,
-  contract_years: 10,
+  contract_years: 7,
   flexibility_percent: 60,
   site_exposure: 0.4,
   // Round UI-development placeholders, not sourced economic estimates.
@@ -60,9 +47,8 @@ export const mockResponse: MockResponse = {
   locations: locations.map(({ id, label, scale }) => ({
     id,
     label,
-    annual_series: baseline.map(([year, p10, p50, p90, p99]) => ({
+    annual_series: baseline.map(([year, p50, p90, p99]) => ({
       year: mockAssumption(year, `locations/${id}/annual_series/${year}/year`),
-      p10: mockAssumption(p10 * scale, `locations/${id}/annual_series/${year}/p10-hours-per-year`),
       p50: mockAssumption(p50 * scale, `locations/${id}/annual_series/${year}/p50-hours-per-year`),
       p90: mockAssumption(p90 * scale, `locations/${id}/annual_series/${year}/p90-hours-per-year`),
       p99: mockAssumption(p99 * scale, `locations/${id}/annual_series/${year}/p99-hours-per-year`),

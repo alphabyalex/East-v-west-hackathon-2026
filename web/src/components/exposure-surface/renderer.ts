@@ -199,9 +199,9 @@ export function createSurfaceRenderer(host: HTMLDivElement, callbacks: Callbacks
     pointGeometry.setAttribute('position', new BufferAttribute(new Float32Array(positions), 3));
     points = new Points(pointGeometry, new PointsMaterial({ color: '#d0d8df', size: 4, sizeAttenuation: false }));
     dataGroup.add(points);
-    QUANTILES.forEach((_, quantileIndex) => {
+    QUANTILES.forEach((quantile, quantileIndex) => {
       const vertices = rows.flatMap((__, yearIndex) => Array.from(positions.subarray((yearIndex * QUANTILES.length + quantileIndex) * 3, (yearIndex * QUANTILES.length + quantileIndex) * 3 + 3)));
-      quantileLines.push(line(vertices, quantileIndex === 1 || quantileIndex === 3 ? '#d4dce2' : '#929da6', dataGroup) as Line<BufferGeometry, LineBasicMaterial>);
+      quantileLines.push(line(vertices, quantile === 50 || quantile === 99 ? '#d4dce2' : '#929da6', dataGroup) as Line<BufferGeometry, LineBasicMaterial>);
     });
     rows.forEach((_, yearIndex) => {
       yearLines.push(line(Array.from(positions.subarray(yearIndex * QUANTILES.length * 3, (yearIndex + 1) * QUANTILES.length * 3)), '#88959f', dataGroup) as Line<BufferGeometry, LineBasicMaterial>);

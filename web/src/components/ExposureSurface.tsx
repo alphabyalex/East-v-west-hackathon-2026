@@ -2,14 +2,15 @@ import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { ChevronLeft, ChevronRight, Minus, Plus, RotateCcw, RotateCw } from 'lucide-react';
 import type { BaselineYear, Source } from '../model';
 import { Sourced, SourceInfo } from './Sourced';
+import { ConfidenceBadge, type ConfidenceEstimate } from './ConfidenceBadge';
 import { QUANTILES, type SurfaceQuantile } from './exposure-surface/geometry';
 import { createSurfaceRenderer, type AxisLabel, type SurfaceController } from './exposure-surface/renderer';
 
-type Props = { rows: BaselineYear[]; maximumHours: number; onUnavailable: () => void };
+type Props = { rows: BaselineYear[]; maximumHours: number; confidence?: ConfidenceEstimate; onUnavailable: () => void };
 const quantileSource = (value: number): Source => ({ source_type: 'assumption', ref: `mock://display/surface/percentile/${value}; cumulative percentile, not probability density` });
 const hours = (value: number) => value.toLocaleString('en-US', { maximumFractionDigits: 1 });
 
-export default function ExposureSurface({ rows, maximumHours, onUnavailable }: Props) {
+export default function ExposureSurface({ rows, maximumHours, confidence, onUnavailable }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const controller = useRef<SurfaceController | null>(null);
   const unavailable = useRef(onUnavailable);
@@ -72,7 +73,7 @@ export default function ExposureSurface({ rows, maximumHours, onUnavailable }: P
     <div className="surface-inspector" aria-label="Selected supplied quantile">
       <div className="surface-inspector-year"><span className="eyebrow">YEAR</span><button onClick={() => setYearIndex(Math.max(0, currentYearIndex - 1))} disabled={currentYearIndex === 0} aria-label="Inspect previous year"><ChevronLeft size={13} /></button><Sourced value={row.year.value} source={row.year} animate={false} /><button onClick={() => setYearIndex(Math.min(rows.length - 1, currentYearIndex + 1))} disabled={currentYearIndex === rows.length - 1} aria-label="Inspect next year"><ChevronRight size={13} /></button></div>
       <div className="surface-quantile-controls" role="group" aria-label="Inspect percentile">{QUANTILES.map(value => <span key={value} className={quantile === value ? 'selected-quantile' : ''}><button onClick={() => setQuantile(value)} aria-pressed={quantile === value} aria-label={`Inspect p${value}`} title={JSON.stringify({ value, ...quantileSource(value) })}>p{value}</button><SourceInfo value={value} source={quantileSource(value)} label={`p${value} percentile definition`} /></span>)}</div>
-      <div className="surface-inspected-value"><Sourced value={quantile} source={quantileSource(quantile)} animate={false}>p{quantile}</Sourced><span>modeled exposure</span><strong><Sourced value={datum.value} source={datum} format={hours} /></strong><span>h/yr</span></div>
+      <div className="surface-inspected-value"><Sourced value={quantile} source={quantileSource(quantile)} animate={false}>p{quantile}</Sourced><span>modeled exposure</span><strong><Sourced value={datum.value} source={datum} format={hours} /></strong><span>h/yr</span>{confidence && <ConfidenceBadge confidence={confidence} compact />}</div>
     </div>
     <p className="surface-explanation">{rows.length === 1 ? 'A single-year quantile cross-section; no time surface is implied. ' : 'Faces connect supplied annual quantiles; intermediate positions are visual interpolation. '}Percentile spacing is proportional. This is not a probability-density estimate. Readouts are rounded; source tags retain exact values.</p>
   </div>;

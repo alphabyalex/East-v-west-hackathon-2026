@@ -1,4 +1,6 @@
-export type SourceType = 'data' | 'clause' | 'assumption'
+import type { EstimateResponse } from './contract'
+
+export type SourceType = 'data' | 'clause' | 'assumption' | 'model'
 
 export interface Source {
   source_type: SourceType
@@ -27,7 +29,6 @@ export type SourcedInputs = {
 
 export interface BaselineYear {
   year: SourcedValue
-  p10: SourcedValue
   p50: SourcedValue
   p90: SourcedValue
   p99: SourcedValue
@@ -54,10 +55,21 @@ export interface ScenarioResult {
     p99: SourcedValue
   }
   annual_series: BaselineYear[]
+  confidence: {
+    level: EstimateResponse['confidence']['level']
+    score: SourcedValue
+    basis: string
+    source: Source
+  }
+  worst_contiguous_exposure: SourcedValue
+  tariff: EstimateResponse['tariff']
+  canonical_response: EstimateResponse
   economics: {
     interruptible_mw: SourcedValue
     annual_lost_gpu_hours: SourcedValue
     annual_loss_usd: SourcedValue
+    annual_lost_gpu_hours_by_quantile: { p50: SourcedValue; p90: SourcedValue; p99: SourcedValue }
+    annual_loss_by_quantile: { p50: SourcedValue; p90: SourcedValue; p99: SourcedValue }
     term_loss_usd: SourcedValue
     early_access_value_usd: SourcedValue
     net_value_usd: SourcedValue

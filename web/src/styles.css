@@ -122,6 +122,12 @@ select option { background: #191b1e; font-size: 14px; }
 .dollar-icon { font-family: var(--font-mono); color: #afb8c0; font-size: 15px; }
 .economics-mock-notice { margin: 0; padding: 12px 20px; border-bottom: 1px solid #34373b; color: #aeb8c1; font-size: 11px; line-height: 1.6; }
 .economics-mock-notice strong { color: #d4bd96; font-weight: 500; }
+.economics-quantiles { margin: 0 20px 16px; }
+.economics-quantiles table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); }
+.economics-quantiles caption { text-align: left; color: #a6b1ba; font-size: 10px; padding-bottom: 9px; }
+.economics-quantiles th, .economics-quantiles td { text-align: right; padding: 7px 0 7px 8px; border-bottom: 1px solid #34373b; font-size: 11px; font-weight: 400; }
+.economics-quantiles th { color: #99a6af; }
+.economics-quantiles td { color: #d0d8df; }
 .economics-flow { padding: 20px 20px 16px; }
 .economics-row { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
 .economics-label { display: block; font-size: 11px; color: #c8cfd5; }
@@ -164,6 +170,13 @@ select option { background: #191b1e; font-size: 14px; }
 .honesty-note p { font-size: 10px; line-height: 1.7; margin: 0; }
 .honesty-note strong { color: #c4cfd7; font-weight: 500; }
 .honesty-note svg { flex-shrink: 0; margin-top: 2px; }
+.tariff-panel { border: 1px solid #34373b; border-top: 0; background: #151719; }
+.tariff-placeholder { color: #a8b3bc; padding: 12px 20px 0; font-size: 11px; line-height: 1.6; margin: 0; }
+.tariff-placeholder strong { font: 10px var(--font-mono); color: #d4bd96; margin-right: 10px; }
+.tariff-clauses { padding: 0 20px 8px; }
+.tariff-clause { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 18px; padding: 12px 0; border-bottom: 1px solid #34373b; }
+.tariff-clause:last-child { border-bottom: 0; }
+.tariff-clause p { color: #bbc5ce; font-size: 11px; line-height: 1.7; margin: 0; max-width: 80ch; }
 footer { display: flex; justify-content: space-between; gap: 18px; margin: 18px 0 22px; color: #929ea8; font-family: var(--font-mono); font-size: 10px; letter-spacing: .2px; line-height: 1.7; }
 footer > span:last-child { font-family: var(--font-sans); font-size: 10px; }
 
@@ -180,6 +193,16 @@ button.source-wrap { padding: 0; border: 0; background: transparent; text-align:
 .provenance-heading span:last-child { color: #a4b0ba; }
 .provenance-json { font: inherit; margin: 10px 0; }
 .provenance-hint { color: #a3afb9; font-size: 10px; }
+.provenance-description { color: #b5c0c9; font-size: 10px; line-height: 1.65; border-top: 1px solid #34373b; padding-top: 9px; }
+button.confidence-badge { font: 10px var(--font-mono); color: #aeb9c2; align-items: center; }
+.confidence-badge .sourced-value { display: inline-flex; align-items: center; gap: 6px; }
+.confidence-mock { color: #c6ad7b; font-size: 10px; }
+.confidence-compact .sourced-value { gap: 4px; }
+.metric > .confidence-badge { margin-top: 6px; }
+.exposure-value-with-confidence { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+.confidence-footnote { border-top: 0; padding-top: 0; }
+.legend-upper { border-top-style: dashed !important; opacity: .8; }
+.source-model { color: #b5c5d0; }
 .chart-tooltip { background: #191b1e; border: 1px solid #68737d; padding: 13px; min-width: 265px; font-size: 11px; }
 .chart-tooltip > .eyebrow { color: #d0dbe3; border-bottom: 1px solid #34373b; padding-bottom: 9px; margin-bottom: 10px; }
 .chart-tooltip > div:not(.eyebrow) { display: flex; justify-content: space-between; gap: 14px; margin: 9px 0; }

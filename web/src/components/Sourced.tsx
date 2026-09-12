@@ -17,6 +17,7 @@ type ProvenanceProps = {
   value: number | string
   source: Source
   label?: string
+  description?: string
 }
 
 export type SourcedProps = ProvenanceProps & {
@@ -42,7 +43,7 @@ const defaultFormat = (value: number) =>
   value.toLocaleString('en-US', { maximumFractionDigits: 2 })
 
 /** One popover behavior shared by inline values, input annotations, and SVG ticks. */
-function useProvenance({ value, source, label }: ProvenanceProps) {
+function useProvenance({ value, source, label, description }: ProvenanceProps) {
   const id = useId()
   const anchor = useRef<HTMLElement | SVGElement | null>(null)
   const popover = useRef<HTMLDivElement | null>(null)
@@ -129,7 +130,7 @@ function useProvenance({ value, source, label }: ProvenanceProps) {
       window.removeEventListener('resize', place)
       window.removeEventListener('scroll', place, true)
     }
-  }, [open, json, pinned])
+  }, [open, json, pinned, description])
 
   const togglePin = () => {
     setDismissed(false)
@@ -177,6 +178,7 @@ function useProvenance({ value, source, label }: ProvenanceProps) {
             <span>{pinned ? 'Pinned' : 'Provenance'}</span>
           </div>
           <pre className="provenance-json" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{json}</pre>
+          {description && <p className="provenance-description">{description}</p>}
           <span className="provenance-hint">{pinned ? 'Escape or click outside to dismiss' : 'Activate the value or its source tag to pin'}</span>
         </div>,
         document.body,
@@ -186,9 +188,9 @@ function useProvenance({ value, source, label }: ProvenanceProps) {
 }
 
 /** Numeric UI primitive. The original, unrounded value is retained in provenance. */
-export function Sourced({ value, source, format = defaultFormat, className = '', animate = true, children, label }: SourcedProps) {
+export function Sourced({ value, source, format = defaultFormat, className = '', animate = true, children, label, description }: SourcedProps) {
   const animated = useAnimatedNumber(typeof value === 'number' ? value : 0, animate && typeof value === 'number')
-  const provenance = useProvenance({ value, source, label })
+  const provenance = useProvenance({ value, source, label, description })
   return (
     <>
       <button
@@ -209,8 +211,8 @@ export function Sourced({ value, source, format = defaultFormat, className = '',
 }
 
 /** A compact provenance control placed beside a numeric input or range. */
-export function SourceInfo({ value, source, label }: SourceInfoProps) {
-  const provenance = useProvenance({ value, source, label })
+export function SourceInfo({ value, source, label, description }: SourceInfoProps) {
+  const provenance = useProvenance({ value, source, label, description })
   return (
     <>
       <button

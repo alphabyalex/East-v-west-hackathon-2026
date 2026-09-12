@@ -1,28 +1,27 @@
 import { describe, expect, it } from 'vitest'
-import { defaultInputs, deriveScenario, mockResponse, type BaselineYear } from '../../model'
+import type { BaselineYear, SourcedValue } from '../../model'
 import { buildSurfaceData, QUANTILES, SURFACE_SIZE } from './geometry'
 
-const makeRows = (contractYears = 3): BaselineYear[] => deriveScenario({
-  ...defaultInputs,
-  contract_years: contractYears,
-}).annual_series
+const sourced = (value: number, ref: string): SourcedValue => ({ value, source_type: 'assumption', ref })
+const makeRows = (contractYears = 3, siteExposure = 1): BaselineYear[] => Array.from({ length: contractYears }, (_, index) => ({
+  year: sourced(index + 1, `mock://geometry/year/${index + 1}`),
+  p50: sourced((100 + index * 10) * siteExposure, `mock://geometry/year/${index + 1}/p50`),
+  p90: sourced((300 + index * 15) * siteExposure, `mock://geometry/year/${index + 1}/p90`),
+  p99: sourced((500 + index * 20) * siteExposure, `mock://geometry/year/${index + 1}/p99`),
+}))
 
 describe('exposure quantile surface geometry', () => {
-  it.each(Array.from({ length: 20 }, (_, index) => index + 1))(
+  it.each(Array.from({ length: 7 }, (_, index) => index + 1))(
     'uses only supplied observations for a %i-year contract',
     (contractYears) => {
-      for (const location of mockResponse.locations) {
-        const rows = deriveScenario({
-          ...defaultInputs,
-          location_id: location.id,
-          contract_years: contractYears,
-        }).annual_series
+      for (const siteExposure of [0, 0.5, 1]) {
+        const rows = makeRows(contractYears, siteExposure)
         const surface = buildSurfaceData(rows, 1000)
         expect(surface.positions).toBeInstanceOf(Float32Array)
         expect(surface.indices).toBeInstanceOf(Uint32Array)
-        expect(surface.positions).toHaveLength(contractYears * 4 * 3)
-        expect(surface.samples).toHaveLength(contractYears * 4)
-        expect(surface.indices).toHaveLength((contractYears - 1) * 3 * 2 * 3)
+        expect(surface.positions).toHaveLength(contractYears * 3 * 3)
+        expect(surface.samples).toHaveLength(contractYears * 3)
+        expect(surface.indices).toHaveLength((contractYears - 1) * 2 * 2 * 3)
 
         surface.samples.forEach((sample, index) => {
           const yearIndex = Math.floor(index / QUANTILES.length)
@@ -50,9 +49,8 @@ describe('exposure quantile surface geometry', () => {
   it('connects adjacent supplied quantiles and years without adding samples', () => {
     const { indices } = buildSurfaceData(makeRows(2), 1000)
     expect(Array.from(indices)).toEqual([
-      0, 4, 1, 4, 5, 1,
-      1, 5, 2, 5, 6, 2,
-      2, 6, 3, 6, 7, 3,
+      0, 3, 1, 3, 4, 1,
+      1, 4, 2, 4, 5, 2,
     ])
   })
 
@@ -60,10 +58,9 @@ describe('exposure quantile surface geometry', () => {
     const { samples } = buildSurfaceData(makeRows(1), 1000)
     const depths = samples.map((sample) => sample.position[2])
     expect(depths[0]).toBe(SURFACE_SIZE.depth / 2)
-    expect(depths[3]).toBe(-SURFACE_SIZE.depth / 2)
-    expect(depths[0] - depths[1]).toBeCloseTo(40 / 89 * SURFACE_SIZE.depth, 12)
-    expect(depths[1] - depths[2]).toBeCloseTo(40 / 89 * SURFACE_SIZE.depth, 12)
-    expect(depths[2] - depths[3]).toBeCloseTo(9 / 89 * SURFACE_SIZE.depth, 12)
+    expect(depths[2]).toBe(-SURFACE_SIZE.depth / 2)
+    expect(depths[0] - depths[1]).toBeCloseTo(40 / 49 * SURFACE_SIZE.depth, 12)
+    expect(depths[1] - depths[2]).toBeCloseTo(9 / 49 * SURFACE_SIZE.depth, 12)
   })
 
   it('positions years by their real intervals rather than their array indices', () => {
@@ -82,16 +79,16 @@ describe('exposure quantile surface geometry', () => {
     scaled.samples.forEach((sample) => {
       expect(sample.position[1]).toBe(sample.exposure.value / 1000 * SURFACE_SIZE.height)
     })
-    const zeroRows = deriveScenario({ ...defaultInputs, site_exposure: 0 }).annual_series
+    const zeroRows = makeRows(7, 0)
     expect(buildSurfaceData(zeroRows, 1000).samples.every((sample) => sample.position[1] === 0))
       .toBe(true)
     const shorterAxis = buildSurfaceData(rows, 100)
-    expect(shorterAxis.samples[3].position[1]).toBe(rows[0].p99.value / 100 * SURFACE_SIZE.height)
+    expect(shorterAxis.samples[2].position[1]).toBe(rows[0].p99.value / 100 * SURFACE_SIZE.height)
   })
 
   it('shows a single supplied year as a slice without inventing any time width', () => {
     const surface = buildSurfaceData(makeRows(1), 1000)
-    expect(surface.samples).toHaveLength(4)
+    expect(surface.samples).toHaveLength(3)
     expect(surface.samples.every((sample) => sample.position[0] === 0)).toBe(true)
     expect(surface.indices).toHaveLength(0)
   })
@@ -102,8 +99,7 @@ describe('exposure quantile surface geometry', () => {
 
   it('rejects missing or unsupported contract horizons', () => {
     expect(() => buildSurfaceData([], 1000)).toThrow(RangeError)
-    const rows = makeRows(20)
-    expect(() => buildSurfaceData([...rows, rows[19]], 1000)).toThrow(RangeError)
+    expect(() => buildSurfaceData(makeRows(8), 1000)).toThrow(RangeError)
   })
 
   it.each([Number.NaN, Infinity, -Infinity, 1, 0])('rejects invalid or unordered year %s', (year) => {

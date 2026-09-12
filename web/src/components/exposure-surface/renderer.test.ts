@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock, type MockInstance } from 'vitest'
 import { BufferGeometry, Line, Mesh, OrthographicCamera, Points, Scene, type Material } from 'three'
-import { defaultInputs, deriveScenario } from '../../model'
+import type { BaselineYear, SourcedValue } from '../../model'
 import { createSurfaceRenderer, type SurfaceController } from './renderer'
 
 interface RendererDouble {
@@ -93,9 +93,13 @@ function mount() {
   return { host, callbacks, controller, renderer, scene, camera, surface }
 }
 
-const rows = (siteExposure = 1, contractYears = 2) => deriveScenario({
-  ...defaultInputs, site_exposure: siteExposure, contract_years: contractYears,
-}).annual_series
+const sourced = (value: number, ref: string): SourcedValue => ({ value, source_type: 'assumption', ref })
+const rows = (siteExposure = 1, contractYears = 2): BaselineYear[] => Array.from({ length: contractYears }, (_, index) => ({
+  year: sourced(index + 1, `mock://renderer/year/${index + 1}`),
+  p50: sourced((100 + index * 10) * siteExposure, `mock://renderer/year/${index + 1}/p50`),
+  p90: sourced((300 + index * 15) * siteExposure, `mock://renderer/year/${index + 1}/p90`),
+  p99: sourced((500 + index * 20) * siteExposure, `mock://renderer/year/${index + 1}/p99`),
+}))
 
 function flushFrame(time: number) {
   const frames = [...pendingFrames.values()]
@@ -109,19 +113,19 @@ describe('exposure surface renderer', () => {
     const fullExposure = rows()
     controller.update(fullExposure, 1000)
     const geometry = surface().geometry
-    expect(geometry.index!.count).toBe(18)
+    expect(geometry.index!.count).toBe(12)
     const positions = geometry.getAttribute('position')
-    fullExposure.flatMap(row => [row.p10, row.p50, row.p90, row.p99]).forEach((datum, index) => {
+    fullExposure.flatMap(row => [row.p50, row.p90, row.p99]).forEach((datum, index) => {
       expect(positions.getY(index)).toBeCloseTo(datum.value / 1000 * 5, 5)
     })
-    controller.select(6)
+    controller.select(4)
     let selection: Points<BufferGeometry> | undefined
     let guide: Line<BufferGeometry> | undefined
     scene.traverse(object => {
       if (object instanceof Points && object.renderOrder === 5) selection = object
       if (object instanceof Line && object.renderOrder === 4) guide = object
     })
-    const vertex = [positions.getX(6), positions.getY(6), positions.getZ(6)]
+    const vertex = [positions.getX(4), positions.getY(4), positions.getZ(4)]
     expect(Array.from(selection!.geometry.getAttribute('position').array)).toEqual(vertex)
     const guideVertices = Array.from(guide!.geometry.getAttribute('position').array)
     expect(guideVertices.slice(3)).toEqual(vertex)
@@ -154,7 +158,7 @@ describe('exposure surface renderer', () => {
 
   it('projects finite sourced axis labels and updates their positions when the viewport changes', () => {
     const { controller, callbacks, host, renderer } = mount()
-    const annualRows = rows(1, 10)
+    const annualRows = rows(1, 7)
     controller.update(annualRows, 1000)
     const labels = callbacks.labels.mock.lastCall![0]
     expect(new Set(labels.map((label: { kind: string }) => label.kind)))
@@ -186,12 +190,12 @@ describe('exposure surface renderer', () => {
     controller.update(rows(1, 1), 1000)
     expect(surface().geometry.index!.count).toBe(0)
     const positions = surface().geometry.getAttribute('position')
-    expect(positions.count).toBe(4)
+    expect(positions.count).toBe(3)
     for (let index = 0; index < positions.count; index++) expect(positions.getX(index)).toBe(0)
-    controller.select(3)
+    controller.select(2)
     let marker: Points<BufferGeometry> | undefined
     scene.traverse(object => { if (object instanceof Points && object.renderOrder === 5) marker = object })
-    expect(marker!.geometry.getAttribute('position').getY(0)).toBe(positions.getY(3))
+    expect(marker!.geometry.getAttribute('position').getY(0)).toBe(positions.getY(2))
   })
 
   it('animates only data updates, reaches the exact target, and cancels pending work when disposed', () => {
@@ -202,14 +206,14 @@ describe('exposure surface renderer', () => {
     expect(pendingFrames.size).toBe(0)
     controller.update(rows(1), 1000)
     expect(pendingFrames.size).toBe(1)
-    expect(surface().geometry.getAttribute('position').getY(3)).toBe(0)
+    expect(surface().geometry.getAttribute('position').getY(2)).toBe(0)
     flushFrame(1140)
-    const intermediate = surface().geometry.getAttribute('position').getY(3)
+    const intermediate = surface().geometry.getAttribute('position').getY(2)
     const target = rows(1)[0].p99.value / 1000 * 5
     expect(intermediate).toBeGreaterThan(0)
     expect(intermediate).toBeLessThan(target)
     flushFrame(1280)
-    expect(surface().geometry.getAttribute('position').getY(3)).toBeCloseTo(target, 5)
+    expect(surface().geometry.getAttribute('position').getY(2)).toBeCloseTo(target, 5)
     expect(pendingFrames.size).toBe(0)
     controller.update(rows(0), 1000)
     expect(pendingFrames.size).toBe(1)
