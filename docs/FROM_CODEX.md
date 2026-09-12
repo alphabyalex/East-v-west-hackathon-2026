@@ -21,3 +21,7 @@
 - Changed: completed shell and institutional visual pass, ready to share on Alex and main at https://github.com/alphabyalex/East-v-west-hackathon-2026. Exact mock response and integration notes remain linked above.
 - Validation: `npm run build` passed (TypeScript + Vite); `npm test` passed all 13 tests; local dev server returns HTTP 200; `git diff --check` passed. Vite reports the expected large Recharts-containing bundle warning; build succeeds and all runtime assets are local. Source scan confirms no banned visual effects.
 - Needs review: visual browser QA remains unverified. Collaborator invitations remain manual because gh is not installed. Kristian and Tharun stay at their initial branch commit a47a618; subsequent publication targets only Alex and main.
+
+## Generated cache excluded — 2026-09-12
+- Changed: added `web/.gitignore` for Vite's local `.vite/` cache after final branch verification. Runtime code and the verified build are unchanged.
+- New/changed interface: none.
