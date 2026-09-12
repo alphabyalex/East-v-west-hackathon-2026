@@ -25,3 +25,8 @@
 ## Generated cache excluded — 2026-09-12
 - Changed: added `web/.gitignore` for Vite's local `.vite/` cache after final branch verification. Runtime code and the verified build are unchanged.
 - New/changed interface: none.
+
+## Shared build contract published directly to main — 2026-09-12 20:52 UTC
+- Changed: published the user-supplied docs/BUILD_PLAN.md unchanged to main at https://github.com/alphabyalex/East-v-west-hackathon-2026/blob/main/docs/BUILD_PLAN.md, using an isolated checkout. This documentation publication is outside /web and is explicitly requested by Alex; frontend work remains on Alex.
+- New/changed interface: BUILD_PLAN.md is now the canonical shared contract for pipeline parquet/function output, POST /api/estimate, and frontend consumption. Its section 2 supersedes the earlier illustrative frontend API shape; the existing shell has not yet been migrated to it.
+- Needs review: coordinate reconciliation of docs/frontend-api-contract.md and the frontend adapter with Alex/Kristian/Tharun. The canonical response adds confidence and model provenance, uses term_years and fractional flexibility_split, and provides p50/p90/p99 rather than p10. Publication does not claim this endpoint is implemented.
