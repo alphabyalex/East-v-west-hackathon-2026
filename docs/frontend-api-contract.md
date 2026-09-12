@@ -1,8 +1,18 @@
-# Frontend scenario contract
+# Current illustrative frontend fixture
+
+**The shared API contract is now [BUILD_PLAN.md](BUILD_PLAN.md), section 2 (`POST /api/estimate`).** It supersedes this document as the contract for the real endpoint. This document records the existing local shell and its arithmetic so the migration is explicit; the shell has not yet been migrated to the new endpoint shape.
 
 The current app imports a local, deterministic fixture. It makes no backend calls and performs no training or Monte Carlo sampling in the browser. All fixture values and results have `source_type: "assumption"` with `mock://illustrative/` references. These references name the demo assumptions; they are not citations to measurements, tariffs, or a fitted model.
 
-The complete, valid JSON response to match is [web/src/model/mock-response.json](../web/src/model/mock-response.json). The app's typed fixture is [web/src/model/fixture.ts](../web/src/model/fixture.ts); a test checks that both stay identical. Public TypeScript types are in [web/src/model/types.ts](../web/src/model/types.ts). A future read-only FastAPI endpoint can return that JSON shape. No endpoint URL is committed by this shell.
+The current fixture JSON is [web/src/model/mock-response.json](../web/src/model/mock-response.json). The app's typed fixture is [web/src/model/fixture.ts](../web/src/model/fixture.ts); a test checks that both stay identical. Public TypeScript types are in [web/src/model/types.ts](../web/src/model/types.ts). These are internal shell types, not a replacement for the shared endpoint contract.
+
+## Pending canonical API migration
+
+- Map `contract_years` to request `term_years`, and `flexibility_percent / 100` to request `flexibility_split`. Use pipeline-validated location IDs and the precomputed horizon from the shared contract.
+- Consume `modeled_exposure.by_year`, `confidence`, `economics`, and `tariff` from the canonical response. Its exposure quantiles are already scaled by the API's `site_exposure`; do not scale them a second time in the browser. Keep slider updates immediate using a matching local mock adapter until the endpoint is available.
+- Carry each response block's source into the `Sourced` view primitives, retain `inputs_echo` as assumptions, and extend provenance to support `source_type: "model"`. Render confidence from its supplied level/score/basis, never infer it from the quantile spread.
+- The canonical response supplies p50/p90/p99, with no p10. The current fixture supports a p10–p90 fan and a four-quantile surface. During migration, show the supplied three-quantile surface and an explicitly labeled supported band, or obtain a documented additive p10 field. Do not invent p10 or reconstruct a probability density.
+- Replace the shell's economics with the canonical economics block once sourced assumptions are available. Review annual versus contract-total comparison units and the rounding/provenance of example numbers during integration; the shared contract is published unchanged.
 
 ## Response structure
 
@@ -122,7 +132,7 @@ The React state uses a plain `ScenarioInputs` object, derived from `defaults` by
 type DerivedScenario = {
   inputs: { [K in keyof ScenarioInputs]: SourcedValue<ScenarioInputs[K]> };
   annual_exposure: { p50: SV; p90: SV; p99: SV };
-  annual_series: Array<{ year: SV; p10: SV; p50: SV; p90: SV }>;
+  annual_series: Array<{ year: SV; p10: SV; p50: SV; p90: SV; p99: SV }>;
   economics: {
     interruptible_mw: SV;
     annual_lost_gpu_hours: SV;
@@ -140,6 +150,14 @@ type SV = SourcedValue<number>;
 ```
 
 The calculation is deliberately transparent. Let `N` be contract years and `e` be site exposure. Each displayed year/quantile is its baseline quantile multiplied by `e`. `annual_exposure.pXX` is the arithmetic mean of these selected yearly `pXX` values. It is an annualized summary of marginal quantile paths: **it is not a quantile of the sum or mean of a stochastic multiyear trajectory.** Those joint-distribution results require precomputed paths from the offline pipeline.
+
+### Exposure surface coordinates
+
+The three-dimensional chart consumes the derived `annual_series` directly. Its axes are relative contract year (`x`), modeled exposure in hours/year (height, `y`), and percentile (`z`). Each year supplies four vertices at percentiles `10`, `50`, `90`, and `99`; percentile positions use proportional spacing, so the gap between `90` and `99` is smaller than the gap between `50` and `90`. Each vertex retains its sourced year and sourced quantile value for inspection.
+
+Adjacent supplied vertices are connected piecewise-linearly for visual display. These connections do not reconstruct a probability density, add simulated samples, or establish a multiyear joint distribution. Only supplied quantile vertices are numerical observations of the fixture; the connecting surface is display geometry. With a one-year horizon, the chart shows that year's quantile cross-section without inventing a second year or an artificial time width. The existing fixture is illustrative and is not the output of a fitted Monte Carlo model.
+
+The sourced `p99` field is now preserved in the derived yearly rows alongside `p10`, `p50`, and `p90`; it uses the same site-exposure multiplication and derivation-reference format. The upstream JSON response already contained yearly `p99`, so this chart requires no fixture or response-schema change. A true probability-density surface would require separate density bins or sample information from the offline pipeline, with provenance; four quantiles alone do not define it.
 
 The economics follow the illustrative median path:
 

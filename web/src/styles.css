@@ -188,6 +188,58 @@ button.source-wrap { padding: 0; border: 0; background: transparent; text-align:
 .annual-table th, .annual-table td { padding: 9px 10px; border-bottom: 1px solid #34373b; }
 .annual-table th:first-child, .annual-table td:first-child { text-align: left; }
 .annual-table td { color: #c9d5de; }
+.chart-view-controls { display: flex; flex-shrink: 0; border: 1px solid #434a50; }
+.chart-view-controls button { padding: 6px 9px; font-size: 10px; color: #9eaab4; background: transparent; }
+.chart-view-controls button + button { border-left: 1px solid #434a50; }
+.chart-view-controls button[aria-pressed="true"] { color: #e3e7ea; background: #2a3035; }
+.chart-view-controls button:hover { color: #e3e7ea; }
+.fan-legend { justify-content: flex-end; margin-top: 14px; }
+.surface-view { margin-top: 15px; }
+.surface-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 9px; color: #98a5af; font-size: 10px; }
+.surface-camera-controls { display: flex; align-items: center; gap: 3px; }
+.surface-camera-controls button, .surface-inspector-year > button:not(.source-wrap) { display: inline-flex; align-items: center; justify-content: center; padding: 5px; min-width: 24px; height: 24px; border: 1px solid #40474e; color: #adb8c1; background: #191d21; }
+.surface-camera-controls button:hover, .surface-inspector-year > button:not(.source-wrap):hover { color: #e4e9ed; border-color: #76828c; }
+.surface-camera-controls .surface-reset { font-size: 10px; padding: 5px 8px; margin-left: 4px; }
+.surface-axis-key { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; font: 10px var(--font-mono); color: #9da9b3; letter-spacing: .2px; margin: 15px 0 0; }
+.surface-stage { position: relative; height: 305px; isolation: isolate; }
+.surface-canvas, .surface-axis-labels { position: absolute; inset: 0; }
+.surface-canvas canvas { display: block; width: 100%; height: 100%; cursor: grab; }
+.surface-canvas canvas:active { cursor: grabbing; }
+.surface-axis-labels { pointer-events: none; }
+.surface-label-leaders { position: absolute; inset: 0; pointer-events: none; }
+.surface-axis-label { position: absolute; transform: translate(-50%, -50%); font: 10px var(--font-mono); color: #bac6d0; white-space: nowrap; }
+.surface-axis-label .source-wrap { pointer-events: auto; background: #151719; padding: 1px 2px; }
+.surface-axis-label .source-mark { min-width: 10px; width: 10px; height: 10px; font-size: 7px; }
+.surface-inspector { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 9px 14px; border-top: 1px solid #424950; border-bottom: 1px solid #424950; padding: 10px 0; }
+.surface-inspector-year { display: flex; align-items: center; gap: 7px; color: #c3cdd5; font: 11px var(--font-mono); }
+.surface-inspector-year .eyebrow { color: #98a5af; margin-right: 2px; }
+.surface-inspector-year > button:disabled { opacity: .35; }
+.surface-quantile-controls { display: flex; gap: 6px; align-items: center; }
+.surface-quantile-controls > span { display: flex; align-items: center; gap: 3px; border-bottom: 1px solid transparent; padding: 3px 0; }
+.surface-quantile-controls > span.selected-quantile { border-color: #c6ad7b; }
+.surface-quantile-controls > span > button:first-child { padding: 2px 3px; font: 10px var(--font-mono); color: #a2afb9; }
+.surface-quantile-controls > span > button[aria-pressed="true"] { color: #d4bd96; }
+.surface-inspected-value { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: baseline; gap: 7px; font-size: 10px; color: #aab7c1; }
+.surface-inspected-value > strong { margin-left: auto; color: #d5bd95; font: 19px var(--font-mono); font-weight: 400; }
+.surface-inspected-value > .source-wrap { font-family: var(--font-mono); }
+.surface-explanation { color: #9eabb5; font-size: 10px; line-height: 1.65; margin: 10px 0 15px; }
+.surface-fallback { color: #c6ad7b; font-size: 10px; line-height: 1.6; border-left: 1px solid #6f614a; padding-left: 9px; margin: 15px 0 5px; }
+.surface-loading { display: flex; align-items: center; justify-content: center; color: #a0adb7; height: 360px; font: 11px var(--font-mono); }
+@media (min-width: 1450px) { .surface-stage { height: 330px; } }
+@media (max-width: 600px) {
+  .surface-stage { height: 285px; }
+  .surface-toolbar { gap: 9px; }
+  .surface-camera-controls { margin-left: auto; }
+  .surface-axis-key { line-height: 1.5; gap: 3px; }
+  .surface-axis-key > span { width: 100%; }
+  .surface-axis-label { font-size: 10px; }
+  .surface-axis-label .source-mark { display: none; }
+  .surface-axis-label .source-wrap { text-decoration: underline dotted #626c75; text-underline-offset: 3px; }
+  .surface-inspector { justify-content: flex-start; gap: 8px; }
+  .surface-quantile-controls { margin-left: auto; gap: 5px; }
+  .annual-table { font-size: 10px; }
+  .annual-table th, .annual-table td { padding: 9px 4px; }
+}
 .skip-link { position: fixed; top: -100px; left: 12px; z-index: 2000; background: #d1d9df; color: #101214; padding: 10px 15px; }
 .skip-link:focus { top: 8px; }
 

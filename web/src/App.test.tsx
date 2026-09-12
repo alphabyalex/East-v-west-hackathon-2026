@@ -18,6 +18,24 @@ beforeAll(() => {
 afterEach(cleanup);
 
 describe('scenario workspace interactions', () => {
+  it('falls back without WebGL and keeps the upper-tail source available after recomputation', async () => {
+    render(<App />);
+    expect(await screen.findByText(/Interactive surface unavailable on this device/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Fan chart' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('group', { name: /Annual modeled exposure fan chart/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Inspect annual values' }));
+    const table = screen.getByRole('table');
+    expect(within(table).getAllByRole('columnheader')).toHaveLength(5);
+    fireEvent.change(screen.getByRole('slider', { name: 'Site exposure factor' }), { target: { value: '0' } });
+    const upperTail = within(table).getAllByRole('cell')[4];
+    fireEvent.click(within(upperTail).getByRole('button'));
+    const provenance = JSON.parse(screen.getByRole('tooltip').querySelector('pre')!.textContent!);
+    expect(provenance.value).toBe(0);
+    expect(provenance.source_type).toBe('assumption');
+    expect(provenance.ref).toContain('p99');
+    expect(provenance.ref).toContain('site_exposure=0');
+  });
+
   it('moves through every decision state and resets the scenario', () => {
     render(<App />);
     const slider = screen.getByRole('slider', { name: 'Site exposure factor' });

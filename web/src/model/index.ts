@@ -70,6 +70,7 @@ export function deriveScenario(inputs: ScenarioInputs): ScenarioResult {
       p10: derived(row.p10.value * inputs.site_exposure, `annual_series/${row.year.value}/p10`),
       p50: derived(row.p50.value * inputs.site_exposure, `annual_series/${row.year.value}/p50`),
       p90: derived(row.p90.value * inputs.site_exposure, `annual_series/${row.year.value}/p90`),
+      p99: derived(row.p99.value * inputs.site_exposure, `annual_series/${row.year.value}/p99`),
     })),
     economics: {
       interruptible_mw: derived(interruptibleMw, 'economics/interruptible_mw'),

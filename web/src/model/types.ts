@@ -53,7 +53,7 @@ export interface ScenarioResult {
     p90: SourcedValue
     p99: SourcedValue
   }
-  annual_series: Array<Omit<BaselineYear, 'p99'>>
+  annual_series: BaselineYear[]
   economics: {
     interruptible_mw: SourcedValue
     annual_lost_gpu_hours: SourcedValue

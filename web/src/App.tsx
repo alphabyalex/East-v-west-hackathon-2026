@@ -1,9 +1,17 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { Component, lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, Check, ChevronDown, CircleHelp, Download, Gauge, MapPin, RotateCcw, SlidersHorizontal, Unplug, Zap } from 'lucide-react';
 import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { ScenarioProvider, useScenario } from './ScenarioContext';
 import { Sourced, SourceInfo, SourcedTick } from './components/Sourced';
 import { deriveScenario, mockResponse, type ScenarioInputs, type Source, type SourcedValue } from './model';
+
+const ExposureSurface = lazy(() => import('./components/ExposureSurface'));
+class SurfaceBoundary extends Component<{ children: ReactNode; onUnavailable: () => void }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch() { this.props.onUnavailable(); }
+  render() { return this.state.failed ? null : this.props.children; }
+}
 
 const numeric = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 });
 const integer = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
@@ -133,6 +141,8 @@ function FanTooltip({ active, row }: { active?: boolean; row?: ChartRow }) {
 function ExposurePanel() {
   const { result, inputs } = useScenario();
   const [tableOpen, setTableOpen] = useState(false);
+  const [view, setView] = useState<'surface' | 'fan'>('surface');
+  const [surfaceUnavailable, setSurfaceUnavailable] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   useEffect(() => {
     const query = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -143,7 +153,9 @@ function ExposurePanel() {
   const data: ChartRow[] = result.annual_series.map(row => ({ year: row.year.value, band: [row.p10.value, row.p90.value], median: row.p50.value, original: row }));
   const baseline = deriveScenario({ ...inputs, site_exposure: 1 });
   const maximum = Math.ceil(Math.max(...baseline.annual_series.map(row => row.p90.value)) / 100) * 100;
+  const surfaceMaximum = Math.ceil(Math.max(...baseline.annual_series.map(row => row.p99.value)) / 100) * 100;
   const yTicks = Array.from({ length: 5 }, (_, i) => maximum * i / 4);
+  const showFallback = () => { setSurfaceUnavailable(true); setView('fan'); };
   return <section className="panel exposure-panel" aria-labelledby="exposure-panel-title">
     <div className="panel-heading"><div className="flex items-center gap-2"><Activity size={15} className="muted" /><h2 id="exposure-panel-title">Modeled exposure</h2></div><span className="eyebrow muted">HOURS / YEAR</span></div>
     <div className="metric-row">
@@ -153,7 +165,10 @@ function ExposurePanel() {
       </div>)}
     </div>
     <div className="chart-section">
-      <div className="chart-heading"><div><h3>Exposure over the contract term</h3><p>Illustrative Monte Carlo fan · fixed annual quantiles</p></div><div className="chart-legend"><span><i className="legend-line" /><Percentile value={50} /></span><span><i className="legend-band" /><Percentile value={10} />–<Percentile value={90} /></span></div></div>
+      <div className="chart-heading"><div><h3>Exposure over the contract term</h3><p>Illustrative quantiles · fixed inputs · no live simulation</p></div><div className="chart-view-controls" role="group" aria-label="Exposure visualization"><button aria-pressed={view === 'surface'} onClick={() => { setSurfaceUnavailable(false); setView('surface'); }}>Surface</button><button aria-pressed={view === 'fan'} onClick={() => setView('fan')}>Fan chart</button></div></div>
+      {surfaceUnavailable && <p className="surface-fallback" role="status">Interactive surface unavailable on this device. Fan chart shown; exact sourced values remain below.</p>}
+      {view === 'surface' ? <SurfaceBoundary onUnavailable={showFallback}><Suspense fallback={<div className="surface-loading" role="status">Preparing exposure surface…</div>}><ExposureSurface rows={result.annual_series} maximumHours={surfaceMaximum} onUnavailable={showFallback} /></Suspense></SurfaceBoundary> : <>
+      <div className="chart-legend fan-legend"><span><i className="legend-line" /><Percentile value={50} /></span><span><i className="legend-band" /><Percentile value={10} />–<Percentile value={90} /></span></div>
       <div className="axis-caption">MODELED EXPOSURE · H/YR</div>
       <div className="fan-chart" role="group" aria-label="Annual modeled exposure fan chart. Median line and p10 to p90 band. Exact sourced values are available in the annual data table below.">
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
@@ -167,8 +182,9 @@ function ExposurePanel() {
           </ComposedChart>
         </ResponsiveContainer>
       </div>
-      <div className="chart-bottom"><span className="eyebrow muted">CONTRACT YEAR</span><button onClick={() => setTableOpen(!tableOpen)} className="text-button" aria-expanded={tableOpen} aria-controls="annual-values">{tableOpen ? 'Hide annual values' : 'Inspect annual values'}<ChevronDown size={12} className={tableOpen ? 'rotate-180' : ''} /></button></div>
-      {tableOpen && <div id="annual-values" className="annual-table-wrap"><table className="annual-table"><caption className="sr-only">Sourced annual modeled exposure in hours per year</caption><thead><tr><th>Year</th><th><Percentile value={10} /> h/yr</th><th><Percentile value={50} /> h/yr</th><th><Percentile value={90} /> h/yr</th></tr></thead><tbody>{result.annual_series.map(row => <tr key={row.year.value}><td><Value datum={row.year} /></td><td><Value datum={row.p10} /></td><td><Value datum={row.p50} /></td><td><Value datum={row.p90} /></td></tr>)}</tbody></table></div>}
+      </>}
+      <div className="chart-bottom"><span className="eyebrow muted">{view === 'fan' ? 'CONTRACT YEAR' : 'SUPPLIED QUANTILES'}</span><button onClick={() => setTableOpen(!tableOpen)} className="text-button" aria-expanded={tableOpen} aria-controls="annual-values">{tableOpen ? 'Hide annual values' : 'Inspect annual values'}<ChevronDown size={12} className={tableOpen ? 'rotate-180' : ''} /></button></div>
+      {tableOpen && <div id="annual-values" className="annual-table-wrap"><table className="annual-table"><caption className="sr-only">Sourced annual modeled exposure in hours per year</caption><thead><tr><th>Year</th><th><Percentile value={10} /> h/yr</th><th><Percentile value={50} /> h/yr</th><th><Percentile value={90} /> h/yr</th><th><Percentile value={99} /> h/yr</th></tr></thead><tbody>{result.annual_series.map(row => <tr key={row.year.value}><td><Value datum={row.year} /></td><td><Value datum={row.p10} /></td><td><Value datum={row.p50} /></td><td><Value datum={row.p90} /></td><td><Value datum={row.p99} /></td></tr>)}</tbody></table></div>}
     </div>
     <div className="panel-footnote"><CircleHelp size={13} /><span>Annual summaries average each percentile across the selected term. They do not describe the distribution of total contract exposure.</span></div>
   </section>;

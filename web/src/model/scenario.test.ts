@@ -15,17 +15,34 @@ describe('illustrative scenario arithmetic', () => {
     expect(result.economics.net_value_usd.value).toBe(result.economics.early_access_value_usd.value)
   })
 
-  it('preserves quantile ordering and scales all exposure quantiles linearly', () => {
-    const half = deriveScenario({ ...defaultInputs, site_exposure: 0.5 })
-    const full = deriveScenario({ ...defaultInputs, site_exposure: 1 })
-    half.annual_series.forEach((row, index) => {
-      expect(row.p10.value).toBeLessThanOrEqual(row.p50.value)
-      expect(row.p50.value).toBeLessThanOrEqual(row.p90.value)
-      expect(row.p50.value * 2).toBe(full.annual_series[index].p50.value)
-      expect(row.p90.value * 2).toBe(full.annual_series[index].p90.value)
+  it.each([0, 0.4, 1])('scales and sources every yearly quantile at site exposure %s', (siteExposure) => {
+    const quantiles = ['p10', 'p50', 'p90', 'p99'] as const
+    mockResponse.locations.forEach((location) => {
+      const result = deriveScenario({
+        ...defaultInputs,
+        location_id: location.id,
+        contract_years: 20,
+        site_exposure: siteExposure,
+      })
+      expect(result.annual_series).toHaveLength(location.annual_series.length)
+      result.annual_series.forEach((row, index) => {
+        const baseline = location.annual_series[index]
+        expect(row.year).toEqual(baseline.year)
+        const values = quantiles.map((quantile) => row[quantile].value)
+        expect(values).toEqual([...values].sort((left, right) => left - right))
+        quantiles.forEach((quantile) => {
+          const sourced = row[quantile]
+          expect(sourced.value).toBeCloseTo(baseline[quantile].value * siteExposure, 12)
+          expect(sourced.source_type).toBe('assumption')
+          const ref = new URL(sourced.ref)
+          expect(ref.protocol).toBe('mock:')
+          expect(ref.host).toBe('illustrative')
+          expect(ref.pathname).toBe(`/derived/annual_series/${baseline.year.value}/${quantile}`)
+          expect(ref.searchParams.get('location_id')).toBe(location.id)
+          expect(ref.searchParams.get('site_exposure')).toBe(String(siteExposure))
+        })
+      })
     })
-    expect(half.annual_exposure.p90.value).toBeLessThanOrEqual(half.annual_exposure.p99.value)
-    expect(half.economics.term_loss_usd.value * 2).toBe(full.economics.term_loss_usd.value)
   })
 
   it('converts interrupted load into GPU-hours and dollars using explicit assumptions', () => {
