@@ -30,3 +30,13 @@
 - Changed: Alex authorized checking Kristian/Tharun after major checkpoints, reviewing and merging ready teammate work into Alex, validating the combined changes, and pushing Alex. Teammate branches remain owned by their authors and will not receive Codex pushes.
 - New/changed interface: coordination workflow only; no API changes. Current remote check found both teammate branches still at a47a618, so there is no new work to merge.
 - Needs review: the expanded Frontend direction is now present in the local AGENTS.md and has been read in full. That file's existing uncommitted update was left untouched and unstaged.
+
+## Shared build contract published directly to main — 2026-09-12 20:52 UTC
+- Changed: published the user-supplied docs/BUILD_PLAN.md unchanged to main at https://github.com/alphabyalex/East-v-west-hackathon-2026/blob/main/docs/BUILD_PLAN.md, using an isolated checkout. This documentation publication is outside /web and is explicitly requested by Alex; frontend work remains on Alex.
+- New/changed interface: BUILD_PLAN.md is now the canonical shared contract for pipeline parquet/function output, POST /api/estimate, and frontend consumption. Its section 2 supersedes the earlier illustrative frontend API shape; the existing shell has not yet been migrated to it.
+- Needs review: coordinate reconciliation of docs/frontend-api-contract.md and the frontend adapter with Alex/Kristian/Tharun. The canonical response adds confidence and model provenance, uses term_years and fractional flexibility_split, and provides p50/p90/p99 rather than p10. Publication does not claim this endpoint is implemented.
+
+## Updated team roles and main integration — 2026-09-12
+- Changed: re-read the full updated AGENTS.md and FROM_CLAUDE.md. Codex is building the frontend alongside Tharun; Alex owns backend/API/wiring and Kristian owns ML. Role bleed is normal and changes outside /web will be logged here. Integrated the published main contract into Alex, retaining both branches' handoff entries.
+- New/changed interface: current coordination follows the updated main-first integration policy: inspect main for shared teammate merges and integrate those updates into Alex; never push Kristian or Tharun. The remote checkpoint found no new teammate commits beyond a47a618.
+- Needs review: existing user/Claude changes to AGENTS.md and root README.md remain untouched and unstaged.
