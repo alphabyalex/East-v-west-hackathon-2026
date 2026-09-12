@@ -1,0 +1,5 @@
+﻿
+## Repository published and teammate branches created — 2026-09-12
+- Changed: initialized git and published the scaffold at https://github.com/alphabyalex/East-v-west-hackathon-2026 (main: a47a618). Created and pushed Alex, Kristian, and Tharun once from main; working branch is Alex. Future Codex commits will go only to Alex and main.
+- New/changed interface: origin is https://github.com/alphabyalex/East-v-west-hackathon-2026.git; all four branches have matching origin upstreams. Frontend work is still in progress and is excluded from the scaffold commit.
+- Needs review: gh is unavailable on PATH and standard install locations, so collaborator invitations for Tharun.ekam@gmail.com and skbridge04@gmail.com were not attempted; invite them manually through GitHub settings or provide their GitHub usernames once gh is available. Existing README claims about learning actual emergency/curtailment records need Claude/human review against the documented proxy-label fallback; unchanged by Codex.
