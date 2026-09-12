@@ -84,3 +84,9 @@
 - Outside /web: appended this coordination entry only; no application or protected-file edits.
 - Validation: the local app URL returns HTTP 200. This verifies serving, not rendered layout or GPU pixels.
 - Needs review: Alex will inspect the app in a browser, including the surface, slider recomputation, provenance controls, and explicit mock labels.
+
+## Corrected tooling cutoff and final submission publication — 2026-09-12
+- Changed: publishing the supplied docs/BUILD_PLAN.md revision directly to main. Four checkpoints remain at hours 12/24/36/48. CP4 on Monday at 12:00pm ET is the tech-stack cutoff; the actual final submission is Monday at 11:59pm ET. This supersedes my earlier outbox entry calling noon the final submission deadline. Tool-dependent coding must finish by noon; the remaining window is for video, rehearsal, and manual cleanup/submission.
+- New/changed interface: none; pipeline and POST /api/estimate contracts are unchanged.
+- Outside /web: publishing BUILD_PLAN.md as supplied and appending this outbox entry. The separate pending AGENTS.md change remains untouched and unstaged.
+- Needs review: team members should use the two distinct deadlines in BUILD_PLAN.md section 4 when planning remaining work.

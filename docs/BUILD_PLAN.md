@@ -24,7 +24,7 @@ and stick to it) the moment you do it.
   Build against the mock in section 2 immediately — don't wait for a real backend.
 - **Claude — director/audit.** Available to unblock any of the three, owns `/extract`.
 
-Expect to bleed into each other's lanes. That's normal on a 3-person 48-hour build,
+Expect to bleed into each other's lanes. That's normal on a 3-person 72-hour build,
 not a process failure — just flag it in your outbox file when you do.
 
 ---
@@ -169,9 +169,12 @@ against dummy values" note) rather than a precise-looking fake number.
 
 ## 4. Deadlines by checkpoint (submission every 12 hours — miss it, that block is zero)
 
-**There are four checkpoints: hours 12, 24, 36, and 48. CP4 at hour 48 — Monday
-12:00pm ET — is the final submission deadline. All integration, rehearsal, and
-submission preparation must finish before that deadline; there is no fifth checkpoint.**
+**Two deadlines, don't confuse them.** Started Sat Sept 12, 12:00pm ET. **CP4 (Monday
+12:00pm ET, hour 48) is the tech-stack cutoff** — Astra/Codex and sponsor tooling goes
+away, so all coding-tool-dependent work must be genuinely done by then, not just
+checkpointed. **The actual final submission deadline is Monday 11:59pm ET** (~12 hours
+later) — that window is for recording video, rehearsing, and manual no-tooling cleanup
+only, not new features.
 
 **Kristian (ML) — this is the critical path. Alex and Tharun are blocked on
 `exposure_by_location.parquet` existing with real shape, even before the numbers in
@@ -179,12 +182,12 @@ it are good.** Ship the file early with rough/placeholder-quality numbers rather
 holding it back until the model is "done" — the shape unblocks everyone; the accuracy
 can improve after.
 
-| Checkpoint | Hour | Kristian must have shipped | This unblocks |
+| Checkpoint | Deadline | Kristian must have shipped | This unblocks |
 |---|---|---|---|
-| CP1 | 12 | `pipeline/ingest.py` pulling real SPP data to parquet in `data/raw/`. `pipeline/label.py` v1, manually sanity-checked against one real summer week. A chart of historical stress hours by hour-of-day/month (even just a notebook PNG, doesn't need to be in the app yet). | Nothing downstream yet — this is foundation. Alex/Tharun keep building against the section 2 mock. |
-| CP2 | 24 | `pipeline/train.py`: ensemble trained + calibrated (reliability curve, Brier score vs. naive baseline). `pipeline/confidence.py` v1 (ensemble disagreement only is fine). `pipeline/simulate.py` producing the Monte Carlo distribution. **`data/processed/exposure_by_location.parquet` written with the exact schema in section 1, for at least one real SPP location, even if the numbers are rough.** `get_location_estimate()` implemented and importable. | Alex can now wire `/api/estimate` to real pipeline output instead of the mock. Tharun can swap the frontend's mocked exposure/confidence numbers for real ones. |
-| CP3 | 36 | Data-density signal added to confidence (if time allows). Coverage expanded to a small handful of SPP locations, not just one. `model_version` string bumped and documented in your outbox so stale cached numbers are traceable. | Frontend's location dropdown becomes real instead of hardcoded to one test node. |
-| CP4 — FINAL SUBMISSION | 48 — Monday 12:00pm ET | Pipeline output frozen; critical bug fixes, `economics.py` polish (with Alex), and frontend edge-case checks completed before submission. No new model changes during final preparation. | Final integrated demo rehearsed and submitted by this deadline. This is the final submission, not a stage before finals. |
+| CP1 | Sun 12:00am ET (hour 12) | `pipeline/ingest.py` pulling real SPP data to parquet in `data/raw/`. `pipeline/label.py` v1, manually sanity-checked against one real summer week. A chart of historical stress hours by hour-of-day/month (even just a notebook PNG, doesn't need to be in the app yet). | Nothing downstream yet — this is foundation. Alex/Tharun keep building against the section 2 mock. |
+| CP2 | Sun 12:00pm ET (hour 24) | `pipeline/train.py`: ensemble trained + calibrated (reliability curve, Brier score vs. naive baseline). `pipeline/confidence.py` v1 (ensemble disagreement only is fine). `pipeline/simulate.py` producing the Monte Carlo distribution. **`data/processed/exposure_by_location.parquet` written with the exact schema in section 1, for at least one real SPP location, even if the numbers are rough.** `get_location_estimate()` implemented and importable. | Alex can now wire `/api/estimate` to real pipeline output instead of the mock. Tharun can swap the frontend's mocked exposure/confidence numbers for real ones. |
+| CP3 | Mon 12:00am ET (hour 36) | Data-density signal added to confidence (if time allows). Coverage expanded to a small handful of SPP locations, not just one. `model_version` string bumped and documented in your outbox so stale cached numbers are traceable. | Frontend's location dropdown becomes real instead of hardcoded to one test node. |
+| CP4 | **Mon 12:00pm ET (hour 48) — TECH-STACK CUTOFF** | Pipeline output genuinely frozen by noon, not just checkpointed — tooling access ends here. Remaining time before noon goes to `economics.py` polish (with Alex) and helping wherever the frontend needs real-shaped edge cases (e.g. a location with very low precedent, to show the "Low confidence" state actually working, not just mocked). | Full demo rehearsed against entirely real numbers. The 12 hours after noon (until the real 11:59pm deadline) are for video/pitch/submission only — no new model work. |
 
 **If you're behind at any checkpoint:** ship `exposure_by_location.parquet` with
 whatever you have — even a single hardcoded-but-plausible row per location — rather
