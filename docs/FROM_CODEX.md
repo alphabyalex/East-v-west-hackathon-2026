@@ -90,3 +90,8 @@
 - New/changed interface: none; pipeline and POST /api/estimate contracts are unchanged.
 - Outside /web: publishing BUILD_PLAN.md as supplied and appending this outbox entry. The separate pending AGENTS.md change remains untouched and unstaged.
 - Needs review: team members should use the two distinct deadlines in BUILD_PLAN.md section 4 when planning remaining work.
+
+## Item 0 — shared deadline verified on main — 2026-09-12
+- Changed: fetched main and verified docs/BUILD_PLAN.md already contains the correction published in 282b4eb: Monday noon ET is the tooling cutoff, Monday 11:59pm ET is final submission. No duplicate plan change needed.
+- New/changed interface: none.
+- Needs review: none for publication; proceeding through the requested frontend/backend checkpoints in order.
