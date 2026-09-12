@@ -1,0 +1,13 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+venv/
+data/raw/
+data/processed/
+data/tariffs/*.pdf
+*.pkl
+node_modules/
+web/dist/
+.DS_Store
+.ipynb_checkpoints/
