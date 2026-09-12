@@ -25,3 +25,8 @@
 ## Generated cache excluded — 2026-09-12
 - Changed: added `web/.gitignore` for Vite's local `.vite/` cache after final branch verification. Runtime code and the verified build are unchanged.
 - New/changed interface: none.
+
+## Teammate integration workflow — 2026-09-12
+- Changed: Alex authorized checking Kristian/Tharun after major checkpoints, reviewing and merging ready teammate work into Alex, validating the combined changes, and pushing Alex. Teammate branches remain owned by their authors and will not receive Codex pushes.
+- New/changed interface: coordination workflow only; no API changes. Current remote check found both teammate branches still at a47a618, so there is no new work to merge.
+- Needs review: the expanded Frontend direction is now present in the local AGENTS.md and has been read in full. That file's existing uncommitted update was left untouched and unstaged.
