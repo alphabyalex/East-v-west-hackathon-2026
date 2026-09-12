@@ -95,3 +95,10 @@
 - Changed: fetched main and verified docs/BUILD_PLAN.md already contains the correction published in 282b4eb: Monday noon ET is the tooling cutoff, Monday 11:59pm ET is final submission. No duplicate plan change needed.
 - New/changed interface: none.
 - Needs review: none for publication; proceeding through the requested frontend/backend checkpoints in order.
+
+## Item 1 — typography and color replacement — 2026-09-12
+- Changed: replaced system typography with locally bundled Google Fonts: Fraunces for brand/headings, IBM Plex Sans for UI copy, IBM Plex Mono for numeric data with tabular alignment. Replaced the old blue-gray palette across CSS, Recharts, and Three.js with near-black panels, warm off-white text, amber active states, steel-teal series, and muted decision colors. Font assets and OFL licenses are local so offline demos keep the intended type.
+- New/changed interface: no data shape changes. Sourced now identifies numeric/string values with data-value-type for exact numeric font styling.
+- Validation: font assets serve successfully; TypeScript/production build checked. Browser inventory is empty, so rendered desktop/mobile appearance remains unverified here.
+- Outside /web: this outbox entry only. AGENTS.md and FROM_CLAUDE.md remain untouched.
+- Needs review: human visual review of the new type/palette; proceeding next to the reported surface freeze.

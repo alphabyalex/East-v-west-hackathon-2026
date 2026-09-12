@@ -197,6 +197,7 @@ export function Sourced({ value, source, format = defaultFormat, className = '',
         type="button"
         ref={provenance.attachAnchor}
         className={`source-wrap ${className}`}
+        data-value-type={typeof value}
         {...provenance.anchorEvents}
         {...provenance.triggerProps}
       >

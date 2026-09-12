@@ -154,3 +154,7 @@ a separate median line.
 The surface uses local [Three.js BufferGeometry](https://threejs.org/docs/pages/BufferGeometry.html)
 and [OrbitControls](https://threejs.org/docs/pages/OrbitControls.html), loaded as a separate
 local JavaScript chunk. No remote chart service or runtime simulation is involved.
+
+## Type and color system
+
+Fraunces handles the brand and section headings; IBM Plex Sans handles controls and prose; IBM Plex Mono handles numbers with tabular figures. The requested [Google Fonts](https://developers.google.com/fonts/docs/css2) files and their OFL licenses are bundled in `public/fonts`, with local `@font-face` rules in `src/fonts.css`, so the demo does not depend on a font CDN. Near-black surfaces, warm off-white text, amber active controls, steel-teal chart series, and muted semantic colors share the tokens in `src/styles.css`.

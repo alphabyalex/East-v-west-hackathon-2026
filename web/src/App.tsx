@@ -83,7 +83,7 @@ function Header() {
   }
   return <>
     <header className="app-header">
-      <a href="#main" className="brand" aria-label="Headroom analysis workspace"><span className="brand-mark" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 2V16M15 2V16M3 9H15M7 5V13M11 5V13" stroke="currentColor" strokeWidth="1.3" /></svg></span>HEADROOM<span className="brand-divider" /><span className="brand-subtitle">INTERCONNECTION RISK</span></a>
+      <a href="#main" className="brand" aria-label="Headroom analysis workspace"><span className="brand-mark" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 2V16M15 2V16M3 9H15M7 5V13M11 5V13" stroke="currentColor" strokeWidth="1.3" /></svg></span>Headroom<span className="brand-divider" /><span className="brand-subtitle">INTERCONNECTION RISK</span></a>
       <div className="header-status"><span className="status-dot" />LOCAL WORKSPACE<span className="header-divider" /><span className="fixture-badge">ILLUSTRATIVE DATA</span></div>
     </header>
     <div className="workspace-heading">
@@ -178,13 +178,13 @@ function ExposurePanel() {
       <div className="fan-chart" role="group" aria-label="Annual modeled exposure fan chart. Median line, p50 to p90 band, and p99 line. Exact sourced values are available in the annual data table below.">
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
           <ComposedChart data={data} margin={{ top: 15, right: 18, bottom: 12, left: 8 }} accessibilityLayer>
-            <CartesianGrid vertical={false} stroke="#303236" />
-            <XAxis dataKey="year" tickLine={false} axisLine={{ stroke: '#404348' }} interval="preserveStartEnd" minTickGap={35} height={30} tick={<SourcedTick source={uiSource('contract_year; ordinal year in selected contract')} axis="x" />} />
+            <CartesianGrid vertical={false} stroke="var(--border)" />
+            <XAxis dataKey="year" tickLine={false} axisLine={{ stroke: 'var(--border-strong)' }} interval="preserveStartEnd" minTickGap={35} height={30} tick={<SourcedTick source={uiSource('contract_year; ordinal year in selected contract')} axis="x" />} />
             <YAxis domain={[0, maximum]} ticks={yTicks} axisLine={false} tickLine={false} width={44} tick={<SourcedTick source={uiSource('axis/hours_per_year; chart scale, not an observation')} axis="y" />} />
-            <Tooltip content={({ active, payload }) => <FanTooltip active={active} row={payload?.[0]?.payload as ChartRow | undefined} confidence={result.confidence} />} cursor={{ stroke: '#a4a9ae', strokeDasharray: '3 4' }} wrapperStyle={{ pointerEvents: 'auto', zIndex: 30 }} />
-            <Area type="linear" dataKey="band" stroke="#6f767e" strokeOpacity={0.65} fill="#9aa3ac" fillOpacity={0.12} activeDot={false} animationDuration={280} isAnimationActive={!reducedMotion} />
-            <Line type="linear" dataKey="median" stroke="#b9c2c9" strokeWidth={2} dot={data.length === 1 ? { r: 3 } : false} activeDot={{ r: 4, fill: '#b9c2c9', stroke: '#101214', strokeWidth: 2 }} animationDuration={280} isAnimationActive={!reducedMotion} />
-            <Line type="linear" dataKey="upper" stroke="#919ba4" strokeWidth={1} strokeDasharray="4 4" dot={data.length === 1 ? { r: 3 } : false} activeDot={{ r: 3 }} animationDuration={280} isAnimationActive={!reducedMotion} />
+            <Tooltip content={({ active, payload }) => <FanTooltip active={active} row={payload?.[0]?.payload as ChartRow | undefined} confidence={result.confidence} />} cursor={{ stroke: 'var(--text-muted)', strokeDasharray: '3 4' }} wrapperStyle={{ pointerEvents: 'auto', zIndex: 30 }} />
+            <Area type="linear" dataKey="band" stroke="var(--teal)" strokeOpacity={0.65} fill="var(--teal)" fillOpacity={0.12} activeDot={false} animationDuration={280} isAnimationActive={!reducedMotion} />
+            <Line type="linear" dataKey="median" stroke="var(--text-primary)" strokeWidth={2} dot={data.length === 1 ? { r: 3 } : false} activeDot={{ r: 4, fill: 'var(--text-primary)', stroke: 'var(--bg-base)', strokeWidth: 2 }} animationDuration={280} isAnimationActive={!reducedMotion} />
+            <Line type="linear" dataKey="upper" stroke="var(--teal)" strokeWidth={1} strokeDasharray="4 4" dot={data.length === 1 ? { r: 3 } : false} activeDot={{ r: 3 }} animationDuration={280} isAnimationActive={!reducedMotion} />
           </ComposedChart>
         </ResponsiveContainer>
       </div>

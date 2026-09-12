@@ -19,7 +19,7 @@ const source = (value: number, ref: string): SourcedValue => ({ value, source_ty
 /** A small, demand-rendered scene: only a camera interaction or data transition draws frames. */
 export function createSurfaceRenderer(host: HTMLDivElement, callbacks: Callbacks) {
   const renderer = new WebGLRenderer({ antialias: true, powerPreference: 'low-power' });
-  renderer.setClearColor('#151719');
+  renderer.setClearColor('#14161a');
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.domElement.setAttribute('aria-hidden', 'true');
   host.appendChild(renderer.domElement);
@@ -193,47 +193,47 @@ export function createSurfaceRenderer(host: HTMLDivElement, callbacks: Callbacks
     geometry.setAttribute('position', new BufferAttribute(new Float32Array(positions), 3));
     geometry.setIndex(new BufferAttribute(data.indices, 1));
     geometry.computeVertexNormals();
-    mesh = new Mesh(geometry, new MeshLambertMaterial({ color: '#66717a', side: DoubleSide, flatShading: true, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 }));
+    mesh = new Mesh(geometry, new MeshLambertMaterial({ color: '#5c8a86', side: DoubleSide, flatShading: true, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 }));
     dataGroup.add(mesh);
     const pointGeometry = new BufferGeometry();
     pointGeometry.setAttribute('position', new BufferAttribute(new Float32Array(positions), 3));
-    points = new Points(pointGeometry, new PointsMaterial({ color: '#d0d8df', size: 4, sizeAttenuation: false }));
+    points = new Points(pointGeometry, new PointsMaterial({ color: '#edebe6', size: 4, sizeAttenuation: false }));
     dataGroup.add(points);
     QUANTILES.forEach((quantile, quantileIndex) => {
       const vertices = rows.flatMap((__, yearIndex) => Array.from(positions.subarray((yearIndex * QUANTILES.length + quantileIndex) * 3, (yearIndex * QUANTILES.length + quantileIndex) * 3 + 3)));
-      quantileLines.push(line(vertices, quantile === 50 || quantile === 99 ? '#d4dce2' : '#929da6', dataGroup) as Line<BufferGeometry, LineBasicMaterial>);
+      quantileLines.push(line(vertices, quantile === 50 || quantile === 99 ? '#edebe6' : '#5c8a86', dataGroup) as Line<BufferGeometry, LineBasicMaterial>);
     });
     rows.forEach((_, yearIndex) => {
-      yearLines.push(line(Array.from(positions.subarray(yearIndex * QUANTILES.length * 3, (yearIndex + 1) * QUANTILES.length * 3)), '#88959f', dataGroup) as Line<BufferGeometry, LineBasicMaterial>);
+      yearLines.push(line(Array.from(positions.subarray(yearIndex * QUANTILES.length * 3, (yearIndex + 1) * QUANTILES.length * 3)), '#858a91', dataGroup) as Line<BufferGeometry, LineBasicMaterial>);
     });
     const markerGeometry = new BufferGeometry();
     markerGeometry.setAttribute('position', new BufferAttribute(new Float32Array(3), 3));
-    selectedPoint = new Points(markerGeometry, new PointsMaterial({ color: '#c6ad7b', size: 8, sizeAttenuation: false, depthTest: false }));
+    selectedPoint = new Points(markerGeometry, new PointsMaterial({ color: '#d98e2b', size: 8, sizeAttenuation: false, depthTest: false }));
     selectedPoint.renderOrder = 5;
     dataGroup.add(selectedPoint);
-    selectionGuide = line([0, 0, 0, 0, 0, 0], '#c6ad7b', dataGroup) as Line<BufferGeometry, LineBasicMaterial>;
+    selectionGuide = line([0, 0, 0, 0, 0, 0], '#d98e2b', dataGroup) as Line<BufferGeometry, LineBasicMaterial>;
     selectionGuide.renderOrder = 4;
 
     const { width: graphWidth, height: graphHeight, depth } = SURFACE_SIZE;
     const left = rows.length === 1 ? 0 : -graphWidth / 2;
     const right = rows.length === 1 ? 0 : graphWidth / 2;
     const front = depth / 2, back = -depth / 2;
-    line([left, 0, front, right, 0, front, right, 0, back], '#89939c', gridGroup);
-    line([left, 0, front, left, graphHeight, front], '#89939c', gridGroup);
+    line([left, 0, front, right, 0, front, right, 0, back], '#858a91', gridGroup);
+    line([left, 0, front, left, graphHeight, front], '#858a91', gridGroup);
     QUANTILES.forEach((quantile, index) => {
       const z = data.samples[index].position[2];
-      line([left, 0, z, right, 0, z], '#30373d', gridGroup);
+      line([left, 0, z, right, 0, z], '#262930', gridGroup);
       axisLabels.push({ id: `q-${quantile}`, kind: 'percentile', datum: source(quantile, `percentile/${quantile}; cumulative percentile, not probability density`), point: new Vector3(right + 0.15, 0, z) });
     });
     const stride = Math.max(1, Math.ceil((rows.length - 1) / 4));
     rows.forEach((row, index) => {
       const x = data.samples[index * QUANTILES.length].position[0];
-      line([x, 0, front, x, 0, back], '#30373d', gridGroup);
+      line([x, 0, front, x, 0, back], '#262930', gridGroup);
       if (index % stride === 0 || index === rows.length - 1) axisLabels.push({ id: `year-${row.year.value}`, kind: 'year', datum: row.year, point: new Vector3(x, 0, front + 0.12) });
     });
     for (let tick = 0; tick <= 4; tick++) {
       const y = graphHeight * tick / 4;
-      line([left, y, front, left, y, back, right, y, back], '#30373d', gridGroup);
+      line([left, y, front, left, y, back, right, y, back], '#262930', gridGroup);
       axisLabels.push({ id: `hours-${tick}`, kind: 'hours', datum: source(maximumHours * tick / 4, 'hours_per_year; fixed baseline axis scale, not an observation'), point: new Vector3(left - 0.15, y, front) });
     }
     selected = Math.min(selected, samples.length - 1);

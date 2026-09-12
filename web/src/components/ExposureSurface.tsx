@@ -65,7 +65,7 @@ export default function ExposureSurface({ rows, maximumHours, confidence, onUnav
     <div className="surface-axis-key"><span>BASE: YEAR × PERCENTILE</span><span>HEIGHT: MODELED EXPOSURE · H/YR</span></div>
     <div className="surface-stage" role="group" tabIndex={0} aria-label="Interactive modeled exposure quantile surface" aria-describedby="surface-keyboard-help" onKeyDown={keyboard}>
       <div className="surface-canvas" ref={host} />
-      <div className="surface-axis-labels"><svg className="surface-label-leaders" width="100%" height="100%" aria-hidden="true">{labels.map(label => <line key={label.id} x1={label.anchorX} y1={label.anchorY} x2={label.x} y2={label.y} stroke="#59636c" strokeWidth="0.7" />)}</svg>{labels.map(label => <div key={label.id} className={`surface-axis-label axis-${label.kind}`} style={{ left: label.x, top: label.y }}>
+      <div className="surface-axis-labels"><svg className="surface-label-leaders" width="100%" height="100%" aria-hidden="true">{labels.map(label => <line key={label.id} x1={label.anchorX} y1={label.anchorY} x2={label.x} y2={label.y} stroke="var(--border-strong)" strokeWidth="0.7" />)}</svg>{labels.map(label => <div key={label.id} className={`surface-axis-label axis-${label.kind}`} style={{ left: label.x, top: label.y }}>
         <Sourced value={label.datum.value} source={label.datum} animate={false} format={value => label.kind === 'percentile' ? `p${value}` : label.kind === 'year' ? `Y${value}` : `${value.toLocaleString('en-US')} h`} />
       </div>)}</div>
     </div>
