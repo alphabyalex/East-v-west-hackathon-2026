@@ -47,6 +47,13 @@ operators actually declared emergencies and curtailed load.
 A second AI layer reads the operators' filed tariff documents and extracts the
 curtailment conditions into a comparable structure with source citations.
 
+A third layer answers a question most tools like this skip: **how much should you
+trust the number above?** We train the classifier as an ensemble and measure how much
+the members agree, plus how much historical precedent actually exists for a given
+grid state. That becomes a plain confidence read — high, medium, low — attached to
+every exposure figure. We're not just honest about what we can't know; we quantify
+how much to lean on what we do report.
+
 ## What we do not claim
 
 We model **system-level** grid stress. We cannot prove a specific site would have been

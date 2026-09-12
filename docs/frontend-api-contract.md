@@ -168,3 +168,18 @@ send unsupported fields or imply that a server used assumptions it never receive
 Local export now contains `{mode, request, response, local_assumptions, result}`.
 `request` and `response` use the canonical shapes; local assumptions retain the same
 source wrappers shown on the controls. All operations remain offline by default.
+
+The optional HTTP boundary is prepared in
+[`web/src/api/client.ts`](../web/src/api/client.ts):
+`postEstimate(request, {signal?, fetchImpl?})` posts only the five canonical fields to
+the same-origin `/api/estimate`. It is not invoked by the workspace. The exported
+`validateEstimateResponse(raw, request?)` checks complete ordered annual data,
+quantile ordering, finite values, confidence bounds, every required source, and an
+exact match between submitted fields and `inputs_echo`. It never repairs missing
+data, inserts mock provenance, or rescales results.
+
+`EstimateClientError.code` is `invalid_request`, `invalid_response`, or `http_error`,
+with optional field `path` or HTTP `status`. Native network/abort errors are preserved.
+Cancellation is forwarded with `AbortSignal`; no retries or silent mock fallback are
+enabled. A real backend and appropriate local same-origin routing are still required
+before switching the workspace to this transport.

@@ -107,12 +107,18 @@ not invent a lower-tail quantile.
 Economic controls remain local mock overrides; only the five fields in BUILD_PLAN.md
 belong in a real API request. Resolve a supported override interface with the team
 before switching the workspace to HTTP. No backend connection is enabled by this shell.
+An optional validated client is ready in `src/api/client.ts`: `postEstimate` sends
+the five canonical fields to `/api/estimate`, supports cancellation, and rejects
+missing sources, malformed quantiles, incomplete horizons, or mismatched request
+echoes. It does not run on import or fall back silently to mocks. Enable it only when
+the backend and local routing are ready.
 
 ## Structure
 
 ```text
 src/App.tsx                 Workspace, controls, chart, economics, assumptions
 src/ScenarioContext.tsx     Shared inputs and synchronous derived scenario
+src/api/client.ts           Optional validated HTTP boundary; not enabled in the demo
 src/components/Sourced.tsx  Reusable provenance values, info controls, SVG ticks
 src/components/ConfidenceBadge.tsx  Supplied confidence level/score with mock status
 src/components/ExposureSurface.tsx  Sourced controls and labels for the 3D plot
