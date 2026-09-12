@@ -11,3 +11,7 @@ node_modules/
 web/dist/
 .DS_Store
 .ipynb_checkpoints/
+
+# Local development runtime/bootstrap artifacts
+.tools/
+.pytest_cache/

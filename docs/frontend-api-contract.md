@@ -1,9 +1,9 @@
 ﻿# Frontend consumption of the shared estimate contract
 
 The canonical team contract is [BUILD_PLAN.md](BUILD_PLAN.md), section 2:
-**`POST /api/estimate`**. The frontend now consumes that response shape through a
-local deterministic mock. It makes no API requests during the demo and runs no
-training, inference, or Monte Carlo sampling.
+**`POST /api/estimate`**. The frontend consumes this response through the local FastAPI endpoint by default.
+Both the endpoint and the optional local fallback use deterministic illustrative
+fixtures. Neither runs training, inference, Monte Carlo sampling, or external data pulls.
 
 The complete current mock response is
 [`web/src/model/mock-response.json`](../web/src/model/mock-response.json).
@@ -87,7 +87,7 @@ BUILD_PLAN.md is unchanged; these conventions are logged in FROM_CODEX.md for re
 ## Canonical data in the UI
 
 The Three.js surface and annual table contain only the supplied p50/p90/p99 values.
-The Recharts fallback uses a p50–p90 band, median line, and separate p99 line. There is
+The default Recharts fan uses a p50–p90 band, median line, and separate p99 line. There is
 no p10 in the canonical response and none is invented for display.
 
 Surface axes are relative contract year, percentile, and modeled exposure hours/year.
@@ -156,30 +156,42 @@ shown as evidence of a site's actual outage duration. Its semantics require pipe
 review before real-data use. Restart overhead, discounting, and SLA penalties remain
 outside the current economics.
 
-## Local controls and eventual HTTP wiring
+## HTTP provider and explicit local fallback
 
-`deriveScenario` currently calls `createMockEstimate(request, localEconomics)` and
-then `adaptEstimateResponse`. The four economic controls are a **local mock-only**
-argument; the canonical five-field request cannot carry economic overrides. Before
-connecting a real endpoint, either agree an additive override interface with the team
-or explicitly handle those controls locally as sourced scenarios. Do not silently
-send unsupported fields or imply that a server used assumptions it never received.
+The workspace calls `postEstimate(request, {signal})` through the same-origin
+`/api/estimate`; Vite dev and preview proxy that path to `http://127.0.0.1:8000`.
+`VITE_ESTIMATE_MODE=api` is the default. Set it to `local` (see
+`web/.env.example`) and restart Vite to make no HTTP requests. Visible controls can
+also select Local mock or return to API defaults without restarting.
 
-Local export now contains `{mode, request, response, local_assumptions, result}`.
-`request` and `response` use the canonical shapes; local assumptions retain the same
-source wrappers shown on the controls. All operations remain offline by default.
+While a request is pending, the outputs show a visibly labeled local mock preview
+for the current inputs. Failed, timed-out, or invalid responses leave the local
+fallback usable and visibly identified, with a Retry control. Superseded requests
+are canceled and stale responses cannot overwrite current-input results. The lower
+level client still validates provenance, quantiles, complete horizons, finite values,
+and the exact inputs echo; it never repairs a response or silently falls back.
 
-The optional HTTP boundary is prepared in
-[`web/src/api/client.ts`](../web/src/api/client.ts):
-`postEstimate(request, {signal?, fetchImpl?})` posts only the five canonical fields to
-the same-origin `/api/estimate`. It is not invoked by the workspace. The exported
-`validateEstimateResponse(raw, request?)` checks complete ordered annual data,
-quantile ordering, finite values, confidence bounds, every required source, and an
-exact match between submitted fields and `inputs_echo`. It never repairs missing
-data, inserts mock provenance, or rescales results.
+The four editable economic controls remain local-only: editing one switches the
+workspace to local mock mode with an explanation. Returning to API mode restores
+the fixed mock economic defaults. No economic override fields are sent to the server.
+This preserves the five-field shared request until the team agrees an additive
+interface. The API's returned economics are displayed directly, never overwritten
+with unsent local assumptions.
 
-`EstimateClientError.code` is `invalid_request`, `invalid_response`, or `http_error`,
-with optional field `path` or HTTP `status`. Native network/abort errors are preserved.
-Cancellation is forwarded with `AbortSignal`; no retries or silent mock fallback are
-enabled. A real backend and appropriate local same-origin routing are still required
-before switching the workspace to this transport.
+`api/main.py` serves POST /api/estimate using a replaceable precomputed-location
+provider and cheap scenario arithmetic. Its mock provider reads the canonical
+`web/src/model/mock-response.json` fixture. Invalid requests return 422; unknown
+fixture locations return 404. Load must be positive and finite (the UI caps its control at 2000 MW); arithmetic
+overflow is rejected. Term is one through seven years, and both fractions are within
+zero to one.
+The nullable zero-cost threshold and complete yearly horizon remain as documented
+above. No new response fields or training hooks were added.
+
+Run instructions and the provider replacement boundary are in [api/README.md](../api/README.md).
+Export includes `{mode,status,response_origin,request,response,local_assumptions,result}`
+so a local preview or fallback cannot be mistaken for a server result.
+
+A live differential check in `web/src/api/live-contract.test.ts` compares server
+responses with the frontend mock and feeds them through the existing client and
+view adapter. Set `HEADROOM_API_URL` to the API or Vite origin for an explicit run;
+ordinary unit tests do not need a server.

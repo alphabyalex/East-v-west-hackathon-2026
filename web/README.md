@@ -2,7 +2,8 @@
 
 A local SPP flexible-interconnection scenario workspace built with Vite, React,
 TypeScript, Tailwind CSS, Three.js, and Recharts. It uses a deterministic illustrative fixture;
-it makes no API requests and does not run a Monte Carlo simulation or train a model.
+it calls the local FastAPI endpoint by default, with an explicit local mock fallback.
+Neither provider runs a Monte Carlo simulation or trains a model.
 The user's requested mock-data scope takes precedence over the repo's eventual
 real-data definition of done.
 
@@ -16,6 +17,18 @@ npm ci
 npm run dev
 ```
 
+Start the API in a second terminal from the repo root:
+
+```sh
+python -m venv .venv
+# Windows: .venv\Scripts\python -m pip install -r api/requirements.txt
+# macOS/Linux: .venv/bin/python -m pip install -r api/requirements.txt
+# Then use that environment?s Python:
+python -m uvicorn api.main:app --host 127.0.0.1 --port 8000
+```
+
+Activate the virtual environment before the final command, or use its full Python path.
+On the current Windows workspace it is already ready at `.venv/Scripts/python.exe`.
 Open the local URL printed by Vite. Dependencies must be installed once; after that,
 the dev server and production build require no external network connection. Fonts,
 icons, fixture data, and chart code are local. This is not an installed PWA: a local
@@ -55,7 +68,7 @@ npm run preview  # serve the production build locally
   Tariff evidence displays the mock term record and its provenance, without claiming
   that a real clause has been extracted.
 - Reset restores fixture defaults. Export downloads the canonical request/response,
-  sourced local assumptions, and view results as JSON. Neither action contacts a backend.
+  sourced local assumptions, and view results as JSON. Reset in API mode requests the default scenario; Export saves the currently displayed response and its origin.
 - At the default assumptions, moving site exposure from 0.4 through 0.55 to 0.9 produces
   “worth it,” “close call,” then “not worth it.” Zero exposure and zero interruption
   cost are defined, with `null` hours thresholds displayed as “No modeled cost.”
@@ -65,7 +78,7 @@ npm run preview  # serve the production build locally
 
 The canonical shared endpoint is **`POST /api/estimate` in
 [`docs/BUILD_PLAN.md`](../docs/BUILD_PLAN.md)**. The shell now consumes that response
-shape through a local provider. The complete current mock is
+shape through the FastAPI endpoint, with a local fallback provider. The complete current mock is
 [`src/model/mock-response.json`](src/model/mock-response.json), and the canonical
 [TypeScript interface](src/model/contract.ts) matches it. A parity test checks both.
 The [integration notes](../docs/frontend-api-contract.md) define block-to-value
@@ -104,21 +117,40 @@ invented time width. A true density surface requires additional precomputed dens
 bins or samples from the pipeline. The canonical response has no p10, so the UI does
 not invent a lower-tail quantile.
 
-Economic controls remain local mock overrides; only the five fields in BUILD_PLAN.md
-belong in a real API request. Resolve a supported override interface with the team
-before switching the workspace to HTTP. No backend connection is enabled by this shell.
-An optional validated client is ready in `src/api/client.ts`: `postEstimate` sends
-the five canonical fields to `/api/estimate`, supports cancellation, and rejects
-missing sources, malformed quantiles, incomplete horizons, or mismatched request
-echoes. It does not run on import or fall back silently to mocks. Enable it only when
-the backend and local routing are ready.
+## Provider controls
+
+The default is `VITE_ESTIMATE_MODE=api`. Vite proxies `/api` to
+`http://127.0.0.1:8000` in dev and preview. Copy `.env.example` to `.env`, set
+`VITE_ESTIMATE_MODE=local`, and restart Vite to make no HTTP requests. The visible
+**Local mock** control switches immediately; **Use API defaults** restores the fixed
+mock economics and returns to HTTP.
+
+Changing an economic input switches to local mode with an explanation because the
+canonical request has no economic override fields. Other inputs trigger a debounced,
+cancelable estimate request. While pending or unavailable, the app shows a clearly
+labeled local mock preview/fallback for the current inputs; Retry API tries again.
+Old responses cannot replace the results for newer inputs. Export records
+`{mode,status,response_origin,request,response,local_assumptions,result}`.
+
+The endpoint uses the same canonical fixture and cheap arithmetic. No real pipeline
+output, sourced economics, model confidence, or extracted clauses are implied by a
+successful HTTP connection. See [api/README.md](../api/README.md) for backend tests
+and the replaceable precomputed-provider boundary.
+
+To test the full HTTP contract with both servers running (PowerShell):
+
+```powershell
+$env:HEADROOM_API_URL = 'http://127.0.0.1:5174' # use the actual Vite URL
+npm test -- src/api/live-contract.test.ts
+Remove-Item Env:HEADROOM_API_URL
+```
 
 ## Structure
 
 ```text
 src/App.tsx                 Workspace, controls, chart, economics, assumptions
-src/ScenarioContext.tsx     Shared inputs and synchronous derived scenario
-src/api/client.ts           Optional validated HTTP boundary; not enabled in the demo
+src/ScenarioContext.tsx     Shared inputs, provider mode, and current-input results
+src/api/client.ts           Validated HTTP boundary, used by the API provider
 src/components/Sourced.tsx  Reusable provenance values, info controls, SVG ticks
 src/components/ConfidenceBadge.tsx  Supplied confidence level/score with mock status
 src/components/ExposureSurface.tsx  Sourced controls and labels for the 3D plot

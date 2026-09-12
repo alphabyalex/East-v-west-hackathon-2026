@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-import { beforeAll, afterEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, cleanup, within } from '@testing-library/react';
 import { cloneElement, type ReactElement } from 'react';
 import App from './App';
+import { createMockEstimate } from './model';
 
 // jsdom has no layout engine. Retain the real Recharts SVG/axes/tooltip components
 // while giving their responsive wrapper a deterministic layout for interaction tests.
@@ -15,9 +16,27 @@ beforeAll(() => {
   Object.defineProperty(window, 'matchMedia', { writable: true, value: (query: string) => ({ matches: query.includes('prefers-reduced-motion'), media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() }) });
   globalThis.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
 });
-afterEach(cleanup);
+beforeEach(() => vi.stubEnv('VITE_ESTIMATE_MODE', 'local'));
+afterEach(() => { cleanup(); vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
 describe('scenario workspace interactions', () => {
+  it('makes HTTP fallback, retry, and the economic override mode switch visible', async () => {
+    vi.stubEnv('VITE_ESTIMATE_MODE', 'api');
+    const fetcher = vi.fn().mockRejectedValueOnce(new TypeError('Failed to fetch')).mockImplementation((_url, options) => Promise.resolve(new Response(JSON.stringify(createMockEstimate(JSON.parse(options.body))), { status: 200 })));
+    vi.stubGlobal('fetch', fetcher);
+    render(<App />);
+    expect(screen.getByText(/current inputs shown as a local mock preview/)).toBeTruthy();
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry API' }));
+    expect(await screen.findByText(/API connected · server mock response/)).toBeTruthy();
+    const gpuValue = screen.getByRole('spinbutton', { name: 'LOST COMPUTE VALUE' });
+    fireEvent.change(gpuValue, { target: { value: '5' } });
+    expect(screen.getByRole('button', { name: 'Local mock' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByText(/Economic input changed/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Use API defaults' }));
+    expect((gpuValue as HTMLInputElement).value).toBe('2');
+    expect(await screen.findByText(/API connected · server mock response/)).toBeTruthy();
+  });
+
   it('starts with the fan chart without initializing a graphics context', () => {
     render(<App />);
     expect(screen.getByRole('button', { name: 'Fan chart' }).getAttribute('aria-pressed')).toBe('true');

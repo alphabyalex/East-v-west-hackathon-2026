@@ -407,3 +407,15 @@ button.confidence-badge { font: 11px var(--font-sans); color: var(--text-seconda
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
+
+.estimate-connection { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 20px; align-items: center; border: 1px solid var(--border); border-bottom: 0; padding: 10px 18px; background: var(--panel); }
+.estimate-mode-controls { display: flex; flex-wrap: wrap; gap: 5px; }
+.estimate-mode-controls .button { border-color: var(--border-strong); }
+.estimate-mode-controls .button[aria-pressed="true"] { color: var(--secondary-text); border-color: var(--teal); background: var(--selected); }
+.estimate-connection-copy { color: var(--text-secondary); font-size: 12px; line-height: 1.5; }
+.estimate-connection-copy p { margin: 0; }
+.estimate-mode-note { color: var(--text-muted); font-size: 11px; line-height: 1.6; margin: 4px 0 0; }
+.estimate-connection-fallback { border-left: 2px solid var(--accent); }
+@media (max-width: 640px) {
+  .estimate-connection { grid-template-columns: 1fr; gap: 8px; padding: 12px 14px; }
+}

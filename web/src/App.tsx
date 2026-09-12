@@ -68,11 +68,11 @@ function NumberField({ name, label, unit, min, max, step = 1, icon, compact = fa
 }
 
 function Header() {
-  const { inputs, result, reset } = useScenario();
+  const { inputs, result, reset, mode, status } = useScenario();
   const [exported, setExported] = useState(false);
   useEffect(() => { if (exported) { const timer = setTimeout(() => setExported(false), 2400); return () => clearTimeout(timer); } }, [exported]);
   function exportScenario() {
-    const blob = new Blob([JSON.stringify({ mode: 'illustrative', request: toEstimateRequest(inputs), response: result.canonical_response, local_assumptions: result.inputs, result }, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify({ mode, status, response_origin: status === 'api' ? 'api' : 'local_mock', request: toEstimateRequest(inputs), response: result.canonical_response, local_assumptions: result.inputs, result }, null, 2)], { type: 'application/json' });
     const href = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = href;
@@ -84,13 +84,33 @@ function Header() {
   return <>
     <header className="app-header">
       <a href="#main" className="brand" aria-label="Headroom analysis workspace"><span className="brand-mark" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 2V16M15 2V16M3 9H15M7 5V13M11 5V13" stroke="currentColor" strokeWidth="1.3" /></svg></span>Headroom<span className="brand-divider" /><span className="brand-subtitle">INTERCONNECTION RISK</span></a>
-      <div className="header-status"><span className="status-dot" />LOCAL WORKSPACE<span className="header-divider" /><span className="fixture-badge">ILLUSTRATIVE DATA</span></div>
+      <div className="header-status"><span className="status-dot" />{status === 'api' ? 'API CONNECTED' : status === 'loading' ? 'API PENDING' : status === 'fallback' ? 'LOCAL FALLBACK' : 'LOCAL WORKSPACE'}<span className="header-divider" /><span className="fixture-badge">ILLUSTRATIVE DATA</span></div>
     </header>
     <div className="workspace-heading">
       <div><div className="eyebrow breadcrumb">SPP <span>/</span> SCENARIO ANALYSIS</div><h1>Flexible connection analysis</h1><p>Earlier grid access, modeled interruption exposure, and the cost of waiting.</p></div>
       <div className="workspace-actions"><button className="button button-quiet" onClick={reset}><RotateCcw size={14} />Reset</button><button className="button" onClick={exportScenario}>{exported ? <Check size={14} /> : <Download size={14} />}{exported ? 'Exported' : 'Export scenario'}</button><span className="sr-only" role="status">{exported ? 'Scenario JSON exported.' : ''}</span></div>
     </div>
+    <EstimateConnection />
   </>;
+}
+
+function EstimateConnection() {
+  const { mode, status, error, retry, chooseMode, modeNote } = useScenario();
+  const message = status === 'api'
+    ? 'API connected · server mock response for the current inputs.'
+    : status === 'loading'
+      ? 'Waiting for API · current inputs shown as a local mock preview.'
+      : status === 'fallback'
+        ? error
+        : 'Local mock · instantaneous, no backend required.';
+  return <section className={`estimate-connection estimate-connection-${status}`} aria-label="Estimate data connection">
+    <div className="estimate-mode-controls" role="group" aria-label="Estimate provider">
+      <button className="button button-quiet" aria-pressed={mode === 'api'} onClick={() => chooseMode('api')}>Use API defaults</button>
+      <button className="button button-quiet" aria-pressed={mode === 'local'} onClick={() => chooseMode('local')}>Local mock</button>
+    </div>
+    <div className="estimate-connection-copy"><p role="status">{message}</p>{modeNote && <p className="estimate-mode-note">{modeNote}</p>}<small>Editing economics switches to Local mock. Use API defaults resets those economic inputs.</small></div>
+    {status === 'fallback' && <button className="button" onClick={retry}>Retry API</button>}
+  </section>;
 }
 
 function Inputs() {
@@ -157,7 +177,7 @@ function ExposurePanel() {
   }, []);
   const data: ChartRow[] = result.annual_series.map(row => ({ year: row.year.value, band: [row.p50.value, row.p90.value], median: row.p50.value, upper: row.p99.value, original: row }));
   const baseline = deriveScenario({ ...inputs, site_exposure: 1 });
-  const maximum = Math.ceil(Math.max(...baseline.annual_series.map(row => row.p99.value)) / 100) * 100;
+  const maximum = Math.ceil(Math.max(...baseline.annual_series.map(row => row.p99.value), ...result.annual_series.map(row => row.p99.value)) / 100) * 100;
   const yTicks = Array.from({ length: 5 }, (_, i) => maximum * i / 4);
   const showFallback = () => { setSurfaceUnavailable(true); setView('fan'); };
   return <section className="panel exposure-panel" aria-labelledby="exposure-panel-title">

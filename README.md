@@ -78,13 +78,32 @@ The thing blocking the cleaner path is an unpriced risk. We price it.
 Python · DuckDB · LightGBM · FastAPI · Vite + React + Tailwind
 Data: `gridstatus`, EIA-930, Open-Meteo, FERC eLibrary. All free, no credentialing.
 
-## Running it
+## Running the current checkpoint
 
-```bash
-pip install -r requirements.txt
-python -m pipeline.ingest      # pull + cache grid data to parquet
-python -m pipeline.label       # build the curtailment-trigger label set
-python -m pipeline.train       # train + calibrate the model
-uvicorn api.main:app --reload  # serve
-cd web && npm install && npm run dev
+The runnable UI and API use explicitly labeled mock data. The pipeline, calibration,
+and tariff descriptions above are the intended full product; they are not a claim
+that those outputs are already connected to this checkpoint.
+
+Install Node.js 22.12+ and Python 3.11+, then use two terminals:
+
+```sh
+python -m venv .venv
+# Activate .venv (Windows: .venv\Scripts\activate; macOS/Linux: source .venv/bin/activate)
+python -m pip install -r api/requirements.txt
+python -m uvicorn api.main:app --host 127.0.0.1 --port 8000
 ```
+
+```sh
+cd web
+npm ci
+npm run dev
+```
+
+Open Vite's printed URL. The UI calls the local API by default and visibly falls
+back to local mocks if it is unavailable. **Local mock** works without the backend;
+`VITE_ESTIMATE_MODE=local` makes that the startup mode. Both paths use local fixtures,
+fonts, and charts, with no external API/data/model calls during the demo.
+
+See [web/README.md](web/README.md) for interactions and frontend checks,
+[api/README.md](api/README.md) for backend checks and the future pipeline adapter,
+and [docs/BUILD_PLAN.md](docs/BUILD_PLAN.md) for the shared contract and deadlines.
