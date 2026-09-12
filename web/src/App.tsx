@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, Check, ChevronDown, CircleHelp, Download, Gauge, MapPin, RotateCcw, SlidersHorizontal, Unplug, Zap } from 'lucide-react';
 import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { ScenarioProvider, useScenario } from './ScenarioContext';
@@ -70,11 +70,11 @@ function Header() {
   }
   return <>
     <header className="app-header">
-      <a href="#main" className="brand" aria-label="Headroom analysis workspace"><span className="brand-mark"><Zap size={20} strokeWidth={2.5} /></span>HEADROOM<span className="brand-divider" /><span className="brand-subtitle">GRID ACCESS INTELLIGENCE</span></a>
+      <a href="#main" className="brand" aria-label="Headroom analysis workspace"><span className="brand-mark" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 2V16M15 2V16M3 9H15M7 5V13M11 5V13" stroke="currentColor" strokeWidth="1.3" /></svg></span>HEADROOM<span className="brand-divider" /><span className="brand-subtitle">INTERCONNECTION RISK</span></a>
       <div className="header-status"><span className="status-dot" />LOCAL WORKSPACE<span className="header-divider" /><span className="fixture-badge">ILLUSTRATIVE DATA</span></div>
     </header>
     <div className="workspace-heading">
-      <div><div className="eyebrow breadcrumb">SPP <span>/</span> FLEXIBLE INTERCONNECTION</div><h1>What is earlier power worth?</h1><p>Explore the trade between earlier grid access and interruption exposure.</p></div>
+      <div><div className="eyebrow breadcrumb">SPP <span>/</span> SCENARIO ANALYSIS</div><h1>Flexible connection analysis</h1><p>Earlier grid access, modeled interruption exposure, and the cost of waiting.</p></div>
       <div className="workspace-actions"><button className="button button-quiet" onClick={reset}><RotateCcw size={14} />Reset</button><button className="button" onClick={exportScenario}>{exported ? <Check size={14} /> : <Download size={14} />}{exported ? 'Exported' : 'Export scenario'}</button><span className="sr-only" role="status">{exported ? 'Scenario JSON exported.' : ''}</span></div>
     </div>
   </>;
@@ -107,9 +107,9 @@ function ExposureControl() {
     <div className="exposure-slider-area">
       <div className="slider-readout"><span>Share of system stress mapped to this site</span><Sourced value={inputs.site_exposure} source={sourceFor('site_exposure')} format={fixed} className="exposure-number" /></div>
       <div className="slider-track-wrap">
+        <span className="slider-progress" style={{ width: `calc(10px + (100% - 20px) * ${inputs.site_exposure})` }} aria-hidden="true" />
         <input type="range" min={0} max={1} step={0.01} value={inputs.site_exposure} onChange={event => update('site_exposure', Number(event.target.value))}
-          aria-label="Site exposure factor" aria-describedby="exposure-explanation" aria-valuetext={`${inputs.site_exposure.toFixed(2)}, user-set assumption`}
-          style={{ '--range-progress': `${inputs.site_exposure * 100}%` } as CSSProperties} />
+          aria-label="Site exposure factor" aria-describedby="exposure-explanation" aria-valuetext={`${inputs.site_exposure.toFixed(2)}, user-set assumption`} />
         {marker !== null && <span className="break-even-marker" style={{ left: `calc(10px + (100% - 20px) * ${marker})` }} title="Economic break-even under current assumptions" />}
       </div>
       <div className="slider-endpoints"><span><Sourced value={0} source={uiSource('site_exposure/min')} format={v => v.toFixed(1)} animate={false} /> No exposure</span><span>Full modeled exposure <Sourced value={1} source={uiSource('site_exposure/max')} format={v => v.toFixed(1)} animate={false} /></span></div>
@@ -124,7 +124,7 @@ function FanTooltip({ active, row }: { active?: boolean; row?: ChartRow }) {
   if (!active || !row) return null;
   return <div className="chart-tooltip"><div className="eyebrow">CONTRACT YEAR <Value datum={row.original.year} format={integer.format} /></div>
     <div><span><Percentile value={90} /> modeled exposure</span><span><Value datum={row.original.p90} /> h/yr</span></div>
-    <div className="text-mint"><span><Percentile value={50} /> modeled exposure</span><span><Value datum={row.original.p50} /> h/yr</span></div>
+    <div><span><Percentile value={50} /> modeled exposure</span><span><Value datum={row.original.p50} /> h/yr</span></div>
     <div><span><Percentile value={10} /> modeled exposure</span><span><Value datum={row.original.p10} /> h/yr</span></div>
     <small>Illustrative quantiles · hover or tap a value for its source</small>
   </div>;
@@ -145,7 +145,7 @@ function ExposurePanel() {
   const maximum = Math.ceil(Math.max(...baseline.annual_series.map(row => row.p90.value)) / 100) * 100;
   const yTicks = Array.from({ length: 5 }, (_, i) => maximum * i / 4);
   return <section className="panel exposure-panel" aria-labelledby="exposure-panel-title">
-    <div className="panel-heading"><div className="flex items-center gap-2"><Activity size={15} className="text-mint" /><h2 id="exposure-panel-title">Modeled exposure</h2></div><span className="eyebrow muted">HOURS / YEAR</span></div>
+    <div className="panel-heading"><div className="flex items-center gap-2"><Activity size={15} className="muted" /><h2 id="exposure-panel-title">Modeled exposure</h2></div><span className="eyebrow muted">HOURS / YEAR</span></div>
     <div className="metric-row">
       {([['p50', 50, 'Median scenario'], ['p90', 90, 'Upper-tail scenario'], ['p99', 99, 'Extreme-tail scenario']] as const).map(([key, percentile, label]) => <div className={`metric metric-${key}`} key={key}>
         <div className="metric-label"><Percentile value={percentile} /><span>{label}</span></div>
@@ -158,13 +158,12 @@ function ExposurePanel() {
       <div className="fan-chart" role="group" aria-label="Annual modeled exposure fan chart. Median line and p10 to p90 band. Exact sourced values are available in the annual data table below.">
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
           <ComposedChart data={data} margin={{ top: 15, right: 18, bottom: 12, left: 8 }} accessibilityLayer>
-            <defs><linearGradient id="fan-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#a0bea0" stopOpacity={0.23} /><stop offset="100%" stopColor="#8cb896" stopOpacity={0.035} /></linearGradient></defs>
-            <CartesianGrid vertical={false} stroke="#303832" strokeDasharray="3 5" />
-            <XAxis dataKey="year" tickLine={false} axisLine={{ stroke: '#3b433c' }} interval="preserveStartEnd" minTickGap={35} height={30} tick={<SourcedTick source={uiSource('contract_year; ordinal year in selected contract')} axis="x" />} />
+            <CartesianGrid vertical={false} stroke="#303236" />
+            <XAxis dataKey="year" tickLine={false} axisLine={{ stroke: '#404348' }} interval="preserveStartEnd" minTickGap={35} height={30} tick={<SourcedTick source={uiSource('contract_year; ordinal year in selected contract')} axis="x" />} />
             <YAxis domain={[0, maximum]} ticks={yTicks} axisLine={false} tickLine={false} width={44} tick={<SourcedTick source={uiSource('axis/hours_per_year; chart scale, not an observation')} axis="y" />} />
-            <Tooltip content={({ active, payload }) => <FanTooltip active={active} row={payload?.[0]?.payload as ChartRow | undefined} />} cursor={{ stroke: '#9eac9e', strokeDasharray: '3 4' }} wrapperStyle={{ pointerEvents: 'auto', zIndex: 30 }} />
-            <Area type="linear" dataKey="band" stroke="#718c72" strokeOpacity={0.55} fill="url(#fan-fill)" activeDot={false} animationDuration={280} isAnimationActive={!reducedMotion} />
-            <Line type="linear" dataKey="median" stroke="#c2e59e" strokeWidth={2.5} dot={data.length === 1 ? { r: 4 } : false} activeDot={{ r: 4, fill: '#c2e59e', stroke: '#101412', strokeWidth: 2 }} animationDuration={280} isAnimationActive={!reducedMotion} />
+            <Tooltip content={({ active, payload }) => <FanTooltip active={active} row={payload?.[0]?.payload as ChartRow | undefined} />} cursor={{ stroke: '#a4a9ae', strokeDasharray: '3 4' }} wrapperStyle={{ pointerEvents: 'auto', zIndex: 30 }} />
+            <Area type="linear" dataKey="band" stroke="#6f767e" strokeOpacity={0.65} fill="#9aa3ac" fillOpacity={0.12} activeDot={false} animationDuration={280} isAnimationActive={!reducedMotion} />
+            <Line type="linear" dataKey="median" stroke="#b9c2c9" strokeWidth={2} dot={data.length === 1 ? { r: 3 } : false} activeDot={{ r: 4, fill: '#b9c2c9', stroke: '#101214', strokeWidth: 2 }} animationDuration={280} isAnimationActive={!reducedMotion} />
           </ComposedChart>
         </ResponsiveContainer>
       </div>
@@ -180,7 +179,7 @@ function EconomicsPanel() {
   const { economics: e, decision } = result;
   const state = decision === 'worth it' ? 'positive' : decision === 'not worth it' ? 'negative' : 'neutral';
   return <section className={`panel economics-panel decision-${state}`} aria-labelledby="economics-title">
-    <div className="panel-heading"><div className="flex items-center gap-2"><span className="dollar-icon">$</span><h2 id="economics-title">The economics</h2></div><span className="eyebrow muted">MEDIAN-PATH SCENARIO</span></div>
+    <div className="panel-heading"><div className="flex items-center gap-2"><span className="dollar-icon">$</span><h2 id="economics-title">Connection economics</h2></div><span className="eyebrow muted">MEDIAN-PATH SCENARIO</span></div>
     <div className="economics-flow">
       <div className="economics-row"><div><span className="economics-label">Interruptible capacity</span><span className="economics-detail">Load × flexibility split</span></div><span><Value datum={e.interruptible_mw} /> <small>MW</small></span></div>
       <div className="flow-connector"><ArrowDownRight size={14} /><span>Modeled exposure × compute density</span></div>
@@ -205,7 +204,7 @@ function EconomicsPanel() {
 function Assumptions() {
   const { inputs, result, sourceFor } = useScenario();
   return <section className="assumptions-panel" aria-labelledby="assumptions-title">
-    <div className="assumptions-heading"><div className="flex items-center gap-2"><SlidersHorizontal size={14} /><h2 id="assumptions-title">The assumptions behind the dollars</h2></div><span className="eyebrow text-amber">ALL EDITABLE · ALL ILLUSTRATIVE</span></div>
+    <div className="assumptions-heading"><div className="flex items-center gap-2"><SlidersHorizontal size={14} /><h2 id="assumptions-title">Economic assumptions</h2></div><span className="eyebrow text-amber">ALL EDITABLE · ALL ILLUSTRATIVE</span></div>
     <div className="assumption-fields">
       <NumberField compact name="firm_wait_years" label="EARLIER ACCESS" unit="years" min={0} max={20} step={0.25} />
       <NumberField compact name="gpu_per_mw" label="COMPUTE DENSITY" unit="GPU / MW" min={1} max={2000} />

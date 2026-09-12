@@ -77,6 +77,17 @@ The DOM tests use a fixed chart container because jsdom has no layout engine; th
 exercise real chart components, input controls, decision changes, provenance, and
 the annual values table. They do not replace visual browser QA.
 
+## Visual reference
+
+The visual pass follows the compact workspaces shown by [Coinbase Prime](https://www.coinbase.com/en-de/prime)
+and [Palantir Workshop](https://www.palantir.com/docs/foundry/workshop/overview):
+neutral charcoal surfaces, aligned controls, fine dividing rules, tabular ledgers,
+and color reserved for state or data. [Jane Street](https://www.janestreet.com/),
+[Optiver](https://www.optiver.com/), and [Millennium](https://www.mlp.com/) supplied
+additional references for concise navigation and typographic hierarchy. No brand
+assets are copied. The interface uses no gradients, glows, glass effects, rounded
+card grid, emoji icons, or marketing hero treatment.
+
 Build configuration follows the official [Vite guide](https://vite.dev/guide/) and
 [Tailwind Vite integration](https://tailwindcss.com/docs/installation/using-vite).
 The fan uses a range [Recharts Area](https://recharts.github.io/en-US/api/Area/) with

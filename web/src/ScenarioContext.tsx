@@ -1,10 +1,19 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
-import { defaultInputs, deriveScenario, mockResponse, type ScenarioInputs, type Source } from './model';
+import { defaultInputs, deriveScenario, mockResponse, type ScenarioInputs, type Source, type SourcedInputs } from './model';
 
 function useScenarioState() {
   const [inputs, setInputs] = useState<ScenarioInputs>({ ...defaultInputs });
   const [edited, setEdited] = useState<Set<keyof ScenarioInputs>>(new Set());
-  const result = useMemo(() => deriveScenario(inputs), [inputs]);
+  const result = useMemo(() => {
+    const derived = deriveScenario(inputs);
+    // Keep exported input provenance identical to the controls on screen.
+    derived.inputs = Object.fromEntries(Object.entries(inputs).map(([key, value]) => [key, {
+      value,
+      source_type: edited.has(key as keyof ScenarioInputs) ? 'assumption' : mockResponse.defaults[key as keyof ScenarioInputs].source_type,
+      ref: edited.has(key as keyof ScenarioInputs) ? `user://scenario/${key}` : mockResponse.defaults[key as keyof ScenarioInputs].ref,
+    }])) as SourcedInputs;
+    return derived;
+  }, [inputs, edited]);
   function update<K extends keyof ScenarioInputs>(key: K, value: ScenarioInputs[K]) {
     setInputs(previous => ({ ...previous, [key]: value }));
     setEdited(previous => new Set(previous).add(key));
