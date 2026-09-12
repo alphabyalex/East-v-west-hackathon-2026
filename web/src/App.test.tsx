@@ -20,6 +20,21 @@ beforeEach(() => vi.stubEnv('VITE_ESTIMATE_MODE', 'local'));
 afterEach(() => { cleanup(); vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
 describe('scenario workspace interactions', () => {
+  it('opens the inline transparency panel and restores trigger focus on Escape', () => {
+    render(<App />);
+    const trigger = screen.getByRole('button', { name: 'Model & evidence' });
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(trigger);
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    const panel = document.getElementById('transparency-panel')!;
+    expect(panel).toBeTruthy();
+    fireEvent.change(screen.getByRole('slider', { name: 'Site exposure factor' }), { target: { value: '0.65' } });
+    expect(within(panel).getByRole('button', { name: /Site exposure factor assumption: 0.65/ })).toBeTruthy();
+    fireEvent.keyDown(panel, { key: 'Escape' });
+    expect(document.getElementById('transparency-panel')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+  });
+
   it('makes HTTP fallback, retry, and the economic override mode switch visible', async () => {
     vi.stubEnv('VITE_ESTIMATE_MODE', 'api');
     const fetcher = vi.fn().mockRejectedValueOnce(new TypeError('Failed to fetch')).mockImplementation((_url, options) => Promise.resolve(new Response(JSON.stringify(createMockEstimate(JSON.parse(options.body))), { status: 200 })));

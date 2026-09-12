@@ -1,8 +1,9 @@
-import { Component, lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
+import { Component, lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, Check, ChevronDown, CircleHelp, Download, Gauge, MapPin, RotateCcw, SlidersHorizontal, Unplug, Zap } from 'lucide-react';
 import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { ScenarioProvider, useScenario } from './ScenarioContext';
 import { Sourced, SourceInfo, SourcedTick } from './components/Sourced';
+import { TransparencyPanel } from './components/TransparencyPanel';
 import { ConfidenceBadge, type ConfidenceEstimate } from './components/ConfidenceBadge';
 import { deriveScenario, mockResponse, toEstimateRequest, type ScenarioInputs, type Source, type SourcedValue } from './model';
 
@@ -166,6 +167,9 @@ function FanTooltip({ active, row, confidence }: { active?: boolean; row?: Chart
 function ExposurePanel() {
   const { result, inputs } = useScenario();
   const [tableOpen, setTableOpen] = useState(false);
+  const [transparencyOpen, setTransparencyOpen] = useState(false);
+  const transparencyTrigger = useRef<HTMLButtonElement>(null);
+  const closeTransparency = () => { setTransparencyOpen(false); transparencyTrigger.current?.focus(); };
   const [view, setView] = useState<'surface' | 'fan'>('fan');
   const [surfaceUnavailable, setSurfaceUnavailable] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
@@ -181,7 +185,7 @@ function ExposurePanel() {
   const yTicks = Array.from({ length: 5 }, (_, i) => maximum * i / 4);
   const showFallback = () => { setSurfaceUnavailable(true); setView('fan'); };
   return <section className="panel exposure-panel" aria-labelledby="exposure-panel-title">
-    <div className="panel-heading"><div className="flex items-center gap-2"><Activity size={15} className="muted" /><h2 id="exposure-panel-title">Modeled exposure</h2></div><span className="eyebrow muted">HOURS / YEAR</span></div>
+    <div className="panel-heading"><div className="flex items-center gap-2"><Activity size={15} className="muted" /><h2 id="exposure-panel-title">Modeled exposure</h2></div><div className="exposure-panel-actions"><span className="eyebrow muted">HOURS / YEAR</span><button ref={transparencyTrigger} className="button transparency-trigger" aria-expanded={transparencyOpen} aria-controls="transparency-panel" onClick={() => setTransparencyOpen(open => !open)}><CircleHelp size={13} />Model &amp; evidence</button></div></div>
     <div className="metric-row">
       {([['p50', 50, 'Median scenario'], ['p90', 90, 'Upper-tail scenario'], ['p99', 99, 'Extreme-tail scenario']] as const).map(([key, percentile, label]) => <div className={`metric metric-${key}`} key={key}>
         <div className="metric-label"><Percentile value={percentile} /><span>{label}</span></div>
@@ -189,6 +193,7 @@ function ExposurePanel() {
         <ConfidenceBadge confidence={result.confidence} />
       </div>)}
     </div>
+    {transparencyOpen && <TransparencyPanel confidence={result.confidence} tariff={result.tariff} siteExposure={result.inputs.site_exposure} onClose={closeTransparency} />}
     <div className="chart-section">
       <div className="chart-heading"><div><h3>Exposure over the contract term</h3><p>Illustrative quantiles · fixed inputs · no live simulation</p></div><div className="chart-view-controls" role="group" aria-label="Exposure visualization"><button aria-pressed={view === 'fan'} onClick={() => setView('fan')}>Fan chart</button><button aria-pressed={view === 'surface'} onClick={() => { setSurfaceUnavailable(false); setView('surface'); }}>Surface</button></div></div>
       {surfaceUnavailable && <p className="surface-fallback" role="status">Interactive surface unavailable on this device. Fan chart shown; exact sourced values remain below.</p>}
@@ -262,19 +267,8 @@ function Assumptions() {
   </section>;
 }
 
-function TariffEvidence() {
-  const { result } = useScenario();
-  const { tariff } = result;
-  const mocked = tariff.curtailment_triggers.some(clause => /^mock:/i.test(clause.source.ref));
-  return <section className="tariff-panel" aria-labelledby="tariff-title">
-    <div className="panel-heading"><div className="flex items-center gap-2"><CircleHelp size={14} /><h2 id="tariff-title">Tariff evidence</h2></div><span className="eyebrow muted">{tariff.operator} / {tariff.service}</span></div>
-    {mocked && <p className="tariff-placeholder"><strong>MOCK TERMS</strong> These records are placeholders, not extracted contract clauses.</p>}
-    <div className="tariff-clauses">{tariff.curtailment_triggers.map((clause, index) => <div className="tariff-clause" key={`${clause.source.ref}-${index}`}><p>{clause.text} <SourceInfo value={clause.text} source={clause.source} label="Contract term provenance" /></p><span className="eyebrow muted">{clause.observable ? 'PUBLIC PROXY AVAILABLE' : 'NOT DIRECTLY OBSERVABLE'}</span></div>)}</div>
-  </section>;
-}
-
 function Workspace() {
-  return <div className="app-shell"><a className="skip-link" href="#main">Skip to analysis</a><Header /><main id="main"><Inputs /><ExposureControl /><div className="results-grid"><ExposurePanel /><EconomicsPanel /></div><Assumptions /><TariffEvidence /></main><footer><span className="flex items-center gap-2"><Unplug size={12} />OFFLINE-READY FIXTURE · NO LIVE GRID DATA</span><span>Every number has a source. Hover, focus, or click a value or source tag.</span></footer></div>;
+  return <div className="app-shell"><a className="skip-link" href="#main">Skip to analysis</a><Header /><main id="main"><Inputs /><ExposureControl /><div className="results-grid"><ExposurePanel /><EconomicsPanel /></div><Assumptions /></main><footer><span className="flex items-center gap-2"><Unplug size={12} />OFFLINE-READY FIXTURE · NO LIVE GRID DATA</span><span>Every number has a source. Hover, focus, or click a value or source tag.</span></footer></div>;
 }
 
 export default function App() { return <ScenarioProvider><Workspace /></ScenarioProvider>; }

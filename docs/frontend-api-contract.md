@@ -195,3 +195,36 @@ A live differential check in `web/src/api/live-contract.test.ts` compares server
 responses with the frontend mock and feeds them through the existing client and
 view adapter. Set `HEADROOM_API_URL` to the API or Vite origin for an explicit run;
 ordinary unit tests do not need a server.
+
+## Transparency diagnostics handoff
+
+The expandable **Model & evidence** panel is part of the working page, next to
+modeled exposure. It explains the system/site boundary, exposes the current sourced
+site assumption, preserves the estimate-confidence framing, and contains tariff
+records from the canonical response. Mock clauses are identified as unextracted and
+have no fabricated citation links.
+
+Reliability diagnostics are a separate local display fixture in
+`web/src/model/transparency.ts`, **not an extra field added to POST /api/estimate**:
+
+```ts
+{
+  status: 'mock',
+  target: 'system_stress',
+  brier_score: SourcedValue<number>,
+  naive_brier_score: SourcedValue<number>,
+  reliability_curve: Array<{
+    mean_predicted: SourcedValue<number>,
+    observed_fraction: SourcedValue<number>
+  }>
+}
+// SourcedValue<T> = { value: T, source_type: 'assumption', ref: 'mock://...' }
+```
+
+These authored curve points and score placeholders are not a held-out evaluation,
+not the confidence signal, and not a site-outage probability. The chart, hover
+readouts, metric values, and exact-value table all retain provenance. Kristian must
+supply a validation artifact with the evaluation target, split/period, score/baseline,
+bin counts, and source/model version before the mock validation label can be removed.
+Agree that diagnostic interface separately; the existing estimate contract remains
+unchanged.

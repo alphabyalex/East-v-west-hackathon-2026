@@ -196,3 +196,12 @@ Fraunces handles the brand and section headings; IBM Plex Sans handles controls 
 The fan chart is the initial view; Three.js is imported and initialized only after selecting **Surface**. This keeps WebGL startup off the demo entry path. The reported real-Chrome screenshot hang cannot be reproduced through the available browser tools (no browser is connected), so this release does not claim GPU-driver verification. Surface failures return to the fan and preserve the sourced annual table.
 
 The surface scheduler coalesces camera, hover picking, resize, and data events into one animation frame, reuses geometry/materials when only heights change, and only publishes axis labels when their placement/provenance changes. It suspends draws in hidden tabs, cancels on disposal/context loss, and keeps automatic rotation/damping disabled. Numeric interpolation also has finite completion/cancellation tests. These are CPU/lifecycle regressions; they do not emulate the browser GPU driver.
+
+## Model and evidence panel
+
+Use **Model & evidence** beside the exposure heading to expand the honesty-layer
+explanation, current site assumption/confidence, mock reliability diagnostics, and
+tariff evidence in place. The mock Brier values and authored reliability points are
+not computed validation results; the panel says so explicitly. All diagnostic
+numbers, including axes and the exact-value table, carry sources. Tariff placeholders
+have no invented document citations. Close or Escape returns to the analysis.
