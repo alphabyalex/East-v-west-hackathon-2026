@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { adaptEstimateResponse, createMockEstimate, defaultInputs, deriveScenario, mockResponse, toEstimateRequest, type ScenarioInputs, type Source, type SourcedInputs } from './model';
+import { adaptEstimateResponse, defaultInputs, mockResponse, toEstimateRequest, type ScenarioInputs, type Source, type SourcedInputs } from './model';
+import { createLocationPreview } from './model/location-preview';
 import { useEstimateTransport, type EstimateMode } from './hooks/useEstimateTransport';
 import { validateEconomicsAssumptions, type EconomicsAssumptions } from './api/assumptions';
 import economicSnapshot from './model/economics-assumptions.json';
@@ -49,7 +50,7 @@ function useScenarioState(initialMode: EstimateMode) {
     // Never leave an older server response beneath newly edited controls.
     const derived = transport.response
       ? adaptEstimateResponse(transport.response, inputs, decisionPolicy)
-      : deriveScenario(inputs, decisionPolicy);
+      : adaptEstimateResponse(createLocationPreview(toEstimateRequest(inputs), inputs, decisionPolicy), inputs, decisionPolicy);
     // Keep exported input provenance identical to the controls on screen.
     derived.inputs = Object.fromEntries(Object.entries(inputs).map(([key, value]) => [key, {
       value,
@@ -59,7 +60,7 @@ function useScenarioState(initialMode: EstimateMode) {
   }, [inputs, edited, transport.response, economicDefaults, decisionPolicy]);
   const sensitivity = useMemo(() => transport.sensitivity ?? buildSensitivity(
     result.canonical_response,
-    createMockEstimate({ ...toEstimateRequest(inputs), site_exposure: 1 }, inputs, decisionPolicy),
+    createLocationPreview({ ...toEstimateRequest(inputs), site_exposure: 1 }, inputs, decisionPolicy),
     inputs,
     economicDefaults ?? offlineAssumptions,
   ), [transport.sensitivity, result, inputs, decisionPolicy, economicDefaults]);

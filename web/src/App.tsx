@@ -1,14 +1,16 @@
 import { Component, lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, Check, ChevronDown, CircleHelp, Download, MapPin, RotateCcw, SlidersHorizontal, Unplug, Zap } from 'lucide-react';
+import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, Check, ChevronDown, CircleHelp, Download, RotateCcw, SlidersHorizontal, Unplug, Zap } from 'lucide-react';
 import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { ScenarioProvider, useScenario } from './ScenarioContext';
 import { Sourced, SourceInfo, SourcedTick } from './components/Sourced';
 import { TransparencyPanel } from './components/TransparencyPanel';
 import { SensitivityPanel } from './components/SensitivityPanel';
+import { LocationField } from './components/LocationField';
 import { ConfidenceBadge, type ConfidenceEstimate } from './components/ConfidenceBadge';
 import { isMockSource } from './components/MockLabel';
 import { useChangeMotion } from './hooks/useChangeMotion';
-import { deriveScenario, mockResponse, toEstimateRequest, type ScenarioInputs, type Source, type SourcedValue } from './model';
+import { adaptEstimateResponse, deriveScenario, toEstimateRequest, type ScenarioInputs, type Source, type SourcedValue } from './model';
+import { createLocationPreview } from './model/location-preview';
 
 const ExposureSurface = lazy(() => import('./components/ExposureSurface'));
 class SurfaceBoundary extends Component<{ children: ReactNode; onUnavailable: () => void }, { failed: boolean }> {
@@ -118,13 +120,8 @@ function EstimateConnection() {
 }
 
 function Inputs() {
-  const { inputs, update, sourceFor } = useScenario();
   return <section className="inputs-bar" aria-label="Connection inputs">
-    <div className="location-field">
-      <div className="field-label"><label htmlFor="location"><MapPin size={13} />SPP LOCATION</label><SourceInfo value={inputs.location_id} source={sourceFor('location_id')} label="Location provenance" /></div>
-      <div className="select-wrap"><select id="location" value={inputs.location_id} onChange={event => update('location_id', event.target.value)}>{mockResponse.locations.map(location => <option key={location.id} value={location.id}>{location.label.replace(/ · illustrative$/, ' · scenario')}</option>)}</select><ChevronDown size={15} /></div>
-      <span className="field-note">{inputs.location_id === 'SPP_SYSTEM' ? 'System aggregate · no site-specific grid data' : 'Scenario location · no site-specific grid data'}</span>
-    </div>
+    <LocationField />
     <NumberField name="load_mw" label="LOAD SIZE" unit="MW" min={1} max={2000} icon={<Zap size={13} />} />
     <NumberField name="contract_years" label="CONTRACT TERM" unit="years" min={1} max={7} icon={<Activity size={13} />} />
     <NumberField name="flexibility_percent" label="FLEXIBILITY SPLIT" unit="% interruptible" min={0} max={100} icon={<SlidersHorizontal size={13} />} />
@@ -185,7 +182,7 @@ function ExposurePanel() {
     return () => query.removeEventListener('change', sync);
   }, []);
   const data: ChartRow[] = result.annual_series.map(row => ({ year: row.year.value, band: [row.p50.value, row.p90.value], median: row.p50.value, upper: row.p99.value, original: row }));
-  const baseline = deriveScenario({ ...inputs, site_exposure: 1 });
+  const baseline = adaptEstimateResponse(createLocationPreview({ ...toEstimateRequest(inputs), site_exposure: 1 }, inputs), inputs);
   const maximum = Math.ceil(Math.max(...baseline.annual_series.map(row => row.p99.value), ...result.annual_series.map(row => row.p99.value)) / 100) * 100;
   const yTicks = Array.from({ length: 5 }, (_, i) => maximum * i / 4);
   const showFallback = () => { setSurfaceUnavailable(true); setView('fan'); };

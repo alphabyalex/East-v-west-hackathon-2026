@@ -5,6 +5,8 @@ import { cloneElement, type ReactElement } from 'react';
 import App from './App';
 import { createMockEstimate } from './model';
 import { withEconomics } from './api/test-fixtures';
+import { createLocationPreview } from './model/location-preview';
+import { offlineLocations } from './api/locations';
 
 // jsdom has no layout engine. Retain the real Recharts SVG/axes/tooltip components
 // while giving their responsive wrapper a deterministic layout for interaction tests.
@@ -21,6 +23,36 @@ beforeEach(() => vi.stubEnv('VITE_ESTIMATE_MODE', 'local'));
 afterEach(() => { cleanup(); vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
 describe('scenario workspace interactions', () => {
+  it('renders the complete results view for a newly cataloged zone while its estimate is unavailable', async () => {
+    vi.stubEnv('VITE_ESTIMATE_MODE', 'api');
+    const post = vi.fn().mockImplementation((_url, options) => {
+      const request = JSON.parse(options.body);
+      return Promise.resolve(request.location_id === 'CSWS'
+        ? new Response('{}', { status: 404 })
+        : new Response(JSON.stringify(createLocationPreview(request)), { status: 200 }));
+    });
+    const supplied = withEconomics(post);
+    vi.stubGlobal('fetch', (url: RequestInfo | URL, options?: RequestInit) => String(url).endsWith('/api/locations')
+      ? Promise.resolve(new Response(JSON.stringify({ locations: [
+        ...offlineLocations, { id: 'CSWS', label: 'CSWS · SPP load zone', kind: 'zone' },
+      ] }), { status: 200 }))
+      : supplied(url, options));
+    render(<App />);
+    await screen.findByRole('option', { name: 'CSWS · SPP load zone' });
+    fireEvent.change(screen.getByRole('combobox', { name: 'SPP LOCATION' }), { target: { value: 'CSWS' } });
+    expect(screen.getByText('SPP load zone · no site-specific grid data')).toBeTruthy();
+    expect(await screen.findByRole('button', { name: 'Retry estimate' })).toBeTruthy();
+    expect((screen.getByRole('combobox', { name: 'SPP LOCATION' }) as HTMLSelectElement).value).toBe('CSWS');
+    expect(post.mock.calls.some(([, options]) => JSON.parse(options.body).location_id === 'CSWS')).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Inspect annual values' }));
+    const table = screen.getByRole('table', { name: /Sourced annual modeled exposure/ });
+    expect(within(table).getAllByRole('row')).toHaveLength(8);
+    fireEvent.click(within(table).getAllByRole('cell')[1].querySelector('button')!);
+    const source = JSON.parse(screen.getByRole('tooltip').getAttribute('data-provenance')!);
+    expect(source.source_type).toBe('assumption');
+    expect(source.ref).toContain('placeholder preview for requested_location_id=CSWS');
+  });
+
   it('exports the current sourced sensitivity without extending the canonical API response', async () => {
     let exported: Blob | undefined;
     let release!: () => void;

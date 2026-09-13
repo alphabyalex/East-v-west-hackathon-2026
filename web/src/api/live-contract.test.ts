@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { postEstimate } from './client';
+import { getLocations } from './locations';
 import { getEconomicsAssumptions, validateEconomicConsistency } from './assumptions';
 import { buildEstimateSensitivity } from './sensitivity';
 import { adaptEstimateResponse, createMockEstimate, defaultInputs, toEstimateRequest } from '../model';
@@ -20,6 +21,19 @@ const cases = [
 ];
 
 describe.skipIf(!baseUrl)('live FastAPI / frontend contract parity', () => {
+  it('loads real zone IDs and the three named scenarios from the running API', async () => {
+    const locations = await getLocations({
+      fetchImpl: ((input, init) => fetch(new URL(new URL(String(input), 'http://127.0.0.1:8000').pathname, baseUrl), init)) as typeof fetch,
+      signal: AbortSignal.timeout(5000),
+    });
+    expect(locations.map(location => location.id)).toEqual(expect.arrayContaining([
+      'CSWS', 'EDE', 'GRDA', 'INDN', 'KACY', 'KCPL', 'LES', 'MPS', 'NPPD',
+      'OKGE', 'OPPD', 'SECI', 'SPP_SYSTEM', 'SPRM', 'SPS', 'WAUE', 'WFEC', 'WR',
+      'spp-wichita-demo', 'spp-oklahoma-city-demo', 'spp-lincoln-demo',
+    ]));
+    expect(locations.filter(location => location.kind === 'scenario')).toHaveLength(3);
+  });
+
   it.each(cases)('serves and adapts the current scenario: %j', async request => {
     const options = {
       fetchImpl: ((input, init) => fetch(new URL(new URL(String(input), 'http://127.0.0.1:8000').pathname, baseUrl), init)) as typeof fetch,

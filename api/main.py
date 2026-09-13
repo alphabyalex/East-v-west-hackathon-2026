@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .economics import ArithmeticRangeError, AssumptionsError, EconomicsAssumptions, load_assumptions
 from .estimate import build_estimate
+from .locations import LocationsResponse, get_locations
 from .mock_provider import LocationNotFoundError, LocationProvider
 from .pipeline_provider import PipelineDataError, get_pipeline_location
 from .schemas import EstimateRequest, EstimateResponse
@@ -32,6 +33,16 @@ app.add_middleware(
 def get_location_provider() -> LocationProvider:
     """Try the precomputed reader, falling back only for missing pipeline pieces."""
     return get_pipeline_location
+
+
+@app.get("/api/locations", response_model=LocationsResponse)
+def locations(response: Response) -> LocationsResponse:
+    """List available IDs without claiming validated annual or site coverage."""
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        return get_locations()
+    except PipelineDataError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
 
 
 @app.get("/api/economics-assumptions", response_model=EconomicsAssumptions)
