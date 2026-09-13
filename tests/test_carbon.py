@@ -420,8 +420,92 @@ def test_verified_egrid_schema_extracts_swpp_factors_with_exact_document_cells(t
         assert result[fuel]["value"] == 0
         assert "egrid2023_technical_guide.pdf#page=21" in result[fuel]["ref"]
         assert "excludes lifecycle" in result[fuel]["ref"]
-    assert set(result) == {"Coal", "Natural Gas", "Oil", "Wind", "Solar", "Hydro", "Nuclear"}
+    assert set(result) == {"Coal", "Natural Gas", "Oil", "Wind", "Solar", "Hydro", "Nuclear", "Waste Heat"}
     assert json.dumps(result, allow_nan=False) == json.dumps(load_egrid_swpp_factors(path), allow_nan=False)
+
+
+def test_egrid_waste_heat_zero_is_a_sourced_accounting_convention_not_a_plant_measurement(tmp_path, monkeypatch):
+    path = epa_cache(tmp_path, monkeypatch)
+    original_cache = path.read_bytes()
+    factors = load_egrid_swpp_factors(path)
+    waste_heat = factors["Waste Heat"]
+    assert set(waste_heat) == {"value", "source_type", "ref", "unit", "boundary"}
+    assert waste_heat["value"] == 0.0 and waste_heat["source_type"] == "data"
+    assert waste_heat["unit"] == FACTOR_UNIT == "kgCO2/MWh"
+    assert waste_heat["boundary"] == BOUNDARY == "direct_operational_co2"
+    ref = waste_heat["ref"]
+    assert "https://www.epa.gov/system/files/documents/2025-01/egrid2023_technical_guide.pdf#page=21" in ref
+    assert "12164c665217f1b4d00ac6a8115a3806710dab79993d02959cdf7f7f66abd841" in ref
+    assert "https://portal.spp.org/api/pageConfig/by-slug/generation-mix-historical" in ref
+    assert "0160d0a41a70029190b79c3856cd427eeb59381a0d1af1f083f8e40011d435db" in ref
+    assert all(qualification in ref for qualification in ("eGRID accounting convention", "host-process", "upstream", "lifecycle"))
+    assert "WH" not in factors and "waste heat" not in factors
+    assert path.read_bytes() == original_cache
+
+
+def test_egrid_waste_heat_stays_in_full_generation_denominator_and_assumption_lineage(tmp_path, monkeypatch):
+    path = epa_cache(tmp_path, monkeypatch, content=epa_workbook(rows=[[2023, "SWPP", 1000, 500, 1200]]))
+    factors = load_egrid_swpp_factors(path)
+    frame = mix([(HOURS[0], "Coal", 30), (HOURS[0], "Waste Heat", 70)])
+    original_frame, original_factors, original_policy = deepcopy((frame, factors, POLICY))
+    result = fuel_mix_intensity(frame, factors, expected_fuels=["Coal", "Waste Heat"], application_source=POLICY)[0]
+    assert result["status"] == "available"
+    assert result["missing_fuels"] == result["missing_generation_fuels"] == []
+    assert result["intensity_kg_co2_per_mwh"]["value"] == 300.
+    assert result["generation_mwh"]["value"] == result["known_generation_mwh"]["value"] == 100.
+    assert result["factor_coverage_fraction"]["value"] == 1.
+    assert result["intensity_kg_co2_per_mwh"]["source_type"] == "assumption"
+    evidence = json.loads(result["intensity_kg_co2_per_mwh"]["ref"])["inputs"]
+    assert factors["Coal"] in evidence and factors["Waste Heat"] in evidence
+    assert all(any(item["ref"] == ref for item in evidence) for ref in frame.ref)
+    assert any(POLICY["ref"] in item["ref"] for item in evidence)
+    pd.testing.assert_frame_equal(frame, original_frame, check_exact=True)
+    assert factors == original_factors and POLICY == original_policy
+
+
+def test_egrid_waste_heat_does_not_supply_factors_for_other_positive_unmapped_fuels(tmp_path, monkeypatch):
+    factors = load_egrid_swpp_factors(epa_cache(tmp_path, monkeypatch))
+    frame = mix([(HOURS[0], "Waste Heat", 40), (HOURS[0], "Waste Disposal Services", 10),
+                 (HOURS[0], "Other", 20), (HOURS[0], "Diesel Fuel Oil", 30)])
+    original_frame, original_factors, original_policy = deepcopy((frame, factors, POLICY))
+    expected = ["Waste Heat", "Waste Disposal Services", "Other", "Diesel Fuel Oil"]
+    result = fuel_mix_intensity(frame, factors, expected_fuels=expected, application_source=POLICY)[0]
+    assert "Oil" in factors
+    assert not {"Waste Disposal Services", "Other", "Diesel Fuel Oil"} & set(factors)
+    assert result["status"] == "missing_factors"
+    assert result["missing_fuels"] == ["Diesel Fuel Oil", "Other", "Waste Disposal Services"]
+    assert result["missing_generation_fuels"] == []
+    assert result["intensity_kg_co2_per_mwh"]["value"] is None
+    assert result["generation_mwh"]["value"] == 100.
+    assert result["known_generation_mwh"]["value"] == 40.
+    assert result["factor_coverage_fraction"]["value"] == .4
+    assert result["intensity_kg_co2_per_mwh"]["source_type"] == "assumption"
+    evidence = json.loads(result["intensity_kg_co2_per_mwh"]["ref"])["inputs"]
+    assert factors["Waste Heat"] in evidence
+    assert all(any(item["ref"] == ref for item in evidence) for ref in frame.ref)
+    pd.testing.assert_frame_equal(frame, original_frame, check_exact=True)
+    assert factors == original_factors and POLICY == original_policy
+
+
+def test_egrid_zero_waste_heat_factor_does_not_make_unknown_generation_evaluable(tmp_path, monkeypatch):
+    factors = load_egrid_swpp_factors(epa_cache(tmp_path, monkeypatch))
+    frame = mix([(HOURS[0], "Coal", 30), (HOURS[0], "Waste Heat", None)]).astype({"generation_mwh": object})
+    frame["generation_status"] = ["complete", "incomplete_observations"]
+    frame.loc[1, "generation_mwh"] = None
+    original_frame, original_factors, original_policy = deepcopy((frame, factors, POLICY))
+    result = fuel_mix_intensity(frame, factors, expected_fuels=["Coal", "Waste Heat"], application_source=POLICY)[0]
+    assert factors["Waste Heat"]["value"] == 0.
+    assert result["status"] == "missing_generation"
+    assert result["missing_generation_fuels"] == ["Waste Heat"]
+    assert result["missing_fuels"] == []
+    for name in ("intensity_kg_co2_per_mwh", "generation_mwh", "factor_coverage_fraction"):
+        assert result[name]["value"] is None and result[name]["source_type"] == "assumption"
+    assert result["reported_generation_mwh"]["value"] == result["known_generation_mwh"]["value"] == 30.
+    evidence = json.loads(result["intensity_kg_co2_per_mwh"]["ref"])["inputs"]
+    assert factors["Waste Heat"] in evidence
+    assert any(item["ref"] == frame.loc[1, "ref"] and item["value"] is None for item in evidence)
+    pd.testing.assert_frame_equal(frame, original_frame, check_exact=True)
+    assert factors == original_factors and POLICY == original_policy
 
 
 def test_egrid_accounting_qualification_survives_hourly_intensity_provenance(tmp_path, monkeypatch):

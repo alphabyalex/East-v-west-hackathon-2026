@@ -155,9 +155,13 @@ def load_egrid_swpp_factors(path=DEFAULT_EGRID_CACHE) -> dict[str, dict]:
     Applying them to
     2024 generation or individual plants still requires the caller's explicit
     assumption in fuel_mix_intensity(application_source=...). Oil is not silently
-    mapped to Diesel Fuel Oil; waste and Other receive no invented factors.
+    mapped to Diesel Fuel Oil; Waste Disposal Services and Other receive no
+    invented factors.
     Wind/Solar/Hydro/Nuclear operational zero comes from the EPA technical guide,
     not absent workbook cells. It excludes lifecycle emissions.
+    Waste Heat uses the guide's explicit zero-CO2 accounting convention for that
+    exact category, not a claim that its host process has no emissions. The SPP
+    category match and hourly use still require the caller's application assumption.
     """
     # Resolve as a local path before giving pandas any input: URLs never trigger I/O.
     cache_path = Path(path)
@@ -235,6 +239,21 @@ def load_egrid_swpp_factors(path=DEFAULT_EGRID_CACHE) -> dict[str, dict]:
     for fuel in ("Wind", "Solar", "Hydro", "Nuclear"):
         result[fuel] = {**WIND_OPERATIONAL_CO2_FACTOR,
                         "ref": WIND_OPERATIONAL_CO2_FACTOR["ref"].replace("wind generation", f"{fuel.lower()} generation")}
+    result["Waste Heat"] = {
+        "value": 0.0, "source_type": "data", "unit": FACTOR_UNIT, "boundary": BOUNDARY,
+        "ref": (
+            "https://www.epa.gov/system/files/documents/2025-01/egrid2023_technical_guide.pdf#page=21; "
+            "eGRID2023 Technical Guide, section 3.1.1, printed page 10; eGRID accounting convention "
+            "assigns zero direct operational CO2 to waste heat; WH definition at printed page 70 "
+            "and Table C-1 at printed page 147; verified guide SHA256="
+            "12164c665217f1b4d00ac6a8115a3806710dab79993d02959cdf7f7f66abd841; "
+            "https://portal.spp.org/api/pageConfig/by-slug/generation-mix-historical; "
+            "record 2181 explicitly identifies Waste Heat Market and Waste Heat Self as fuel type waste heat; "
+            "verified SPP metadata SHA256=0160d0a41a70029190b79c3856cd427eeb59381a0d1af1f083f8e40011d435db; "
+            "not a measured host-process emission rate; excludes upstream and lifecycle emissions "
+            "and any displaced-generation claim; category application remains the caller's explicit assumption"
+        ),
+    }
     return result
 
 
