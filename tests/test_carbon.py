@@ -6,6 +6,7 @@ from itertools import permutations
 import json
 import math
 
+import numpy as np
 import pandas as pd
 import pytest
 from openpyxl import Workbook
@@ -700,6 +701,42 @@ def test_archive_rejects_malformed_component_values(value):
     raw.loc[0, "Coal Market"] = value
     with pytest.raises(ValueError):
         normalize_archive(raw)
+
+
+@pytest.mark.parametrize("quantity", [
+    pytest.param(pd.Series([60 + 5j] * 12, dtype=complex), id="complex-dtype"),
+    pytest.param(pd.Series([60.] * 11 + [60 + 5j], dtype=object), id="mixed-complex"),
+    pytest.param(pd.Series([np.datetime64(60, 'ns')] * 12), id="datetime-dtype"),
+    pytest.param(pd.Series([np.timedelta64(60, 'ns')] * 12), id="timedelta-dtype"),
+    pytest.param(pd.Series([pd.Timestamp(60, tz='UTC')] * 12), id="timezone-datetime-dtype"),
+    pytest.param(pd.Series([60.] * 11 + [pd.Timestamp(60)], dtype=object), id="mixed-timestamp"),
+    pytest.param(pd.Series([60.] * 11 + [np.datetime64(60, 'ns')], dtype=object), id="mixed-numpy-datetime"),
+    pytest.param(pd.Series([60.] * 11 + [np.timedelta64(60, 'ns')], dtype=object), id="mixed-numpy-timedelta"),
+    pytest.param(pd.Series([pd.NaT] * 12, dtype='datetime64[ns]'), id="temporal-null-dtype"),
+    pytest.param(pd.Series([60.] * 11 + [pd.NaT], dtype=object), id="mixed-temporal-null"),
+])
+def test_archive_rejects_temporal_or_complex_power_instead_of_inventing_real_mwh(quantity):
+    raw = archive()
+    raw["Wind Market"] = quantity
+    original = raw.copy(deep=True)
+    with pytest.raises(ValueError, match="real numeric MW"):
+        normalize_archive(raw)
+    pd.testing.assert_frame_equal(raw, original, check_exact=True)
+
+
+@pytest.mark.parametrize("dtype,known", [("Float64", 2.5), ("Int64", 2), (object, "2.5")])
+def test_archive_numeric_nullable_and_text_inputs_retain_energy_missingness_and_sources(dtype, known):
+    raw = archive(periods=24)
+    raw["Wind Market"] = pd.Series([known] * 23 + [pd.NA], dtype=dtype)
+    expected = archive(periods=24)
+    expected["Wind Market"] = [float(known)] * 23 + [float('nan')]
+    actual = normalize_archive(raw)
+    pd.testing.assert_frame_equal(actual, normalize_archive(expected), check_exact=True)
+    wind = actual[actual.fuel.eq("Wind")].reset_index(drop=True)
+    assert wind.loc[0, "generation_mwh"] == float(known) + 8
+    assert wind.loc[1, "generation_mwh"] is None
+    assert wind.loc[1, "generation_status"] == "incomplete_observations"
+    assert json.loads(wind.loc[1, "ref"])["complete_samples"] == 11
 
 
 def test_archive_rejects_ambiguous_columns_and_aliases_instead_of_double_counting():

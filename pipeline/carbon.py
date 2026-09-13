@@ -17,6 +17,7 @@ MWh * (risk-hour intensity - makeup-hour intensity), not a causal dispatch claim
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from datetime import date, time, timedelta
 import hashlib
 from io import BytesIO
 import json
@@ -309,6 +310,12 @@ def normalize_spp_generation_archive(raw: pd.DataFrame, *, generation_source: Ma
     for name in components:
         if frame[name].map(lambda value: isinstance(value, (bool, np.bool_))).any():
             raise ValueError("Generation component MW cannot be boolean")
+        # pandas otherwise casts temporal quantities to nanoseconds and drops
+        # complex imaginary parts, turning malformed input into plausible MW.
+        if frame[name].dtype.kind in "cMm" or frame[name].map(lambda value: isinstance(
+            value, (complex, np.complexfloating, date, time, timedelta, np.datetime64, np.timedelta64)
+        )).any():
+            raise ValueError("Generation components require real numeric MW, not complex or temporal quantities")
         frame[name] = pd.to_numeric(frame[name], errors="raise").astype(float)
         if np.isinf(frame[name]).any():
             raise ValueError("Generation component MW cannot be infinite")

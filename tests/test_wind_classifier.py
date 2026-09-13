@@ -59,6 +59,33 @@ def test_exact_time_lags_do_not_jump_missing_hours_or_use_current_actuals():
     pd.testing.assert_frame_equal(features, other)
 
 
+@pytest.mark.parametrize("bad", [60 + 5j, np.complex64(60 + 5j), pd.Timestamp(60, unit="ns"),
+                                  np.datetime64(60, "ns"), pd.Timedelta(60, unit="ns"), np.timedelta64(60, "ns")])
+@pytest.mark.parametrize("mixed", [False, True])
+def test_feature_preparation_rejects_lossy_scientific_quantity_types(bad, mixed):
+    for column in SOURCES:
+        actuals, _ = inputs()
+        values = [bad] * len(actuals) if not mixed else [bad, *(["60"] * (len(actuals) - 1))]
+        actuals[column] = pd.Series(values, dtype=object if mixed else None)
+        original = actuals.copy(deep=True)
+        with pytest.raises(ValueError, match="complex, datetime or timedelta"):
+            wind.prepare_wind_classifier_features(actuals, sources=SOURCES)
+        pd.testing.assert_frame_equal(actuals, original)
+
+
+@pytest.mark.parametrize("dtype", [object, "Float64", "Int64"])
+def test_feature_preparation_preserves_real_nullable_lags(dtype):
+    actuals, _ = inputs()
+    values = ["60"] * len(actuals) if dtype is object else [60] * len(actuals)
+    values[0] = pd.NA
+    actuals["system_wind_mw"] = pd.Series(values, dtype=dtype)
+    target = actuals.timestamp_utc.iloc[24]
+    result = wind.prepare_wind_classifier_features(actuals, sources=SOURCES, target_timestamps=[target])
+    assert result.system_wind_mw_lag_1h.iloc[0] == 60.
+    assert pd.isna(result.system_wind_mw_lag_24h.iloc[0])
+    assert result.system_load_mw_lag_24h.iloc[0] == actuals.system_load_mw.iloc[0]
+
+
 def test_requested_hour_needs_only_its_lags_not_a_current_hour_observation():
     actuals, _ = inputs()
     target = actuals.timestamp_utc.iloc[30]

@@ -96,6 +96,32 @@ def test_all_observed_zeros_are_negative_without_inventing_an_event():
     assert result.observed_five_minute_samples.tolist() == [12]
 
 
+@pytest.mark.parametrize("bad", [1j, np.complex64(1j), pd.Timestamp(1, unit="ns"),
+                                  np.datetime64(1, "ns"), pd.Timedelta(1, unit="ns"), np.timedelta64(1, "ns")])
+@pytest.mark.parametrize("mixed", [False, True])
+def test_nonreal_or_temporal_ver_quantities_cannot_become_evaluable_labels(bad, mixed):
+    # Pure imaginary positives formerly lost their imaginary part and became a
+    # fully evaluable false label; timestamps/durations became positive counts.
+    values = pd.Series([bad] * 12) if not mixed else pd.Series(["0"] * 11 + [bad], dtype=object)
+    for column in WIND:
+        frame = observations()
+        frame[column] = values
+        original = frame.copy(deep=True)
+        with pytest.raises(ValueError, match="complex, datetime or timedelta"):
+            labels(frame)
+        pd.testing.assert_frame_equal(frame, original)
+
+
+@pytest.mark.parametrize("dtype", [object, "Float64", "Int64"])
+def test_real_nullable_ver_values_remain_unknown_instead_of_complete_negatives(dtype):
+    frame = observations()
+    values = ["0"] * 11 + [pd.NA] if dtype is object else [0] * 11 + [pd.NA]
+    frame[WIND[0]] = pd.Series(values, dtype=dtype)
+    result = labels(frame)
+    assert pd.isna(result.wind_curtailment_event.iloc[0])
+    assert result.evaluable_five_minute_samples.tolist() == [11]
+
+
 @pytest.mark.parametrize("missing", [np.nan, None, pd.NA])
 def test_zero_with_any_missing_category_makes_complete_hour_unknown(missing):
     frame = observations()

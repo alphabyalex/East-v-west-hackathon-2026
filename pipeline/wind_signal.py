@@ -32,6 +32,7 @@ incomplete new directory; only the final valid manifest marks publication.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date, timedelta
 import csv
 from fractions import Fraction
 import hashlib
@@ -132,6 +133,17 @@ def finite_number(value: object, name: str, *, minimum=None, maximum=None) -> fl
     if minimum is not None and number < minimum or maximum is not None and number > maximum:
         raise ValueError(f"{name} is outside its allowed range.")
     return number
+
+
+def _numeric_observations(values: pd.Series, name: str) -> pd.Series:
+    """Keep real numeric strings/nulls, never complex parts or temporal units."""
+    kind = getattr(values.dtype, "kind", None)
+    forbidden = (complex, np.complexfloating, date, timedelta, np.datetime64, np.timedelta64)
+    if kind in {"c", "M", "m"} or kind not in {"b", "i", "u", "f"} and any(
+        isinstance(value, forbidden) for value in values
+    ):
+        raise ValueError(f"{name} cannot contain complex, datetime or timedelta quantities.")
+    return pd.to_numeric(values, errors="raise")
 
 
 def wind_scenario_mwh(proxy_hours, flexible_load_mw, available_fraction):
@@ -398,7 +410,7 @@ def prepare_wind_curtailment_labels(
     for name in VER_WIND_COLUMNS:
         if frame[name].map(lambda value: isinstance(value, (bool, np.bool_))).any():
             raise ValueError("VER quantities cannot be boolean.")
-        frame[name] = pd.to_numeric(frame[name], errors="raise").astype(float)
+        frame[name] = _numeric_observations(frame[name], "VER quantities").astype(float)
         if np.isinf(frame[name]).any() or frame[name].lt(0).any():
             raise ValueError("VER categories require nonnegative finite observations or missing values.")
     frame = frame.drop_duplicates()
@@ -497,7 +509,7 @@ def read_cached_day_ahead_prices(year: int, *, settlement_locations: list[str]) 
         raise ValueError("Selected prices require their explicit published Pnode identifiers.")
     if frame.LMP.map(lambda value: isinstance(value, (bool, np.bool_))).any():
         raise ValueError("Day-ahead LMP cannot be boolean.")
-    frame["LMP"] = pd.to_numeric(frame.LMP, errors="raise").astype(float)
+    frame["LMP"] = _numeric_observations(frame.LMP, "LMP").astype(float)
     if np.isinf(frame.LMP).any():
         raise ValueError("Day-ahead LMP cannot be infinite.")
     frame["Interval End"] = ends
@@ -542,7 +554,7 @@ def _complete_hourly_power(raw: pd.DataFrame, value_column: str, *, nonnegative=
         raise ValueError("Source intervals cannot cross UTC-hour boundaries.")
     if frame[value_column].map(lambda value: isinstance(value, (bool, np.bool_))).any():
         raise ValueError("Cached numeric observations cannot be booleans.")
-    frame[value_column] = pd.to_numeric(frame[value_column], errors="raise").astype(float)
+    frame[value_column] = _numeric_observations(frame[value_column], value_column).astype(float)
     if np.isinf(frame[value_column]).any():
         raise ValueError("Cached numeric observations cannot be infinite.")
     if nonnegative and frame[value_column].lt(0).any():
@@ -607,7 +619,7 @@ def prepare_wind_inputs(
         for name in components:
             if checked[name].map(lambda value: isinstance(value, (bool, np.bool_))).any():
                 raise ValueError("Historical wind observations cannot be booleans.")
-            checked[name] = pd.to_numeric(checked[name], errors="raise").astype(float)
+            checked[name] = _numeric_observations(checked[name], name).astype(float)
             if np.isinf(checked[name]).any():
                 raise ValueError("Historical wind observations cannot be infinite.")
         if checked[components].sum(axis=1, min_count=2).lt(0).any():
@@ -752,7 +764,7 @@ def read_cached_monthly_load(year: int = 2025) -> tuple[pd.DataFrame, dict]:
         for name in LOAD_AREAS:
             if frame[name].map(lambda value: isinstance(value, (bool, np.bool_))).any():
                 raise ValueError("Monthly load components cannot be boolean.")
-            numeric = pd.to_numeric(frame[name], errors="raise")
+            numeric = _numeric_observations(frame[name], f"Monthly load {name}")
             if np.isinf(numeric).any():
                 raise ValueError("Monthly load components must be finite numeric values or missing.")
         frames.append(frame[columns].assign(_interval_end=ends))
@@ -835,7 +847,7 @@ def wind_oversupply_hours(
     for name in INPUT_COLUMNS:
         if frame[name].map(lambda value: isinstance(value, (bool, np.bool_))).any():
             raise ValueError(f"{name} cannot contain boolean observations.")
-        frame[name] = pd.to_numeric(frame[name], errors="raise").astype(float)
+        frame[name] = _numeric_observations(frame[name], name).astype(float)
         if np.isinf(frame[name]).any():
             raise ValueError(f"{name} contains infinity.")
         if name != "lmp_usd_mwh" and frame[name].lt(0).any():
@@ -989,7 +1001,7 @@ def _wind_observations(hourly, sources):
     for name in columns:
         if frame[name].map(lambda value: isinstance(value, (bool, np.bool_))).any():
             raise ValueError("Wind classifier actual observations cannot be boolean.")
-        frame[name] = pd.to_numeric(frame[name], errors="raise").astype(float)
+        frame[name] = _numeric_observations(frame[name], name).astype(float)
         if np.isinf(frame[name]).any() or frame[name].lt(0).any():
             raise ValueError("Wind classifier actual observations must be finite nonnegative values or missing.")
     # A zero system-load observation is unevaluable, not an invented operating state.

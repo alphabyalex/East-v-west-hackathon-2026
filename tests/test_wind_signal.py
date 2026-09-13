@@ -46,6 +46,39 @@ def test_missing_evidence_is_unknown_not_false(column):
     assert report["proxy_hours"]["value"] == 3
 
 
+@pytest.mark.parametrize("bad", [60 + 5j, np.complex64(60 + 5j), pd.Timestamp(60, unit="ns"),
+                                  np.datetime64(60, "ns"), pd.Timedelta(60, unit="ns"), np.timedelta64(60, "ns")])
+@pytest.mark.parametrize("mixed", [False, True])
+def test_scientific_quantity_types_cannot_become_real_mw_or_price(bad, mixed):
+    values = pd.Series([bad] * 4) if not mixed else pd.Series(["60", pd.NA, bad, None], dtype=object)
+    for column in SOURCES:
+        frame = observations()
+        frame[column] = values
+        original = frame.copy(deep=True)
+        with pytest.raises(ValueError, match="complex, datetime or timedelta"):
+            wind_oversupply_hours(frame, **ARGS)
+        with pytest.raises(ValueError, match="complex, datetime or timedelta"):
+            summarize(frame)
+        pd.testing.assert_frame_equal(frame, original)
+
+
+@pytest.mark.parametrize("dtype,values", [
+    (object, ["60", None, np.nan, pd.NA]),
+    ("Float64", [60., None, np.nan, pd.NA]),
+    ("Int64", [60, None, pd.NA, pd.NA]),
+])
+def test_real_numeric_strings_and_nullable_quantities_preserve_unknown_hours(dtype, values):
+    frame = observations()
+    frame["system_wind_mw"] = pd.Series(values, dtype=dtype)
+    result = wind_oversupply_hours(frame, **ARGS)
+    assert result.wind_oversupply_proxy.iloc[0]
+    assert result.wind_oversupply_proxy.iloc[1:].isna().all()
+    report = summarize(frame)[0]
+    assert report["proxy_hours"]["value"] == 1
+    assert report["unknown_hours"]["value"] == 3
+    assert report["wind_absorption_mwh_in_observed_hours"]["value"] == 50.
+
+
 def test_generic_binding_constraint_does_not_establish_wind_oversupply():
     frame = observations()
     frame["lmp_usd_mwh"] = 50.
@@ -341,6 +374,39 @@ def test_historical_wind_validates_raw_components_before_averaging(bad):
     historic.loc[0, "Wind Market"] = bad
     with pytest.raises(ValueError):
         prepare(historic, load, prices, generation_format="historical")
+
+
+@pytest.mark.parametrize("bad", [60 + 5j, pd.Timestamp(60, unit="ns"), pd.Timedelta(60, unit="ns")])
+@pytest.mark.parametrize("mixed", [False, True])
+def test_adapters_reject_lossy_quantities_before_hourly_averaging(bad, mixed):
+    def invalid(length):
+        return (pd.Series([bad] * length) if not mixed else
+                pd.Series([bad, *(["60"] * (length - 1))], dtype=object))
+
+    generation, load, prices = cached_inputs()
+    generation["Wind"] = invalid(len(generation))
+    with pytest.raises(ValueError, match="complex, datetime or timedelta"):
+        prepare(generation, load, prices)
+    generation, load, prices = cached_inputs()
+    prices["LMP"] = invalid(len(prices))
+    with pytest.raises(ValueError, match="complex, datetime or timedelta"):
+        prepare(generation, load, prices)
+    generation, load, prices = cached_inputs()
+    historic = pd.DataFrame({"GMT MKT Interval": generation["Interval Start"], "Wind Market": invalid(len(generation)),
+                             "Wind Self": 20., "Solar Market": 1., "Solar Self": 1.})
+    with pytest.raises(ValueError, match="complex, datetime or timedelta"):
+        prepare(historic, load, prices, generation_format="historical")
+
+
+def test_adapter_keeps_numeric_strings_and_incomplete_nullable_power_unknown():
+    generation, load, prices = cached_inputs()
+    generation["Wind"] = pd.Series(["60"] * len(generation), dtype=object)
+    generation.loc[0, "Wind"] = pd.NA
+    prices["LMP"] = pd.Series(["-1", "10"], dtype=object)
+    result = prepare(generation, load, prices)
+    assert pd.isna(result.system_wind_mw.iloc[0])
+    assert result.system_wind_mw.iloc[1] == 60.
+    assert result.lmp_usd_mwh.tolist() == [-1., 10.]
 
 
 def test_cache_adapter_overlapping_identical_chunks_are_deduplicated():
