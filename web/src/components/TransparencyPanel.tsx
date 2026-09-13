@@ -99,7 +99,7 @@ export function TransparencyPanel({ confidence, tariff, siteExposure, onClose }:
               <XAxis type="number" dataKey="predicted" domain={[0, 1]} ticks={[0, 0.25, 0.5, 0.75, 1]} tickLine={false} axisLine={{ stroke: 'var(--border)' }} tick={<SourcedTick source={axisSource} axis="x" />} />
               <YAxis type="number" domain={[0, 1]} ticks={[0, 0.25, 0.5, 0.75, 1]} width={45} tickLine={false} axisLine={false} tick={<SourcedTick source={axisSource} axis="y" />} />
               <ReferenceLine segment={[{ x: 0, y: 0 }, { x: 1, y: 1 }]} stroke="var(--text-muted)" strokeDasharray="4 4" />
-              <Line type="linear" dataKey="observed" name="Mock reliability curve" stroke="var(--teal)" strokeWidth={2} dot={{ r: 3, fill: 'var(--teal)' }} activeDot={{ r: 4 }} isAnimationActive={false} />
+              <Line type="linear" dataKey="observed" name="Mock reliability curve" stroke="var(--chart-primary)" strokeWidth={2} dot={{ r: 3, fill: 'var(--chart-primary)' }} activeDot={{ r: 4, fill: 'var(--signal)', stroke: 'var(--signal)' }} isAnimationActive={false} />
               <Tooltip content={({ active, payload }) => <ReliabilityTooltip active={active} row={payload?.[0]?.payload as ReliabilityRow | undefined} />} wrapperStyle={{ pointerEvents: 'auto', zIndex: 30 }} cursor={{ stroke: 'var(--text-muted)', strokeDasharray: '3 4' }} />
             </ComposedChart>
           </ResponsiveContainer>

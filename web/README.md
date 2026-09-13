@@ -211,7 +211,17 @@ local JavaScript chunk. No remote chart service or runtime simulation is involve
 
 ## Type and color system
 
-Fraunces handles the brand and section headings; IBM Plex Sans handles controls and prose; IBM Plex Mono handles numbers with tabular figures. The requested [Google Fonts](https://developers.google.com/fonts/docs/css2) files and their OFL licenses are bundled in `public/fonts`, with local `@font-face` rules in `src/fonts.css`, so the demo does not depend on a font CDN. Near-black surfaces, warm off-white text, amber active controls, steel-teal chart series, and muted semantic colors share the tokens in `src/styles.css`.
+Ink and Signal uses Archivo at weight 600 with -0.03em tracking for the lowercase
+wordmark, headings, and UI labels; IBM Plex Sans for body copy; and Roboto Mono for
+numbers with tabular alignment. The official Google Fonts
+[Archivo](https://github.com/google/fonts/tree/main/ofl/archivo) and
+[Roboto Mono](https://github.com/google/fonts/tree/main/ofl/robotomono) variable TTFs
+and their OFL licenses are bundled in `public/fonts`, alongside IBM Plex Sans.
+Local `@font-face` rules in `src/fonts.css` keep the demo independent of a font CDN.
+Near-black ground, quiet surfaces, warm off-white text, and hairline separators use
+the tokens in `src/styles.css`. The restrained signal accent is reserved for live
+values and active states. The supplied Fluxline mark and favicon assets stay local
+in `public/`.
 
 ## Surface stability
 

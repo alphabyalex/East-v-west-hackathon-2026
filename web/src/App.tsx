@@ -87,8 +87,8 @@ function Header() {
   }
   return <>
     <header className="app-header">
-      <a href="/" className="brand" aria-label="Fluxline home"><span className="brand-mark" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 2V16M15 2V16M3 9H15M7 5V13M11 5V13" stroke="currentColor" strokeWidth="1.3" /></svg></span>Fluxline<span className="brand-divider" /><span className="brand-subtitle">INTERCONNECTION RISK</span></a>
-      <div className="header-status"><span className="status-dot" />{status === 'api' ? 'API CONNECTED' : status === 'loading' ? 'API PENDING' : status === 'fallback' ? 'LOCAL FALLBACK' : 'LOCAL WORKSPACE'}</div>
+      <a href="/" className="brand" aria-label="Fluxline home"><span className="brand-mark" aria-hidden="true"><img className="brand-image" src="/fluxline-mark.svg" width="48" height="48" alt="" /></span>fluxline<span className="brand-divider" /><span className="brand-subtitle">INTERCONNECTION RISK</span></a>
+      <div className="header-status" data-connected={status === 'api'}><span className="status-dot" />{status === 'api' ? 'API CONNECTED' : status === 'loading' ? 'API PENDING' : status === 'fallback' ? 'LOCAL FALLBACK' : 'LOCAL WORKSPACE'}</div>
     </header>
     <div className="workspace-heading">
       <div><div className="eyebrow breadcrumb">SPP <span>/</span> SCENARIO ANALYSIS</div><h1>Flexible connection analysis</h1><p>Earlier grid access, modeled interruption exposure, and the cost of waiting.</p></div>
@@ -138,7 +138,7 @@ function ExposureControl() {
   const marker = crossover.value !== null && crossover.value >= 0 && crossover.value <= 1 ? crossover.value : null;
   return <section className="exposure-control" aria-labelledby="exposure-label">
     <div className="exposure-copy">
-      <div className="flex items-center gap-2"><span className="assumption-badge">USER ASSUMPTION</span><Gauge size={15} className="text-amber" /></div>
+      <div className="flex items-center gap-2"><span className="assumption-badge">USER ASSUMPTION</span><Gauge size={15} className="metric-emphasis" /></div>
       <h2 id="exposure-label">Site exposure factor</h2>
       <p>Public grid stress does not establish a specific site’s actual curtailment. <strong>You set the mapping.</strong></p>
     </div>
@@ -214,9 +214,9 @@ function ExposurePanel() {
             <XAxis dataKey="year" tickLine={false} axisLine={{ stroke: 'var(--border-strong)' }} interval="preserveStartEnd" minTickGap={35} height={30} tick={<SourcedTick source={uiSource('contract_year; ordinal year in selected contract')} axis="x" />} />
             <YAxis domain={[0, maximum]} ticks={yTicks} axisLine={false} tickLine={false} width={44} tick={<SourcedTick source={uiSource('axis/hours_per_year; chart scale, not an observation')} axis="y" />} />
             <Tooltip content={({ active, payload }) => <FanTooltip active={active} row={payload?.[0]?.payload as ChartRow | undefined} confidence={result.confidence} />} cursor={{ stroke: 'var(--text-muted)', strokeDasharray: '3 4' }} wrapperStyle={{ pointerEvents: 'auto', zIndex: 30 }} />
-            <Area type="linear" dataKey="band" stroke="var(--teal)" strokeOpacity={0.65} fill="var(--teal)" fillOpacity={0.12} activeDot={false} animationDuration={320} animationEasing="ease-out" isAnimationActive={!reducedMotion} />
+            <Area type="linear" dataKey="band" stroke="var(--chart-secondary)" strokeOpacity={0.65} fill="var(--chart-secondary)" fillOpacity={0.12} activeDot={false} animationDuration={320} animationEasing="ease-out" isAnimationActive={!reducedMotion} />
             <Line type="linear" dataKey="median" stroke="var(--text-primary)" strokeWidth={2} dot={data.length === 1 ? { r: 3 } : false} activeDot={{ r: 4, fill: 'var(--text-primary)', stroke: 'var(--bg-base)', strokeWidth: 2 }} animationDuration={320} animationEasing="ease-out" isAnimationActive={!reducedMotion} />
-            <Line type="linear" dataKey="upper" stroke="var(--teal)" strokeWidth={1} strokeDasharray="4 4" dot={data.length === 1 ? { r: 3 } : false} activeDot={{ r: 3 }} animationDuration={320} animationEasing="ease-out" isAnimationActive={!reducedMotion} />
+            <Line type="linear" dataKey="upper" stroke="var(--chart-secondary)" strokeWidth={1} strokeDasharray="4 4" dot={data.length === 1 ? { r: 3 } : false} activeDot={{ r: 3, fill: 'var(--signal)' }} animationDuration={320} animationEasing="ease-out" isAnimationActive={!reducedMotion} />
           </ComposedChart>
         </ResponsiveContainer>
       </div>
@@ -244,12 +244,12 @@ function EconomicsPanel() {
       <div className="flow-connector"><ArrowDownRight size={14} /><span>Modeled exposure × compute density</span></div>
       <div className="economics-row"><div><span className="economics-label">Lost GPU-hours</span><span className="economics-detail">Annual equivalent · median path</span></div><span><Value datum={e.annual_lost_gpu_hours} format={integer.format} /> <small>/yr</small></span></div>
       <div className="flow-connector"><ArrowDownRight size={14} /><span>Lost GPU-hours × value per GPU-hour</span></div>
-      <div className="economics-row loss-row"><div><span className="economics-label">Modeled interruption cost</span><span className="economics-detail">Annual equivalent</span></div><span className="text-amber"><Value datum={e.annual_loss_usd} format={money} /> <small>/yr</small></span></div>
+      <div className="economics-row loss-row"><div><span className="economics-label">Modeled interruption cost</span><span className="economics-detail">Annual equivalent</span></div><span className="metric-emphasis"><Value datum={e.annual_loss_usd} format={money} /> <small>/yr</small></span></div>
     </div>
     <div className="economics-quantiles"><table><caption>ANNUAL COST SCENARIOS · USD / YEAR <MockLabel sources={[economicsSource]} /></caption><thead><tr>{([50, 90, 99] as const).map(percentile => <th key={percentile}><Percentile value={percentile} /></th>)}</tr></thead><tbody><tr>{(['p50', 'p90', 'p99'] as const).map(key => <td key={key}><Value datum={e.annual_loss_by_quantile[key]} format={money} /></td>)}</tr></tbody></table></div>
     <div className="term-ledger">
       <div className="ledger-heading">OVER YOUR <Sourced value={inputs.contract_years} source={sourceFor('contract_years')} format={integer.format} />-YEAR TERM</div>
-      <div><span>Earlier-access contribution</span><Value datum={e.early_access_value_usd} format={signedMoney} className="text-mint" /></div>
+      <div><span>Earlier-access contribution</span><Value datum={e.early_access_value_usd} format={signedMoney} className="metric-emphasis" /></div>
       <div><span>Modeled interruption cost</span><Value datum={{ ...e.term_loss_usd, value: -e.term_loss_usd.value, ref: `${e.term_loss_usd.ref}; display_as_ledger_debit = -term_loss_usd` }} format={money} /></div>
       <div className="ledger-net"><span>Net value vs. waiting <MockLabel sources={[e.net_value_usd]} /></span><Value datum={e.net_value_usd} format={signedMoney} /></div>
     </div>

@@ -38,11 +38,11 @@ function Decision({ endpoint, label }: { endpoint: SensitivityEndpoint; label: s
 
 function TornadoBar({ x = 0, y = 0, width = 0, height = 0, payload }: { x?: number; y?: number; width?: number; height?: number; payload?: ChartRow }) {
   if (!payload) return null
-  return <g data-sensitivity-bar={payload.original.key}>
+  return <g className="sensitivity-bar" data-sensitivity-bar={payload.original.key}>
     <title>{JSON.stringify({ low: payload.original.low, high: payload.original.high, source: payload.original.source })}</title>
     {width === 0
-      ? <line x1={x} x2={x} y1={y} y2={y + height} stroke="var(--teal)" strokeWidth={2} />
-      : <rect x={x} y={y} width={width} height={height} fill="var(--teal)" fillOpacity={0.6} stroke="var(--teal)" />}
+      ? <line x1={x} x2={x} y1={y} y2={y + height} stroke="var(--chart-primary)" strokeWidth={2} />
+      : <rect x={x} y={y} width={width} height={height} fill="var(--chart-primary)" fillOpacity={0.22} stroke="var(--chart-secondary)" />}
   </g>
 }
 
@@ -117,7 +117,7 @@ export function SensitivityPanel({ sensitivity }: { sensitivity: SensitivityResu
           <BarChart data={chartRows} layout="vertical" margin={{ top: 12, right: 35, bottom: 14, left: 4 }} accessibilityLayer>
             <CartesianGrid horizontal={false} stroke="var(--border)" />
             <XAxis type="number" domain={[-axisLimit, axisLimit]} ticks={[-axisLimit, -axisLimit / 2, 0, axisLimit / 2, axisLimit]} tickLine={false} axisLine={{ stroke: 'var(--border-strong)' }} height={30} tick={<SourcedTick source={axisSource} axis="x" />} />
-            <YAxis type="category" dataKey="label" width={136} axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 11, fontFamily: 'var(--font-sans)' }} />
+            <YAxis type="category" dataKey="label" width={136} axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 11, fontFamily: 'var(--font-heading)', fontWeight: 600, letterSpacing: '-0.03em' }} />
             <ReferenceLine x={0} stroke="var(--text-primary)" strokeDasharray="3 4" />
             <Tooltip content={({ active, payload }) => <SensitivityTooltip active={active} row={payload?.[0]?.payload as ChartRow | undefined} />} cursor={{ fill: 'var(--hover)', fillOpacity: 0.5 }} wrapperStyle={{ pointerEvents: 'auto', zIndex: 30 }} />
             <Bar dataKey="span" shape={<TornadoBar />} barSize={24} isAnimationActive={!reducedMotion} animationDuration={320} animationEasing="ease-out" />

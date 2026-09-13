@@ -8,7 +8,7 @@ const numeric = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 });
 const money = (value: number) => `${value < 0 ? '−' : ''}$${(Math.abs(value) / 1_000_000).toFixed(2)}M`;
 
 function BrandMark() {
-  return <span className="brand-mark" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 2V16M15 2V16M3 9H15M7 5V13M11 5V13" stroke="currentColor" strokeWidth="1.3" /></svg></span>;
+  return <span className="brand-mark" aria-hidden="true"><img className="brand-image" src="/fluxline-mark.svg" alt="" width="48" height="48" /></span>;
 }
 
 function HeroDemo() {
@@ -32,13 +32,13 @@ function HeroDemo() {
         />
       </div>
       <div className="slider-endpoints">
-        <span>0.0 No exposure</span>
-        <span>Full modeled exposure 1.0</span>
+        <span><span className="num">0.0</span> No exposure</span>
+        <span>Full modeled exposure <span className="num">1.0</span></span>
       </div>
       <div className="hero-demo-row">
         <span>Share of system stress mapped to your site</span>
         <div className={`hero-demo-stats decision-${state}`}>
-          <div><span className="eyebrow">MODELED EXPOSURE, p50</span><strong>{numeric.format(p50)} h/yr</strong></div>
+          <div><span className="eyebrow">MODELED EXPOSURE, <span className="num">p50</span></span><strong>{numeric.format(p50)} h/yr</strong></div>
           <div><span className="eyebrow">MODELED COST</span><strong>{money(cost)}/yr</strong></div>
           <div className="hero-demo-decision">
             {state === 'positive' ? <ArrowUpRight size={16} /> : state === 'negative' ? <ArrowDownRight size={16} /> : <ArrowRight size={16} />}
@@ -46,7 +46,7 @@ function HeroDemo() {
           </div>
         </div>
       </div>
-      <p className="hero-demo-note">Illustrative SPP node, 100 MW load, 60% flexible, 7-year term. Drag the slider — this is a preview, not a forecast for a specific site.</p>
+      <p className="hero-demo-note">Illustrative SPP node, <span className="num">100</span> MW load, <span className="num">60%</span> flexible, <span className="num">7</span>-year term. Drag the slider — this is a preview, not a forecast for a specific site.</p>
     </div>
   );
 }
@@ -55,12 +55,12 @@ export function Landing() {
   return <div className="landing">
     <a href="#main" className="skip-link">Skip to the problem</a>
     <header className="app-header land-header">
-      <a href="/" className="brand" aria-label="Fluxline home"><BrandMark />Fluxline<span className="brand-divider" /><span className="brand-subtitle">INTERCONNECTION RISK</span></a>
+      <a href="/" className="brand" aria-label="fluxline home"><BrandMark />fluxline<span className="brand-divider" /><span className="brand-subtitle">INTERCONNECTION RISK</span></a>
       <a className="button" href="/app">Run your scenario<ArrowRight size={14} /></a>
     </header>
 
     <section className="hero">
-      <span className="eyebrow land-eyebrow land-eyebrow-accent">SPP · CHILLS — LIVE JULY 1, 2026</span>
+      <span className="eyebrow land-eyebrow">SPP · CHILLS — LIVE JULY <span className="num">1, 2026</span></span>
       <h1>The contract won&rsquo;t tell you<br />when they&rsquo;ll cut your power.</h1>
       <p className="hero-lede">So we learned it from what they actually do.</p>
       <p className="hero-sub">Enter a location, a load size, and how much of your compute can pause. Get a modeled exposure range, a cost, and a break-even point &mdash; every number traced to a dataset, a filed tariff clause, or an assumption you set yourself.</p>
@@ -77,13 +77,13 @@ export function Landing() {
         <div>
           <span className="eyebrow land-eyebrow">THE PROBLEM</span>
           <h2>A faster grid connection with an unpriced catch</h2>
-          <p>Grid operators are starting to offer large loads a trade: connect years sooner, in exchange for accepting that the operator can cut your power whenever the system is strained. SPP calls its version CHILLS. It runs up to seven years, and shares the same curtailment priority as ordinary non-firm transmission service &mdash; a decades-old, uncapped framework never built for a $100M, multi-year AI data center commitment.</p>
-          <p>In June 2026, FERC ordered all six U.S. grid operators to justify or reform their large-load interconnection rules. The ambiguity isn&rsquo;t a gap regulators are racing to close: one intervenor asked FERC to require SPP to define its curtailment triggers and procedures. FERC found the existing language sufficient.</p>
+          <p>Grid operators are starting to offer large loads a trade: connect years sooner, in exchange for accepting that the operator can cut your power whenever the system is strained. SPP calls its version CHILLS. It runs up to seven years, and shares the same curtailment priority as ordinary non-firm transmission service &mdash; a decades-old, uncapped framework never built for a <span className="num">$100M</span>, multi-year AI data center commitment.</p>
+          <p>In June <span className="num">2026</span>, FERC ordered all six U.S. grid operators to justify or reform their large-load interconnection rules. The ambiguity isn&rsquo;t a gap regulators are racing to close: one intervenor asked FERC to require SPP to define its curtailment triggers and procedures. FERC found the existing language sufficient.</p>
         </div>
         <dl className="land-stat-ledger">
-          <div><dt>7 YRS</dt><dd>Maximum CHILLS term<small>FERC order 195 FERC &para;61,196</small></dd></div>
-          <div><dt>0</dt><dd>Stated cap on curtailment hours<small>Same order, &para;&para;30&ndash;34</small></dd></div>
-          <div><dt>6</dt><dd>RTOs ordered by FERC to respond<small>June 18, 2026 show-cause orders</small></dd></div>
+          <div><dt>7 YRS</dt><dd>Maximum CHILLS term<small>FERC order <span className="num">195</span> FERC &para;<span className="num">61,196</span></small></dd></div>
+          <div><dt>0</dt><dd>Stated cap on curtailment hours<small>Same order, &para;&para;<span className="num">30&ndash;34</span></small></dd></div>
+          <div><dt>6</dt><dd>RTOs ordered by FERC to respond<small>June <span className="num">18, 2026</span> show-cause orders</small></dd></div>
         </dl>
       </section>
 
@@ -91,9 +91,9 @@ export function Landing() {
         <span className="eyebrow land-eyebrow">HOW IT WORKS</span>
         <h2>Three layers, one honest number</h2>
         <ol className="land-layer-list">
-          <li><span className="land-layer-tag">LAYER 01</span><div><h3>Exposure model</h3><p>An ensemble trained on years of public SPP grid data &mdash; load, reserves, binding transmission constraints &mdash; learns when the system was actually under stress. Not a guess from the contract&rsquo;s vague language.</p></div></li>
-          <li><span className="land-layer-tag">LAYER 02</span><div><h3>Tariff extraction</h3><p>A second model reads the FERC-filed tariff text itself and pulls out the curtailment triggers it can find, with a citation back to the filing for each one.</p></div></li>
-          <li><span className="land-layer-tag">LAYER 03</span><div><h3>Confidence</h3><p>A third layer measures how much the model&rsquo;s members agree with each other, and how much historical precedent exists for a grid state like this one. Every exposure number carries a High, Medium, or Low read on how far to trust it.</p></div></li>
+          <li><span className="land-layer-tag">LAYER <span className="num">01</span></span><div><h3>Exposure model</h3><p>An ensemble trained on years of public SPP grid data &mdash; load, reserves, binding transmission constraints &mdash; learns when the system was actually under stress. Not a guess from the contract&rsquo;s vague language.</p></div></li>
+          <li><span className="land-layer-tag">LAYER <span className="num">02</span></span><div><h3>Tariff extraction</h3><p>A second model reads the FERC-filed tariff text itself and pulls out the curtailment triggers it can find, with a citation back to the filing for each one.</p></div></li>
+          <li><span className="land-layer-tag">LAYER <span className="num">03</span></span><div><h3>Confidence</h3><p>A third layer measures how much the model&rsquo;s members agree with each other, and how much historical precedent exists for a grid state like this one. Every exposure number carries a High, Medium, or Low read on how far to trust it.</p></div></li>
         </ol>
       </section>
 
