@@ -199,7 +199,7 @@ describe('scenario HTTP provider', () => {
     const { result } = setup('api');
     await tick();
     expect(result.current.status).toBe('fallback');
-    expect(result.current.error).toContain('local mock');
+    expect(result.current.error).toContain('assumed scenario values');
     act(() => result.current.retry());
     expect(result.current.status).toBe('loading');
     await tick();

@@ -53,10 +53,10 @@ describe('transparency panel', () => {
     expect(region.textContent).toContain('local transmission headroom we do not have')
     expect(region.textContent).toContain('not a fitted coefficient or a measured site risk')
     expect(region.textContent).toContain('Confidence describes support for the estimate, not the probability')
-    expect(region.textContent).toContain('Mock diagnostics · not computed')
+    expect(region.textContent).toContain('Evaluation unavailable')
     expect(region.textContent).toContain('No held-out evaluation has been performed')
     expect(region.textContent).toContain('independent of the exposure slider')
-    expect(screen.getByText('Mock reliability curve')).toBeTruthy()
+    expect(screen.getByText('Assumed reliability curve')).toBeTruthy()
     expect(screen.getByText('Perfect calibration reference')).toBeTruthy()
     expect(screen.getByText('Mean predicted grid-stress probability (fraction)')).toBeTruthy()
     expect(screen.getByText('Observed grid-stress frequency (fraction)')).toBeTruthy()
@@ -67,15 +67,15 @@ describe('transparency panel', () => {
     const config = props()
     render(<TransparencyPanel {...config} />)
     const scores = [
-      ['Mock Brier score, not computed', mockTransparencyDiagnostics.brier_score],
-      ['Mock naive Brier score, not computed', mockTransparencyDiagnostics.naive_brier_score],
+      ['Assumed Brier score, not computed', mockTransparencyDiagnostics.brier_score],
+      ['Assumed naive Brier score, not computed', mockTransparencyDiagnostics.naive_brier_score],
     ] as const
     for (const [label, value] of scores) {
       fireEvent.click(screen.getByRole('button', { name: new RegExp(label) }))
       expect(readProvenance()).toEqual(value)
       fireEvent.keyDown(document, { key: 'Escape' })
     }
-    const bins = within(screen.getByRole('table', { name: 'Authored mock reliability bins · fractions' })).getAllByRole('button')
+    const bins = within(screen.getByRole('table', { name: 'Assumed reliability bins · fractions' })).getAllByRole('button')
     const expected = mockTransparencyDiagnostics.reliability_curve.flatMap(point => [point.mean_predicted, point.observed_fraction])
     expect(bins).toHaveLength(expected.length)
     bins.forEach((button, index) => {
@@ -84,7 +84,7 @@ describe('transparency panel', () => {
       expect(readProvenance().ref).toContain('no held-out evaluation performed')
       fireEvent.keyDown(document, { key: 'Escape' })
     })
-    const chart = screen.getByRole('group', { name: /Mock reliability curve for system stress/ })
+    const chart = screen.getByRole('group', { name: /Assumed reliability curve for system stress/ })
     const ticks = within(chart).getAllByRole('button')
     expect(ticks).toHaveLength(10)
     ticks.forEach(tick => {
@@ -105,14 +105,16 @@ describe('transparency panel', () => {
     const updated = { ...config.siteExposure, value: 0.65 }
     rerender(<TransparencyPanel {...config} siteExposure={updated} />)
     expect(readProvenance()).toEqual(updated)
-    expect(screen.getByRole('button', { name: /Mock Brier score, not computed: 0.2/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Assumed Brier score, not computed: 0.2/ })).toBeTruthy()
     expect(screen.getByRole('button', { name: /Site exposure factor assumption: 0.65/ })).toBeTruthy()
   })
 
   it('labels mock tariff records as unextracted and supplies no fabricated citation link', () => {
     const config = props()
     render(<TransparencyPanel {...config} />)
-    expect(screen.getByText('Mock clause · not extracted')).toBeTruthy()
+    expect(screen.getByText('Tariff evidence not supplied')).toBeTruthy()
+    expect(screen.queryByText(config.tariff.curtailment_triggers[0].text)).toBeNull()
+    expect(screen.getByText('SPP · Service terms not verified')).toBeTruthy()
     expect(screen.getByText('No verified citation available.')).toBeTruthy()
     expect(screen.queryByRole('link')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: /Tariff clause provenance/ }))
@@ -123,6 +125,7 @@ describe('transparency panel', () => {
     const config = props()
     render(<TransparencyPanel {...config} tariff={{ ...config.tariff, curtailment_triggers: [] }} />)
     expect(screen.getByText(/No extracted clauses have been supplied/)).toBeTruthy()
+    expect(screen.getByText('SPP · Service terms not verified')).toBeTruthy()
     expect(screen.queryByRole('link')).toBeNull()
   })
 

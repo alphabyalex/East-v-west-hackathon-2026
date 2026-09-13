@@ -58,7 +58,7 @@ function SensitivityTooltip({ active, row }: { active?: boolean; row?: ChartRow 
         <Decision endpoint={endpoint} label={`${row.label} ${bound} decision`} />
       </div>
     })}
-    <small><MockLabel sources={[row.original.source]} children="Mock sensitivity" /> Exact values and sources are available below.</small>
+    <small><MockLabel sources={[row.original.source]} children="Assumed sensitivity" /> Exact values and sources are available below.</small>
   </div>
 }
 
@@ -109,7 +109,7 @@ export function SensitivityPanel({ sensitivity }: { sensitivity: SensitivityResu
     <div className="sensitivity-body">
       <div className="sensitivity-intro">
         <p>Which assumptions move the decision? Bars span the low and high input scenarios, ordered by the largest dollar swing. Earlier-access contribution stays fixed.</p>
-        <div className="sensitivity-baseline"><span>Current contract comparison · <Sourced value={50} source={percentileSource} animate={false}>p50</Sourced> path</span><strong><Datum datum={sensitivity.baseline.net_value_usd.p50} label="Current sensitivity contract comparison" format={compactDollars} /></strong><span><Sourced value={sensitivity.baseline.decision} source={sensitivity.baseline.source} label="Current sensitivity decision" className={`sensitivity-decision sensitivity-${sensitivity.baseline.decision}`}>{decisionText(sensitivity.baseline.decision)}</Sourced> <MockLabel sources={[sensitivity.source]} children="Mock sensitivity" /></span></div>
+        <div className="sensitivity-baseline"><span>Current contract comparison · <Sourced value={50} source={percentileSource} animate={false}>p50</Sourced> path</span><strong><Datum datum={sensitivity.baseline.net_value_usd.p50} label="Current sensitivity contract comparison" format={compactDollars} /></strong><span><Sourced value={sensitivity.baseline.decision} source={sensitivity.baseline.source} label="Current sensitivity decision" className={`sensitivity-decision sensitivity-${sensitivity.baseline.decision}`}>{decisionText(sensitivity.baseline.decision)}</Sourced> <MockLabel sources={[sensitivity.source]} children="Assumed sensitivity" /></span></div>
       </div>
       <div className="sensitivity-axis-caption">CHANGE IN CONTRACT COMPARISON · USD MILLIONS</div>
       <div ref={chartRef} className="sensitivity-chart" role="group" aria-label="Break-even sensitivity tornado chart, largest swing first. Inspect ranges and decision endpoints below for exact sourced values.">

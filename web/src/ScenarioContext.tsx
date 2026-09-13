@@ -67,7 +67,7 @@ function useScenarioState(initialMode: EstimateMode) {
     if (inputs[key] === value) return;
     if ((economicKeys as readonly (keyof ScenarioInputs)[]).includes(key)) {
       setMode('local');
-      setModeNote('Economic input changed. Local mock mode applies your overrides; the API request does not include them.');
+      setModeNote('Economic input changed. Assumed scenario values now apply your overrides; connected estimates use the supplied defaults.');
     }
     setInputs(previous => ({ ...previous, [key]: value }));
     setEdited(previous => new Set(previous).add(key));
@@ -76,10 +76,10 @@ function useScenarioState(initialMode: EstimateMode) {
     if (next === 'api') {
       setInputs(previous => ({ ...previous, ...Object.fromEntries(economicKeys.map(key => [key, defaultInputs[key]])) }));
       setEdited(previous => new Set([...previous].filter(key => !(economicKeys as readonly (keyof ScenarioInputs)[]).includes(key))));
-      setModeNote('API mode reads economic assumptions from the backend, including any unverified placeholders. Local overrides have been reset.');
+      setModeNote('Connected estimates use supplied economic assumptions, including any unverified inputs. Your economic overrides have been reset.');
       transport.retry();
     } else {
-      setModeNote('Local mock mode works without the backend. No estimate requests are sent.');
+      setModeNote('Assumed scenario values work offline. No connected estimate is requested.');
     }
     setMode(next);
   }

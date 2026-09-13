@@ -36,7 +36,7 @@ export function useEstimateTransport(request: EstimateRequest, mode: EstimateMod
     const debounce = setTimeout(() => {
       timeout = setTimeout(() => {
         if (!active()) return;
-        setAttempt({ key, retry: retryCount, error: 'API request timed out. Showing the current scenario as a local mock.' });
+        setAttempt({ key, retry: retryCount, error: 'Estimate request timed out. Showing assumed scenario values.' });
         controller.abort();
       }, TIMEOUT_MS);
       void Promise.all([
@@ -48,7 +48,7 @@ export function useEstimateTransport(request: EstimateRequest, mode: EstimateMod
         if (active()) setAttempt({ key, retry: retryCount, response, assumptions, sensitivity });
       }).catch(() => {
         if (!active()) return;
-        setAttempt({ key, retry: retryCount, error: 'API unavailable or returned an invalid estimate. Showing the current scenario as a local mock.' });
+        setAttempt({ key, retry: retryCount, error: 'Estimate service unavailable or returned an invalid estimate. Showing assumed scenario values.' });
         controller.abort();
       }).finally(() => clearTimeout(timeout));
     }, DEBOUNCE_MS);

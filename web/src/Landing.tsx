@@ -20,7 +20,6 @@ function HeroDemo() {
   return (
     <div className="hero-demo">
       <div className="hero-demo-label">
-        <span className="eyebrow">TRY IT — SAME MATH AS THE FULL TOOL</span>
         <span className="hero-demo-value">{exposure.toFixed(2)}</span>
       </div>
       <div className="slider-track-wrap">
@@ -46,7 +45,7 @@ function HeroDemo() {
           </div>
         </div>
       </div>
-      <p className="hero-demo-note">Illustrative SPP node, <span className="num">100</span> MW load, <span className="num">60%</span> flexible, <span className="num">7</span>-year term. Drag the slider — this is a preview, not a forecast for a specific site.</p>
+      <p className="hero-demo-note">Assumed SPP scenario, <span className="num">100</span> MW load, <span className="num">60%</span> flexible, <span className="num">7</span>-year term. Drag the slider — these are scenario assumptions, not a forecast for a specific site.</p>
     </div>
   );
 }
@@ -106,7 +105,7 @@ export function Landing() {
     </main>
 
     <footer className="app-shell land-footer">
-      <span>OFFLINE-READY FIXTURE · NO LIVE GRID DATA</span>
+      <span>SCENARIO ASSUMPTIONS · NO LIVE GRID DATA</span>
       <a className="button button-primary" href="/app">Run your scenario<ArrowRight size={14} /></a>
     </footer>
   </div>;
