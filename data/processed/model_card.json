@@ -34,92 +34,146 @@
     "train": {
       "start": "2024-01-02 06:00:00+00:00",
       "end": "2024-08-08 06:00:00+00:00",
-      "rows": 5209,
-      "positive_hours": 10
+      "rows": 20836,
+      "positive_hours": 40
     },
     "calibration": {
       "start": "2024-08-09 07:00:00+00:00",
       "end": "2024-10-19 14:00:00+00:00",
-      "rows": 1712,
-      "positive_hours": 7
+      "rows": 6848,
+      "positive_hours": 28
     },
     "test": {
       "start": "2024-10-20 15:00:00+00:00",
       "end": "2024-12-31 23:00:00+00:00",
-      "rows": 1713,
-      "positive_hours": 5
+      "rows": 6852,
+      "positive_hours": 20
     }
   },
   "test": {
-    "brier_score": 0.0029068507842563256,
-    "log_loss": 0.01935559384140366,
+    "brier_score": 0.0029105294035617,
+    "log_loss": 0.01961659427718871,
     "event_rate": 0.002918855808523059,
-    "mean_prediction": 0.0027782073582734742,
-    "n_hours": 1713,
-    "positive_hours": 5,
-    "roc_auc": 0.8607728337236533,
-    "average_precision": 0.013116883116883117,
+    "mean_prediction": 0.0021090091512103773,
+    "n_hours": 6852,
+    "positive_hours": 20,
+    "roc_auc": 0.8704625292740048,
+    "average_precision": 0.01386201052361902,
     "reliability_bins": [
       {
-        "n": 1713,
-        "mean_prediction": 0.0027782073582734742,
+        "n": 6852,
+        "mean_prediction": 0.0021090091512103773,
         "observed_fraction": 0.002918855808523059
       }
     ]
   },
   "uncalibrated_test": {
-    "brier_score": 0.0029176823635188496,
-    "log_loss": 0.02492458968154205,
+    "brier_score": 0.002918385370285975,
+    "log_loss": 0.027543602827568955,
     "event_rate": 0.002918855808523059,
-    "mean_prediction": 0.0001288443162527343,
-    "n_hours": 1713,
-    "positive_hours": 5,
-    "roc_auc": 0.8585480093676815,
-    "average_precision": 0.012991718426501035,
+    "mean_prediction": 6.303412337119785e-05,
+    "n_hours": 6852,
+    "positive_hours": 20,
+    "roc_auc": 0.8735070257611242,
+    "average_precision": 0.014160028939806567,
     "reliability_bins": [
       {
-        "n": 1713,
-        "mean_prediction": 0.0001288443162527343,
+        "n": 6852,
+        "mean_prediction": 6.303412337119785e-05,
         "observed_fraction": 0.002918855808523059
       }
     ]
   },
   "baseline_test": {
-    "brier_score": 0.0029113342931734857,
-    "log_loss": 0.020175062541247176,
+    "brier_score": 0.0029113342931734853,
+    "log_loss": 0.020175062541247173,
     "event_rate": 0.002918855808523059,
     "mean_prediction": 0.001919754271453255,
-    "n_hours": 1713,
-    "positive_hours": 5,
+    "n_hours": 6852,
+    "positive_hours": 20,
     "roc_auc": 0.5,
     "average_precision": 0.002918855808523059,
     "reliability_bins": [
       {
-        "n": 1713,
+        "n": 6852,
         "mean_prediction": 0.001919754271453255,
         "observed_fraction": 0.002918855808523059
       }
     ]
   },
-  "brier_skill_vs_train_prevalence": 0.0015400185844933745,
+  "brier_skill_vs_train_prevalence": 0.00027646760238864143,
   "test_by_location": {
     "SPP_SYSTEM": {
-      "brier_score": 0.0029068507842563256,
-      "log_loss": 0.01935559384140366,
+      "brier_score": 0.002910285429303298,
+      "log_loss": 0.019597931794573396,
       "event_rate": 0.002918855808523059,
-      "mean_prediction": 0.0027782073582734742,
+      "mean_prediction": 0.0020904695047356653,
       "n_hours": 1713,
       "positive_hours": 5,
-      "roc_auc": 0.8607728337236533,
-      "average_precision": 0.013116883116883117,
+      "roc_auc": 0.8716627634660421,
+      "average_precision": 0.013927177117361167,
       "reliability_bins": [
         {
           "n": 1713,
-          "mean_prediction": 0.0027782073582734742,
+          "mean_prediction": 0.0020904695047356653,
           "observed_fraction": 0.002918855808523059
         }
       ],
-      "brier_skill_vs_train_prevalence": 0.0015400185844933745
+      "brier_skill_vs_train_prevalence": 0.0003602691290542914
+    },
+    "spp-lincoln-demo": {
+      "brier_score": 0.0029102210929422565,
+      "log_loss": 0.019586410290171746,
+      "event_rate": 0.002918855808523059,
+      "mean_prediction": 0.0020789802593351035,
+      "n_hours": 1713,
+      "positive_hours": 5,
+      "roc_auc": 0.8744145199063231,
+      "average_precision": 0.014279765705243874,
+      "reliability_bins": [
+        {
+          "n": 1713,
+          "mean_prediction": 0.0020789802593351035,
+          "observed_fraction": 0.002918855808523059
+        }
+      ],
+      "brier_skill_vs_train_prevalence": 0.0003823677115470936
+    },
+    "spp-oklahoma-city-demo": {
+      "brier_score": 0.002910990683014701,
+      "log_loss": 0.019658823312232575,
+      "event_rate": 0.002918855808523059,
+      "mean_prediction": 0.00215100608619249,
+      "n_hours": 1713,
+      "positive_hours": 5,
+      "roc_auc": 0.865807962529274,
+      "average_precision": 0.013439028921781136,
+      "reliability_bins": [
+        {
+          "n": 1713,
+          "mean_prediction": 0.00215100608619249,
+          "observed_fraction": 0.002918855808523059
+        }
+      ],
+      "brier_skill_vs_train_prevalence": 0.00011802497555524205
+    },
+    "spp-wichita-demo": {
+      "brier_score": 0.002910620408986545,
+      "log_loss": 0.019623211711777135,
+      "event_rate": 0.002918855808523059,
+      "mean_prediction": 0.0021155807545782507,
+      "n_hours": 1713,
+      "positive_hours": 5,
+      "roc_auc": 0.8699648711943794,
+      "average_precision": 0.013834503864715346,
+      "reliability_bins": [
+        {
+          "n": 1713,
+          "mean_prediction": 0.0021155807545782507,
+          "observed_fraction": 0.002918855808523059
+        }
+      ],
+      "brier_skill_vs_train_prevalence": 0.0002452085933980497
     }
   },
   "feature_names": [
@@ -153,39 +207,39 @@
     "temperature_c_change_24h"
   ],
   "mean_feature_importance": {
-    "hour_sin": 34.4,
-    "hour_cos": 0.13333333333333333,
-    "year_sin": 26.2,
-    "year_cos": 30.333333333333332,
-    "weekend": 0.0,
-    "load_mw_lag_1h": 9.933333333333334,
-    "load_mw_lag_24h": 7.333333333333333,
-    "load_mw_lag_168h": 4.533333333333333,
-    "load_mw_mean_24h": 16.733333333333334,
-    "load_mw_std_24h": 7.333333333333333,
-    "temperature_c_lag_1h": 0.4,
-    "temperature_c_lag_24h": 17.666666666666668,
-    "temperature_c_lag_168h": 25.533333333333335,
-    "temperature_c_mean_24h": 5.133333333333334,
-    "temperature_c_std_24h": 9.066666666666666,
+    "hour_sin": 53.266666666666666,
+    "hour_cos": 6.666666666666667,
+    "year_sin": 77.46666666666667,
+    "year_cos": 40.666666666666664,
+    "weekend": 0.8666666666666667,
+    "load_mw_lag_1h": 15.6,
+    "load_mw_lag_24h": 19.066666666666666,
+    "load_mw_lag_168h": 7.533333333333333,
+    "load_mw_mean_24h": 26.866666666666667,
+    "load_mw_std_24h": 5.0,
+    "temperature_c_lag_1h": 0.4666666666666667,
+    "temperature_c_lag_24h": 0.4666666666666667,
+    "temperature_c_lag_168h": 16.0,
+    "temperature_c_mean_24h": 0.26666666666666666,
+    "temperature_c_std_24h": 0.0,
     "temperature_area_min_c_lag_1h": 0.0,
-    "temperature_area_min_c_lag_24h": 0.0,
-    "temperature_area_min_c_lag_168h": 0.0,
+    "temperature_area_min_c_lag_24h": 0.06666666666666667,
+    "temperature_area_min_c_lag_168h": 0.4666666666666667,
     "temperature_area_min_c_mean_24h": 0.0,
-    "temperature_area_min_c_std_24h": 0.0,
-    "temperature_area_max_c_lag_1h": 0.0,
-    "temperature_area_max_c_lag_24h": 0.0,
-    "temperature_area_max_c_lag_168h": 0.0,
-    "temperature_area_max_c_mean_24h": 0.0,
+    "temperature_area_min_c_std_24h": 0.9333333333333333,
+    "temperature_area_max_c_lag_1h": 1.4,
+    "temperature_area_max_c_lag_24h": 3.6666666666666665,
+    "temperature_area_max_c_lag_168h": 15.866666666666667,
+    "temperature_area_max_c_mean_24h": 0.7333333333333333,
     "temperature_area_max_c_std_24h": 0.0,
-    "temperature_c_min_24h": 2.8,
-    "temperature_c_max_24h": 16.733333333333334,
-    "temperature_c_change_24h": 29.8
+    "temperature_c_min_24h": 0.0,
+    "temperature_c_max_24h": 0.13333333333333333,
+    "temperature_c_change_24h": 7.666666666666667
   },
   "warnings": [
     "The held-out period covers less than a year; seasonal generalization is unverified."
   ],
-  "model_version": "spp_lgbm_20260913T045221_8c82768ff3",
+  "model_version": "spp_lgbm_20260913T053640_bd1b3f147e",
   "policy": {
     "operator": "SPP",
     "label_method": "observed_event",
@@ -193,18 +247,51 @@
     "label_ref": "local://spp_events.csv"
   },
   "input_hashes": {
-    "hourly_sha256": "8c82768ff3e9ee42f78f6f57e572bb88451630926ebcd5d74414fd65c2605639",
+    "hourly_sha256": "bd1b3f147e3ec36634427480adf577d47f6f9c866203352e11710cc13e899868",
     "policy_sha256": "e0251f75ea31a72a5a1a76d804b218658f3b8b421e2dc4c1d7824a753c21486d"
   },
-  "input_rows": 8784,
-  "usable_rows": 8682,
-  "unknown_label_rows": 6,
+  "input_rows": 35136,
+  "usable_rows": 34728,
+  "unknown_label_rows": 24,
   "confidence": {
     "SPP_SYSTEM": {
       "level": "Low",
-      "score": 0.9976282980878528,
+      "score": 0.9973196318055296,
       "n_similar_historical_hours": 0,
-      "mean_ensemble_probability_std": 0.0011858509560736079,
+      "mean_ensemble_probability_std": 0.0013401840972352094,
+      "limitations": [
+        "less_than_one_year_of_heldout_history",
+        "fewer_than_20_positive_test_hours"
+      ],
+      "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
+    },
+    "spp-lincoln-demo": {
+      "level": "Low",
+      "score": 0.9973232781433999,
+      "n_similar_historical_hours": 0,
+      "mean_ensemble_probability_std": 0.0013383609283000302,
+      "limitations": [
+        "less_than_one_year_of_heldout_history",
+        "fewer_than_20_positive_test_hours"
+      ],
+      "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
+    },
+    "spp-oklahoma-city-demo": {
+      "level": "Low",
+      "score": 0.9972184834919483,
+      "n_similar_historical_hours": 0,
+      "mean_ensemble_probability_std": 0.0013907582540258754,
+      "limitations": [
+        "less_than_one_year_of_heldout_history",
+        "fewer_than_20_positive_test_hours"
+      ],
+      "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
+    },
+    "spp-wichita-demo": {
+      "level": "Low",
+      "score": 0.9972391140918077,
+      "n_similar_historical_hours": 0,
+      "mean_ensemble_probability_std": 0.0013804429540961974,
       "limitations": [
         "less_than_one_year_of_heldout_history",
         "fewer_than_20_positive_test_hours"
@@ -226,10 +313,10 @@
     "meaning": "Ensemble agreement and historical support for the proxy classifier, not a probability of correctness or calibrated coverage of annual tails."
   },
   "temperature_data": {
-    "observed_hours": 8784,
+    "observed_hours": 35136,
     "missing_hours": 0,
     "source_refs": [
-      "data/processed/ml_inputs/spp_2024_amarillo_temperature.weather.json#hourly-temperature; map_sha256=c9ad45117f951a2ec497f61705ac9b6a50dc1200ceba7a5a27fecee88e2d00e0"
+      "data/processed/ml_inputs/spp_2024_multi_location_temperature.weather.json#hourly-temperature; map_sha256=8d4b65433ddae4927cb8b7bd2775b34ec3c6b61354d2c22e08f2e5ed8cebc131"
     ],
     "feature_policy": {
       "ref": "pipeline/features.py:TEMPERATURE_FEATURE_POLICY",

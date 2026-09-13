@@ -8,7 +8,7 @@
   "hours_per_year": 8760,
   "site_exposure_applied": false,
   "source_type": "model",
-  "ref": "pipeline/simulate.py model_version=spp_lgbm_20260913T045221_8c82768ff3",
+  "ref": "pipeline/simulate.py model_version=spp_lgbm_20260913T053640_bd1b3f147e",
   "assumptions": [
     "Stationary month-specific grid conditions and label definition; no load-growth or climate forecast.",
     "Seven-day blocks preserve within-block episodes; resampling can split or join episodes at block boundaries.",
@@ -25,10 +25,10 @@
     "label_ref": "local://spp_events.csv"
   },
   "temperature_data": {
-    "observed_hours": 8784,
+    "observed_hours": 35136,
     "missing_hours": 0,
     "source_refs": [
-      "data/processed/ml_inputs/spp_2024_amarillo_temperature.weather.json#hourly-temperature; map_sha256=c9ad45117f951a2ec497f61705ac9b6a50dc1200ceba7a5a27fecee88e2d00e0"
+      "data/processed/ml_inputs/spp_2024_multi_location_temperature.weather.json#hourly-temperature; map_sha256=8d4b65433ddae4927cb8b7bd2775b34ec3c6b61354d2c22e08f2e5ed8cebc131"
     ],
     "feature_policy": {
       "ref": "pipeline/features.py:TEMPERATURE_FEATURE_POLICY",
