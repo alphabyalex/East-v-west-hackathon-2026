@@ -54,6 +54,63 @@ function clauseUrl(source: Source): string | null {
   }
 }
 
+interface HistoricalPrecedent {
+  id: string
+  title: string
+  date: string
+  scope: string
+  duration: string
+  drivers: string
+  implication: string
+  source: Source
+  sourceUrl: string
+}
+
+const historicalPrecedents: HistoricalPrecedent[] = [
+  {
+    id: 'spp_20240826_eea1',
+    title: 'SPP System-wide EEA1 Alert',
+    date: 'August 26, 2024 · 12:30–15:00 CDT',
+    scope: 'System Stress Event',
+    duration: '150 minutes',
+    drivers: 'High summer heat wave, low wind generator output, and unexpected resource forced outages.',
+    implication: 'Demonstrates counterfactual system-stress window. Under CHILLS rules, system-wide EEA1 alerts represent a heightened state of watch but do not guarantee site-level power interruption.',
+    source: {
+      source_type: 'data',
+      ref: 'https://spp.org/documents/72631/20241101_2024%20summer%20quarterly%20report_08-136-u.pdf#page=65',
+    },
+    sourceUrl: 'https://spp.org/documents/72631/20241101_2024%20summer%20quarterly%20report_08-136-u.pdf',
+  },
+  {
+    id: 'spp_2024_conservative_ops',
+    title: 'System Conservative Operations',
+    date: 'July 16, Aug 1, 2, 26 & 27, 2024',
+    scope: 'Operational Advisory',
+    duration: '5 days active',
+    drivers: 'Sustained regional heat waves causing load peaks and generation reserve margins to tighten.',
+    implication: 'Advisory and watch dates only. System conservative operations alone are insufficient to trigger curtailment under the CHILLS contract rules.',
+    source: {
+      source_type: 'data',
+      ref: 'https://spp.org/newsroom/stakeholder-report/',
+    },
+    sourceUrl: 'https://spp.org/newsroom/stakeholder-report/',
+  },
+  {
+    id: 'shreveport_20250426_local_shed',
+    title: 'SWEPCO Shreveport Local Load Shed',
+    date: 'April 26, 2025 · 15:12–19:11 CDT',
+    scope: 'Local Reliability / Voltage Emergency',
+    duration: '239 minute instruction window',
+    drivers: 'Warmer-than-forecast temperatures (90°F, 3–5°F above forecast), local load peaks, and contingency-related transformer loading concerns.',
+    implication: 'Actual local curtailment evidence. Highlight of "local reliability" triggers: a system-wide status can remain green while localized transmission limitations mandate local load-shedding.',
+    source: {
+      source_type: 'data',
+      ref: 'https://spp.org/documents/74283/spp\'s%20summary%20of%20the%20april%2026,%202025,%20shreveport-area%20load%20shed%20event.pdf#page=13',
+    },
+    sourceUrl: 'https://spp.org/documents/74283/spp\'s%20summary%20of%20the%20april%2026,%202025,%20shreveport-area%20load%20shed%20event.pdf',
+  },
+]
+
 export function TransparencyPanel({ confidence, tariff, siteExposure, onClose }: TransparencyPanelProps) {
   useEffect(() => {
     const escape = (event: KeyboardEvent) => {
@@ -106,6 +163,50 @@ export function TransparencyPanel({ confidence, tariff, siteExposure, onClose }:
           <span className="transparency-axis-label">Mean predicted grid-stress probability (fraction)</span>
         </div>
         <table className="transparency-table"><caption>Authored mock reliability bins · fractions</caption><thead><tr><th scope="col">Mean predicted probability</th><th scope="col">Observed frequency</th></tr></thead><tbody>{diagnostics.reliability_curve.map((point, index) => <tr key={point.mean_predicted.ref}><td><DiagnosticValue datum={point.mean_predicted} label={`Mock bin ${index + 1} mean predicted probability`} /></td><td><DiagnosticValue datum={point.observed_fraction} label={`Mock bin ${index + 1} observed frequency`} /></td></tr>)}</tbody></table>
+      </section>
+
+      <section className="transparency-section" aria-labelledby="transparency-precedents-title">
+        <h4 id="transparency-precedents-title">Historical grid-stress precedents</h4>
+        <p>Publicly documented operational events provide empirical counterfactuals for SPP&apos;s CHILLS curtailment triggers. These actual events illustrate the critical distinction between a system-wide alert and a local transmission constraint.</p>
+        <ul className="precedents-list">
+          {historicalPrecedents.map((precedent) => (
+            <li key={precedent.id} className="precedent-card">
+              <div className="precedent-card-header">
+                <span className="precedent-card-title">
+                  <strong>{precedent.title}</strong>
+                </span>
+                <span className={`precedent-card-badge ${precedent.scope.toLowerCase().includes('local') ? 'local' : ''}`}>
+                  {precedent.scope}
+                </span>
+              </div>
+              <div className="precedent-card-body">
+                <dl className="precedent-card-meta">
+                  <dt>DATE / TIME</dt>
+                  <dd>{precedent.date}</dd>
+                  <dt>DURATION</dt>
+                  <dd>{precedent.duration}</dd>
+                  <dt>DRIVERS</dt>
+                  <dd>{precedent.drivers}</dd>
+                </dl>
+                <div className="precedent-card-implication">
+                  <strong>CHILLS Implication:</strong> {precedent.implication}
+                </div>
+                <div className="transparency-citation">
+                  <SourceInfo
+                    value={precedent.title}
+                    source={precedent.source}
+                    label={`${precedent.title} provenance`}
+                    displayText={precedent.title}
+                  />
+                  <a href={precedent.sourceUrl} target="_blank" rel="noopener noreferrer">
+                    Open official report citation
+                    <ExternalLink size={12} aria-hidden="true" />
+                  </a>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
       </section>
 
       <section className="transparency-section" aria-labelledby="transparency-tariff-title">

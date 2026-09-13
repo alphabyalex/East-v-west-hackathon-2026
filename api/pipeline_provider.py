@@ -5,7 +5,8 @@ import json
 import logging
 from pathlib import Path
 import re
-from typing import Annotated, Literal, Self
+from typing import Annotated, Literal
+from typing_extensions import Self
 
 from pydantic import Field, ValidationError, model_validator
 

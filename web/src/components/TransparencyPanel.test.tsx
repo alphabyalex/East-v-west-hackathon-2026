@@ -114,7 +114,8 @@ describe('transparency panel', () => {
     render(<TransparencyPanel {...config} />)
     expect(screen.getByText('Mock clause · not extracted')).toBeTruthy()
     expect(screen.getByText('No verified citation available.')).toBeTruthy()
-    expect(screen.queryByRole('link')).toBeNull()
+    const tariffSection = screen.getByRole('region', { name: 'Tariff evidence' })
+    expect(within(tariffSection).queryByRole('link')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: /Tariff clause provenance/ }))
     expect(readProvenance()).toEqual({ value: config.tariff.curtailment_triggers[0].text, ...config.tariff.curtailment_triggers[0].source })
   })
@@ -123,7 +124,8 @@ describe('transparency panel', () => {
     const config = props()
     render(<TransparencyPanel {...config} tariff={{ ...config.tariff, curtailment_triggers: [] }} />)
     expect(screen.getByText(/No extracted clauses have been supplied/)).toBeTruthy()
-    expect(screen.queryByRole('link')).toBeNull()
+    const tariffSection = screen.getByRole('region', { name: 'Tariff evidence' })
+    expect(within(tariffSection).queryByRole('link')).toBeNull()
   })
 
   it.each([
@@ -136,7 +138,8 @@ describe('transparency panel', () => {
     const config = props()
     config.tariff.curtailment_triggers[0].source = { source_type: sourceType, ref }
     render(<TransparencyPanel {...config} />)
-    expect(screen.queryByRole('link')).toBeNull()
+    const tariffSection = screen.getByRole('region', { name: 'Tariff evidence' })
+    expect(within(tariffSection).queryByRole('link')).toBeNull()
     expect(screen.getByText(`Supplied reference: ${ref}`)).toBeTruthy()
   })
 
@@ -150,6 +153,36 @@ describe('transparency panel', () => {
     expect(link.getAttribute('rel')).toBe('noopener noreferrer')
     fireEvent.click(screen.getByRole('button', { name: /Tariff clause provenance/ }))
     expect(readProvenance().ref).toBe(ref)
+  })
+
+  it('renders the historical precedents section with correct details, badge styles, and links', () => {
+    const config = props()
+    render(<TransparencyPanel {...config} />)
+    const precedentsSection = screen.getByRole('region', { name: 'Historical grid-stress precedents' })
+    expect(precedentsSection).toBeTruthy()
+    expect(within(precedentsSection).getByText('SPP System-wide EEA1 Alert')).toBeTruthy()
+    expect(within(precedentsSection).getByText('System Conservative Operations')).toBeTruthy()
+    expect(within(precedentsSection).getByText('SWEPCO Shreveport Local Load Shed')).toBeTruthy()
+
+    // Assert badges exist and contain correct scopes
+    expect(within(precedentsSection).getByText('System Stress Event')).toBeTruthy()
+    expect(within(precedentsSection).getByText('Operational Advisory')).toBeTruthy()
+    expect(within(precedentsSection).getByText('Local Reliability / Voltage Emergency')).toBeTruthy()
+
+    // Assert links are rendered for the 3 precedents
+    const links = within(precedentsSection).getAllByRole('link', { name: 'Open official report citation' })
+    expect(links).toHaveLength(3)
+    expect(links[0].getAttribute('href')).toBe('https://spp.org/documents/72631/20241101_2024%20summer%20quarterly%20report_08-136-u.pdf')
+    expect(links[1].getAttribute('href')).toBe('https://spp.org/newsroom/stakeholder-report/')
+    expect(links[2].getAttribute('href')).toBe('https://spp.org/documents/74283/spp\'s%20summary%20of%20the%20april%2026,%202025,%20shreveport-area%20load%20shed%20event.pdf')
+
+    // Click provenance button and assert exact ref
+    fireEvent.click(within(precedentsSection).getByRole('button', { name: /SPP System-wide EEA1 Alert provenance/ }))
+    expect(readProvenance()).toEqual({
+      value: 'SPP System-wide EEA1 Alert',
+      source_type: 'data',
+      ref: 'https://spp.org/documents/72631/20241101_2024%20summer%20quarterly%20report_08-136-u.pdf#page=65',
+    })
   })
 
   it('closes with its button or Escape, and removes its Escape listener after unmount', () => {

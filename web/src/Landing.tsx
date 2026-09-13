@@ -62,7 +62,7 @@ export function Landing() {
     <section className="hero">
       <span className="eyebrow land-eyebrow land-eyebrow-accent">SPP · CHILLS — LIVE JULY 1, 2026</span>
       <h1>The contract won&rsquo;t tell you<br />when they&rsquo;ll cut your power.</h1>
-      <p className="hero-lede">So we learned it from what they actually do.</p>
+      <p className="hero-lede">We reconstruct exposure from actual historical grid operations.</p>
       <p className="hero-sub">Enter a location, a load size, and how much of your compute can pause. Get a modeled exposure range, a cost, and a break-even point &mdash; every number traced to a dataset, a filed tariff clause, or an assumption you set yourself.</p>
       <div className="hero-actions">
         <a className="button button-primary" href="/app">Run your scenario<ArrowRight size={14} /></a>
@@ -91,9 +91,9 @@ export function Landing() {
         <span className="eyebrow land-eyebrow">HOW IT WORKS</span>
         <h2>Three layers, one honest number</h2>
         <ol className="land-layer-list">
-          <li><span className="land-layer-tag">LAYER 01</span><div><h3>Exposure model</h3><p>An ensemble trained on years of public SPP grid data &mdash; load, reserves, binding transmission constraints &mdash; learns when the system was actually under stress. Not a guess from the contract&rsquo;s vague language.</p></div></li>
-          <li><span className="land-layer-tag">LAYER 02</span><div><h3>Tariff extraction</h3><p>A second model reads the FERC-filed tariff text itself and pulls out the curtailment triggers it can find, with a citation back to the filing for each one.</p></div></li>
-          <li><span className="land-layer-tag">LAYER 03</span><div><h3>Confidence</h3><p>A third layer measures how much the model&rsquo;s members agree with each other, and how much historical precedent exists for a grid state like this one. Every exposure number carries a High, Medium, or Low read on how far to trust it.</p></div></li>
+          <li><span className="land-layer-tag">LAYER 01</span><div><h3>Exposure model</h3><p>An ensemble of machine-learning models trained on years of public SPP operational telemetry&mdash;including aggregate load, regional reserve margins, and binding transmission constraints&mdash;to reconstruct historical periods of system-wide stress.</p></div></li>
+          <li><span className="land-layer-tag">LAYER 02</span><div><h3>Tariff extraction</h3><p>A structured parsing pipeline that extracts explicit curtailment triggers from FERC-filed tariff sheets, mapping each trigger to its official filing section and page citation.</p></div></li>
+          <li><span className="land-layer-tag">LAYER 03</span><div><h3>Confidence calibration</h3><p>A calibration layer that evaluates model ensemble variance and historical data density to compute a structured confidence score (High, Medium, Low), indicating the statistical support behind each risk scenario.</p></div></li>
         </ol>
       </section>
 

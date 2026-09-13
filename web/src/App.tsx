@@ -2,6 +2,7 @@ import { Component, lazy, Suspense, useEffect, useRef, useState, type ReactNode 
 import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, Check, ChevronDown, CircleHelp, Download, Gauge, MapPin, RotateCcw, SlidersHorizontal, Unplug, Zap } from 'lucide-react';
 import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { ScenarioProvider, useScenario } from './ScenarioContext';
+import { ScenarioComparison } from './components/ScenarioComparison';
 import { Sourced, SourceInfo, SourcedTick } from './components/Sourced';
 import { TransparencyPanel } from './components/TransparencyPanel';
 import { SensitivityPanel } from './components/SensitivityPanel';
@@ -117,18 +118,127 @@ function EstimateConnection() {
   </section>;
 }
 
+interface TelemetryStation {
+  id: string
+  name: string
+  callsign: string
+  coords: string
+  weight: string
+  db: string
+}
+
+const telemetryStations: Record<string, TelemetryStation[]> = {
+  'SPP_SYSTEM': [
+    { id: 'okc', name: 'Will Rogers World Airport, Oklahoma City, OK', callsign: 'KOKC', coords: '35.47° N, 97.52° W', weight: '1.0x', db: 'ERA5 / ECMWF' },
+    { id: 'ict', name: 'Eisenhower National Airport, Wichita, KS', callsign: 'KICT', coords: '37.69° N, 97.34° W', weight: '1.0x', db: 'ERA5 / ECMWF' },
+    { id: 'ama', name: 'Rick Husband Intl Airport, Amarillo, TX', callsign: 'KAMA', coords: '35.22° N, 101.83° W', weight: '1.0x', db: 'ERA5 / ECMWF' },
+    { id: 'oma', name: 'Eppley Airfield, Omaha, NE', callsign: 'KOMA', coords: '41.26° N, 95.94° W', weight: '1.0x', db: 'ERA5 / ECMWF' },
+    { id: 'fsd', name: 'Joe Foss Field, Sioux Falls, SD', callsign: 'KFSD', coords: '43.55° N, 96.73° W', weight: '1.0x', db: 'ERA5 / ECMWF' },
+    { id: 'bis', name: 'Bismarck Municipal Airport, Bismarck, ND', callsign: 'KBIS', coords: '46.81° N, 100.78° W', weight: '1.0x', db: 'ERA5 / ECMWF' },
+  ],
+  'spp-wichita-demo': [
+    { id: 'ict', name: 'Eisenhower National Airport, Wichita, KS', callsign: 'KICT', coords: '37.69° N, 97.34° W', weight: '1.0x', db: 'ERA5 / ECMWF' },
+  ],
+  'spp-oklahoma-city-demo': [
+    { id: 'okc', name: 'Will Rogers World Airport, Oklahoma City, OK', callsign: 'KOKC', coords: '35.47° N, 97.52° W', weight: '1.0x', db: 'ERA5 / ECMWF' },
+  ],
+  'spp-lincoln-demo': [
+    { id: 'lnk', name: 'Lincoln Airport, Lincoln, NE', callsign: 'KLNK', coords: '40.85° N, 96.75° W', weight: '1.0x', db: 'ERA5 / ECMWF' },
+  ],
+}
+
+const getTelemetryAscii = (locationId: string) => {
+  if (locationId === 'SPP_SYSTEM') {
+    return `
+      [KBIS: Bismarck, ND] ----- (1.0x) ----\\
+      [KFSD: Sioux Falls] ------ (1.0x) -----\\
+      [KOMA: Omaha, NE] -------- (1.0x) ------+---> [ SPP Climate Proxy Array ]
+      [KICT: Wichita, KS] ------ (1.0x) ------|
+      [KAMA: Amarillo, TX] ----- (1.0x) -----/
+      [KOKC: Oklahoma City] ---- (1.0x) ----/
+    `.trim()
+  }
+  const callsign = telemetryStations[locationId]?.[0]?.callsign || 'WTHR'
+  const name = telemetryStations[locationId]?.[0]?.name.split(',')[0] || 'Local station'
+  return `
+      [${callsign}: ${name}] === (1.0x Weight) ===> [ Model Climate Input ]
+  `.trim()
+}
+
 function Inputs() {
   const { inputs, update, sourceFor } = useScenario();
-  return <section className="inputs-bar" aria-label="Connection inputs">
-    <div className="location-field">
-      <div className="field-label"><label htmlFor="location"><MapPin size={13} />SPP LOCATION</label><SourceInfo value={inputs.location_id} source={sourceFor('location_id')} label="Location provenance" /></div>
-      <div className="select-wrap"><select id="location" value={inputs.location_id} onChange={event => update('location_id', event.target.value)}>{mockResponse.locations.map(location => <option key={location.id} value={location.id}>{location.label}</option>)}</select><ChevronDown size={15} /></div>
-      <span className="field-note">{inputs.location_id === 'SPP_SYSTEM' ? 'System aggregate · no site-specific grid data' : 'Illustrative node · no site-specific grid data'}</span>
-    </div>
-    <NumberField name="load_mw" label="LOAD SIZE" unit="MW" min={1} max={2000} icon={<Zap size={13} />} />
-    <NumberField name="contract_years" label="CONTRACT TERM" unit="years" min={1} max={7} icon={<Activity size={13} />} />
-    <NumberField name="flexibility_percent" label="FLEXIBILITY SPLIT" unit="% interruptible" min={0} max={100} icon={<SlidersHorizontal size={13} />} />
-  </section>;
+  const [showTelemetry, setShowTelemetry] = useState(false);
+
+  const stations = telemetryStations[inputs.location_id] || [];
+  const ascii = getTelemetryAscii(inputs.location_id);
+
+  return <div className="inputs-wrapper">
+    <section className="inputs-bar" aria-label="Connection inputs">
+      <div className="location-field">
+        <div className="field-label"><label htmlFor="location"><MapPin size={13} />SPP LOCATION</label><SourceInfo value={inputs.location_id} source={sourceFor('location_id')} label="Location provenance" /></div>
+        <div className="select-wrap"><select id="location" value={inputs.location_id} onChange={event => update('location_id', event.target.value)}>{mockResponse.locations.map(location => <option key={location.id} value={location.id}>{location.label}</option>)}</select><ChevronDown size={15} /></div>
+        <span className="field-note">{inputs.location_id === 'SPP_SYSTEM' ? 'System aggregate · no site-specific grid data' : 'Illustrative node · no site-specific grid data'}</span>
+        <button
+          type="button"
+          className="telemetry-toggle-btn"
+          onClick={() => setShowTelemetry(open => !open)}
+          aria-expanded={showTelemetry}
+          aria-controls="telemetry-drawer"
+        >
+          <Activity size={10} aria-hidden="true" />
+          {showTelemetry ? 'Hide telemetry details' : 'Inspect climate telemetry'}
+        </button>
+      </div>
+      <NumberField name="load_mw" label="LOAD SIZE" unit="MW" min={1} max={2000} icon={<Zap size={13} />} />
+      <NumberField name="contract_years" label="CONTRACT TERM" unit="years" min={1} max={7} icon={<Activity size={13} />} />
+      <NumberField name="flexibility_percent" label="FLEXIBILITY SPLIT" unit="% interruptible" min={0} max={100} icon={<SlidersHorizontal size={13} />} />
+    </section>
+    
+    {showTelemetry && <section id="telemetry-drawer" className="telemetry-drawer" aria-label="Climate telemetry nodes">
+      <div className="telemetry-drawer-header">
+        <div>
+          <span className="eyebrow text-teal">MODEL TEMPERATURE CORRELATION</span>
+          <h4>Climate reanalysis telemetry station nodes</h4>
+        </div>
+        <p>The exposure model correlates historical regional temperature profiles with SPP grid-stress incidents. Temperature features are extracted from the ECMWF ERA5 reanalysis dataset via Open-Meteo.</p>
+      </div>
+      <div className="telemetry-drawer-body">
+        <div className="telemetry-grid">
+          <table className="telemetry-table-list">
+            <caption>ACTIVE GEOGRAPHICAL STATION PROXIES</caption>
+            <thead>
+              <tr>
+                <th scope="col">Station Call</th>
+                <th scope="col">Location Name</th>
+                <th scope="col">Coordinates</th>
+                <th scope="col">Weight</th>
+                <th scope="col">Telemetry DB</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stations.map(station => {
+                const src: Source = { source_type: 'data', ref: `mock://weather-telemetry/station/${station.id}; coordinates resolved via Open-Meteo geocoding` };
+                return <tr key={station.id}>
+                  <td><strong>{station.callsign}</strong></td>
+                  <td>{station.name}</td>
+                  <td>
+                    <SourceInfo value={station.coords} source={src} label={`${station.callsign} coordinates`} displayText={station.coords} />
+                  </td>
+                  <td>{station.weight}</td>
+                  <td><span className="telemetry-db-badge">{station.db}</span></td>
+                </tr>
+              })}
+            </tbody>
+          </table>
+          
+          <div className="telemetry-diagram-panel">
+            <span className="eyebrow muted text-center block mb-2">SCHEMATIC DIAGRAM</span>
+            <pre className="telemetry-ascii">{ascii}</pre>
+          </div>
+        </div>
+      </div>
+    </section>}
+  </div>;
 }
 
 function ExposureControl() {
@@ -279,7 +389,7 @@ function Assumptions() {
 
 function Workspace() {
   const { sensitivity } = useScenario();
-  return <div className="app-shell"><a className="skip-link" href="#main">Skip to analysis</a><Header /><main id="main"><Inputs /><ExposureControl /><div className="results-grid"><ExposurePanel /><EconomicsPanel /></div><SensitivityPanel sensitivity={sensitivity} /><Assumptions /></main><footer><span className="flex items-center gap-2"><Unplug size={12} />NO LIVE GRID FETCHES</span><span>Every number has a source. Hover, focus, or click a value or source tag.</span></footer></div>;
+  return <div className="app-shell"><a className="skip-link" href="#main">Skip to analysis</a><Header /><main id="main"><Inputs /><ExposureControl /><div className="results-grid"><ExposurePanel /><EconomicsPanel /></div><SensitivityPanel sensitivity={sensitivity} /><Assumptions /><ScenarioComparison /></main><footer><span className="flex items-center gap-2"><Unplug size={12} />NO LIVE GRID FETCHES</span><span>Every number has a source. Hover, focus, or click a value or source tag.</span></footer></div>;
 }
 
 export default function App() { return <ScenarioProvider><Workspace /></ScenarioProvider>; }
