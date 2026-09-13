@@ -598,4 +598,50 @@ button.confidence-badge { font: 11px var(--font-sans); color: var(--text-seconda
   .comparison-table th, .comparison-table td { padding: 8px 10px; }
 }
 
+/* Zone Leaderboard Console Styling */
+.leaderboard-panel { border: 1px solid var(--border); background: var(--panel); margin-top: 24px; padding-bottom: 24px; }
+.leaderboard-panel.loading-state, .leaderboard-panel.error-state { padding: 40px; text-align: center; }
+.loading-text { font-family: var(--font-mono); color: var(--teal); font-size: 11px; letter-spacing: 0.5px; animation: pulse 1.5s infinite; }
+.error-text { font-family: var(--font-mono); color: var(--accent); font-size: 11px; letter-spacing: 0.5px; }
+
+.leaderboard-intro { padding: 18px 24px; border-bottom: 1px solid var(--border); background: var(--bg-base); font-size: 11px; line-height: 1.6; color: var(--text-secondary); }
+.leaderboard-intro p { margin: 0 0 10px; }
+.formula-badge { display: inline-flex; align-items: center; gap: 6px; background: var(--selected); border: 1px solid var(--border-strong); padding: 4px 10px; border-radius: 2px; font-size: 10px; color: var(--secondary-text); }
+.formula-badge code { font-family: var(--font-mono); color: var(--teal); font-weight: 600; }
+
+.leaderboard-table-wrap { overflow-x: auto; padding: 0; background: var(--panel); border-bottom: 1px solid var(--border); }
+.leaderboard-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 11px; min-width: 800px; }
+.leaderboard-table th, .leaderboard-table td { padding: 10px 18px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.leaderboard-table th { color: var(--text-muted); font-weight: 400; border-bottom: 1px solid var(--border-strong); font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; }
+
+.leaderboard-row { cursor: pointer; transition: background 0.15s ease; }
+.leaderboard-row:hover { background: var(--hover); }
+.leaderboard-row.active { background: var(--selected); }
+
+.score-meter-container { display: flex; align-items: center; gap: 8px; justify-content: center; width: 100%; max-width: 120px; margin: 0 auto; }
+.score-meter-bar { height: 4px; border-radius: 2px; transition: width 0.3s ease; min-width: 2px; }
+.score-meter-value { font-family: var(--font-mono); font-size: 10px; color: var(--text-secondary); width: 28px; text-align: right; }
+
+.leaderboard-expanded-row td { padding: 0 !important; background: var(--bg-base) !important; border-bottom: 1px solid var(--border-strong) !important; }
+.leaderboard-expanded-card { padding: 18px 24px; animation: slideDown 0.2s ease-out; }
+.leaderboard-expanded-card h4 { font-family: var(--font-sans); font-size: 11px; font-weight: 600; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px; margin: 0 0 14px; }
+
+.leaderboard-breakdown-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.breakdown-col { background: var(--panel); border: 1px solid var(--border); padding: 12px 16px; border-radius: 2px; display: flex; flex-direction: column; gap: 10px; }
+.breakdown-label { font-family: var(--font-sans); font-weight: 600; font-size: 10px; color: var(--text-muted); letter-spacing: 0.5px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+.breakdown-details { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; margin: 0; font-size: 10px; line-height: 1.5; }
+.breakdown-details dt { color: var(--text-secondary); font-family: var(--font-sans); text-transform: uppercase; font-size: 9px; letter-spacing: 0.3px; }
+.breakdown-details dd { margin: 0; color: var(--text-primary); font-family: var(--font-mono); font-weight: 500; text-align: right; }
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 850px) {
+  .leaderboard-breakdown-grid { grid-template-columns: 1fr; gap: 12px; }
+  .leaderboard-table-wrap { font-size: 10px; }
+  .leaderboard-table th, .leaderboard-table td { padding: 8px 10px; }
+}
+
 

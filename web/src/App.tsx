@@ -3,6 +3,7 @@ import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, Check, ChevronDown,
 import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { ScenarioProvider, useScenario } from './ScenarioContext';
 import { ScenarioComparison } from './components/ScenarioComparison';
+import { ZoneLeaderboard } from './components/ZoneLeaderboard';
 import { Sourced, SourceInfo, SourcedTick } from './components/Sourced';
 import { TransparencyPanel } from './components/TransparencyPanel';
 import { SensitivityPanel } from './components/SensitivityPanel';
@@ -402,7 +403,7 @@ function Assumptions() {
 
 function Workspace() {
   const { sensitivity } = useScenario();
-  return <div className="app-shell"><a className="skip-link" href="#main">Skip to analysis</a><Header /><main id="main"><Inputs /><ExposureControl /><div className="results-grid"><ExposurePanel /><EconomicsPanel /></div><SensitivityPanel sensitivity={sensitivity} /><Assumptions /><ScenarioComparison /></main><footer><span className="flex items-center gap-2"><Unplug size={12} />NO LIVE GRID FETCHES</span><span>Every number has a source. Hover, focus, or click a value or source tag.</span></footer></div>;
+  return <div className="app-shell"><a className="skip-link" href="#main">Skip to analysis</a><Header /><main id="main"><Inputs /><ExposureControl /><div className="results-grid"><ExposurePanel /><EconomicsPanel /></div><SensitivityPanel sensitivity={sensitivity} /><Assumptions /><ScenarioComparison /><ZoneLeaderboard /></main><footer><span className="flex items-center gap-2"><Unplug size={12} />NO LIVE GRID FETCHES</span><span>Every number has a source. Hover, focus, or click a value or source tag.</span></footer></div>;
 }
 
 export default function App() { return <ScenarioProvider><Workspace /></ScenarioProvider>; }

@@ -126,7 +126,14 @@ describe('scenario workspace interactions', () => {
 
   it('makes HTTP fallback, retry, and the economic override mode switch visible', async () => {
     vi.stubEnv('VITE_ESTIMATE_MODE', 'api');
-    const fetcher = vi.fn().mockRejectedValueOnce(new TypeError('Failed to fetch')).mockImplementation((_url, options) => Promise.resolve(new Response(JSON.stringify(createMockEstimate(JSON.parse(options.body))), { status: 200 })));
+    let rejectOnce = true;
+    const fetcher = vi.fn().mockImplementation((_url, options) => {
+      if (rejectOnce) {
+        rejectOnce = false;
+        return Promise.reject(new TypeError('Failed to fetch'));
+      }
+      return Promise.resolve(new Response(JSON.stringify(createMockEstimate(JSON.parse(options.body))), { status: 200 }));
+    });
     vi.stubGlobal('fetch', withEconomics(fetcher));
     render(<App />);
     expect(screen.getByText(/current inputs shown as a local mock preview/)).toBeTruthy();
