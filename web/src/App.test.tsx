@@ -148,7 +148,9 @@ describe('scenario workspace interactions', () => {
     vi.stubGlobal('fetch', withEconomics(fetcher));
     render(<App />);
     expect(screen.getByText(/current inputs shown as assumed scenario values/)).toBeTruthy();
-    fireEvent.click(await screen.findByRole('button', { name: 'Retry estimate' }));
+    // Allow the full sourced dashboard to render before testing the retry action.
+    // The transport deadline itself is covered with fake timers in context tests.
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry estimate' }, { timeout: 5000 }));
     expect(await screen.findByText(/Estimate service connected · current inputs synchronized/)).toBeTruthy();
   });
 

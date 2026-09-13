@@ -4,6 +4,8 @@ import { useEstimateTransport, type EstimateMode } from './hooks/useEstimateTran
 import { validateEconomicsAssumptions, type EconomicsAssumptions } from './api/assumptions';
 import economicSnapshot from './model/economics-assumptions.json';
 import { buildSensitivity } from './model/sensitivity';
+import { useLocationEstimator } from './hooks/useLocationEstimator';
+import type { LocationResult } from './api/locationEstimator';
 
 const offlineAssumptions = validateEconomicsAssumptions(economicSnapshot);
 
@@ -18,13 +20,13 @@ const economicFields = {
 } as const;
 const configuredMode = (): EstimateMode => import.meta.env.VITE_ESTIMATE_MODE === 'local' ? 'local' : 'api';
 
-export interface SavedScenario {
+export type SavedScenario = {
   id: string
   name: string
   timestamp: number
   inputs: ScenarioInputs
-  result: ReturnType<typeof deriveScenario>
-}
+} & ({ result: ReturnType<typeof deriveScenario>; locationEstimate?: undefined; locationQuery?: undefined }
+  | { result?: undefined; locationEstimate: LocationResult; locationQuery: string });
 
 function useScenarioState(initialMode: EstimateMode) {
   const [storedInputs, setInputs] = useState<ScenarioInputs>({ ...defaultInputs });
@@ -69,6 +71,7 @@ function useScenarioState(initialMode: EstimateMode) {
     }
     return values;
   }, [storedInputs, economicDefaults, edited]);
+  const location = useLocationEstimator(inputs);
   const decisionPolicy = economicDefaults?.close_call_fraction ?? mockResponse.decision_policy.close_call_fraction;
   function sourceFor(key: keyof ScenarioInputs): Source {
     if (edited.has(key)) return { source_type: 'assumption', ref: `user://scenario/${key}` };
@@ -97,6 +100,7 @@ function useScenarioState(initialMode: EstimateMode) {
   ), [transport.sensitivity, result, inputs, decisionPolicy, economicDefaults]);
 
   function saveScenario(name?: string) {
+    if (location.enabled && !location.result) return;
     const defaultLabel = `Scenario ${savedScenarios.length + 1}: ${
       inputs.location_id === 'SPP_SYSTEM'
         ? 'SPP System'
@@ -104,10 +108,10 @@ function useScenarioState(initialMode: EstimateMode) {
     } (${inputs.load_mw} MW)`;
     const newScenario: SavedScenario = {
       id: `scen_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      name: name || defaultLabel,
+      name: name || (location.result ? `${location.result.location.name} (${inputs.load_mw} MW)` : defaultLabel),
       timestamp: Date.now(),
       inputs: { ...inputs },
-      result: { ...result },
+      ...(location.enabled && location.result ? { locationEstimate: location.result, locationQuery: location.query } : { result: { ...result } }),
     };
     setSavedScenarios(prev => [...prev, newScenario]);
   }
@@ -119,6 +123,7 @@ function useScenarioState(initialMode: EstimateMode) {
   function loadScenario(id: string) {
     const target = savedScenarios.find(scen => scen.id === id);
     if (target) {
+      location.reset();
       setInputs({ ...target.inputs });
       const editedKeys = Object.keys(target.inputs).filter(key => {
         const val = target.inputs[key as keyof ScenarioInputs];
@@ -126,6 +131,10 @@ function useScenarioState(initialMode: EstimateMode) {
         return val !== def;
       });
       setEdited(new Set(editedKeys as (keyof ScenarioInputs)[]));
+      if (target.locationEstimate) {
+        setEdited(new Set(Object.keys(target.inputs) as (keyof ScenarioInputs)[]));
+        location.restore(target.locationEstimate, target.locationQuery);
+      }
     }
   }
 
@@ -153,11 +162,13 @@ function useScenarioState(initialMode: EstimateMode) {
     setMode(next);
   }
   function reset() {
+    location.reset();
     setInputs({ ...defaultInputs });
     setEdited(new Set());
     setModeNote('');
   }
   return {
+    location,
     inputs,
     result,
     sensitivity,

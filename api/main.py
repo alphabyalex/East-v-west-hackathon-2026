@@ -12,6 +12,7 @@ from .estimate import build_estimate
 from .mock_provider import LocationNotFoundError, LocationProvider
 from .pipeline_provider import PipelineDataError, get_pipeline_location
 from .schemas import EstimateRequest, EstimateResponse
+from .location_estimator import router as location_estimator_router
 
 
 app = FastAPI(
@@ -27,6 +28,7 @@ app.add_middleware(
     allow_headers=["Content-Type"],
     expose_headers=["X-Headroom-Exposure-Source"],
 )
+app.include_router(location_estimator_router)
 
 
 def get_location_provider() -> LocationProvider:

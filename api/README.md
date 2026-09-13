@@ -1,5 +1,42 @@
 # Local estimate API
 
+## Local location estimator adapter
+
+`Open Fluxline.cmd` starts the React app on 5174, this API on 8000, and the existing
+location workspace on 8765 without opening its separate interface. It requires
+the existing local Python/ML environment, saved models/caches, and `npm ci` in
+`web`. `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-fluxline.ps1 -NoBrowser`
+starts/reuses the services without opening a browser. Restart the API after Python
+code changes; the launcher reports a conflict if an older API occupies port 8000.
+
+The `/api/location-estimator` routes are an explicit local authoring flow:
+
+- `GET /locations`: cached location search suggestions; no offline work.
+- `POST /search` with `{query}`: returns `{status, scan_id, candidates}` from a
+  saved search, or `{status: "running", job_id}` for an explicit workspace search.
+- `POST /estimate` with `{scan_id, candidate, inputs, report_id?}`: `inputs` contains
+  every `ScenarioInputs` field in the frontend, including economic overrides. A
+  completed report at the selected coordinates yields `{status: "succeeded",
+  result}`. Otherwise the existing workspace receives a `site-transfer` job and
+  the route returns `{status: "running", job_id}`. Job inputs never imply manual
+  SPP confirmation. Reports requiring independent coverage review cannot be reused.
+- `GET /jobs/{job_id}`: polls that exact persisted job. After success, repeat
+  `/search` for the cached matches, or `/estimate` with the completed `result_id`
+  as `report_id`. The latter verifies the result belongs to the selected point.
+
+The response preserves `inputs_echo`, location, model/version/hash references,
+confidence, weather/coverage evidence and limitations. `exposure` contains annual
+expected site hours, regional hours, full-term hours and annual MWh. `economics`
+uses those expected hours with the submitted facility/economic inputs and the
+file-backed VPP rates. The original saved report is never rewritten. Site exposure
+is applied once to the unscaled regional expectation. No percentile estimates,
+outage durations, confidence scores or upper-tail decisions are manufactured.
+
+Only loopback clients and allowed local browser origins can use these routes.
+Explicit jobs go to the fixed local workspace using its existing token, registered
+inputs and single-job lock. This adapter does not create a second model runner.
+The canonical `/api/estimate` contract and its read-only behavior remain unchanged.
+
 FastAPI serves the canonical `POST /api/estimate` contract using Kristian's
 precomputed reader when available, with an explicit placeholder fallback when the
 reader, parquet, or provenance companions are absent, or annual reference evidence
