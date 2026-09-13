@@ -1,11 +1,10 @@
-# Headroom frontend
+# Fluxline frontend
 
 A local SPP flexible-interconnection scenario workspace built with Vite, React,
-TypeScript, Tailwind CSS, Three.js, and Recharts. It uses a deterministic illustrative fixture;
-it calls the local FastAPI endpoint by default, with an explicit local mock fallback.
-Neither provider runs a Monte Carlo simulation or trains a model.
-The user's requested mock-data scope takes precedence over the repo's eventual
-real-data definition of done.
+TypeScript, Tailwind CSS, Three.js, and Recharts. Tharun's landing page and workspace
+call the local FastAPI endpoint by default, with an explicit local mock fallback.
+The API reads precomputed pipeline output when available; missing output remains
+honestly labeled as a placeholder. Neither HTTP provider nor frontend trains or simulates.
 
 ## Run
 
@@ -23,7 +22,7 @@ Start the API in a second terminal from the repo root:
 python -m venv .venv
 # Windows: .venv\Scripts\python -m pip install -r api/requirements.txt
 # macOS/Linux: .venv/bin/python -m pip install -r api/requirements.txt
-# Then use that environment?s Python:
+# Then use that environment's Python:
 python -m uvicorn api.main:app --host 127.0.0.1 --port 8000
 ```
 
@@ -44,7 +43,7 @@ npm run preview  # serve the production build locally
 
 - Location, load size, term, and interruptible share update the scenario immediately.
 - The sticky site exposure slider is an explicit user assumption. It scales the
-  fixed annual quantiles and changes modeled losses and the conditional decision.
+  supplied annual quantiles and changes modeled losses and the conditional decision.
 - Earlier-access advantage, compute density, lost compute value, and early operating
   margin stay visible and editable beneath the outputs.
 - Every numeric output uses `Sourced`; inputs use `SourceInfo` and native provenance
@@ -67,7 +66,7 @@ npm run preview  # serve the production build locally
 - The economics panel includes annual cost scenarios for each supplied quantile.
   Tariff evidence displays the mock term record and its provenance, without claiming
   that a real clause has been extracted.
-- Reset restores fixture defaults. Export downloads the canonical request/response,
+- Reset restores scenario defaults and the latest loaded economic defaults. Export downloads the canonical request/response,
   sourced local assumptions, and view results as JSON. Reset in API mode requests the default scenario; Export saves the currently displayed response and its origin.
 - At the default assumptions, moving site exposure from 0.4 through 0.55 to 0.9 produces
   “worth it,” “close call,” then “not worth it.” Zero exposure and zero interruption
@@ -85,20 +84,26 @@ The [integration notes](../docs/frontend-api-contract.md) define block-to-value
 provenance mapping, formulas, nullable break-even, and complete yearly horizons.
 API-scaled exposure is never scaled again by the view adapter.
 
-The shell deliberately uses illustrative SPP-region location IDs, not verified grid
-nodes. Replace them with pipeline-validated identifiers during integration. Every
-fixture value uses `source_type: "assumption"`; mock references do not claim real
-dataset or tariff support. The one-to-seven-year horizon matches the pipeline
-contract, not a claim about an allowed tariff term.
+The initial location is `SPP_SYSTEM`, explicitly labeled as a system aggregate with
+no site-specific grid data. This is Kristian's actual pipeline identifier, never an
+alias for a Wichita node or a particular interconnection. Illustrative city examples
+remain available as explicit demo locations. Local exposure is always an authored
+fixture with `source_type: "assumption"`; selecting the real system identifier does
+not turn a missing model into real output. The one-to-seven-year horizon matches the
+pipeline contract, not a claim about an allowed tariff term.
 
 Economics carry small **Mock economics** labels beside their results, including
 the decision and the slider's break-even caption; there is no global warning banner.
 Each result block checks its supplied `mock://` reference independently, so sourced
 exposure can replace its mock label while economics or diagnostics remain marked.
-The round fixture defaults (1,000 GPUs/MW, $2/GPU-hour,
-$500,000/MW-year early margin, and three years of earlier access) are dummy values,
-not sourced estimates. Their provenance references identify economics placeholders
-pending `docs/ASSUMPTIONS.md`; editable inputs remain user assumptions.
+Tharun's documented assumptions are now 575 GPUs per grid-interconnection MW,
+$3/GPU-hour gross rental value, and four years of earlier access. The $317,000/MW-year
+early operating margin remains an explicit, unverified placeholder: Tharun applied an
+assumed 3% operating margin to scenario gross revenue. It is not a verified net margin.
+The backend's full per-input provenance is loaded from `GET /api/economics-assumptions`.
+The identical bundled snapshot in `src/model/economics-assumptions.json` supports
+offline fallback. Derived local economics stay marked as mock because their exposure
+is a fixture; a sourced input never upgrades the source of an invented output.
 
 Primary median exposure and net value have greater numeric scale; upper-tail
 quantiles remain visible with separate confidence/provenance. Numeric changes use
@@ -107,12 +112,11 @@ Chart selection, confidence-level and decision changes have brief eased feedback
 native inputs remain direct, and neither new views nor numbers count up on first
 load. All motion respects reduced-motion preferences and stops when idle/hidden.
 
-Kristian/Tharun's economics sourcing will arrive through `main` in
-`docs/ASSUMPTIONS.md`. Check main at integration checkpoints. When it arrives, replace
-the applicable defaults and their refs together using the documented units, sources,
-retrieval dates, and ranges; recalculate derived break-even values. Keep any remaining
-placeholder dependencies visibly marked. Do this during integration, without adding
-runtime GitHub requests or data fetching to the offline demo.
+`docs/ASSUMPTIONS.md` is the backend's economic source of truth. API mode loads the
+marked JSON block from the local server, including units, references, retrieval dates,
+ranges, and the decision tolerance. Future updates to those inputs need no frontend
+hardcode change. Refresh the bundled snapshot when updating offline defaults; keep
+remaining placeholders marked. No runtime GitHub or external data fetches occur.
 
 Annual summaries average the marginal quantile paths. The ledger follows the median
 path; the decision compares p50/p90 term-cost proxies with total earlier benefit using
@@ -129,28 +133,35 @@ not invent a lower-tail quantile.
 
 ## Provider controls
 
-The default is `VITE_ESTIMATE_MODE=api`. Vite proxies `/api` to
-`http://127.0.0.1:8000` in dev and preview. Copy `.env.example` to `.env`, set
+The default is `VITE_ESTIMATE_MODE=api`, calling `http://127.0.0.1:8000` directly.
+The backend permits the frontend origin `http://127.0.0.1:5174` through CORS; no proxy
+is required at that origin. Set `VITE_API_BASE_URL` to change the API origin, or set it
+to an empty string to use same-origin requests through the existing Vite `/api` proxy.
+Copy `.env.example` to `.env`, set
 `VITE_ESTIMATE_MODE=local`, and restart Vite to make no HTTP requests. The visible
-**Local mock** control switches immediately; **Use API defaults** restores the fixed
-mock economics and returns to HTTP.
+**Local mock** control switches immediately; **Use API defaults** clears economic
+overrides and returns to the server's documented assumptions, including placeholders.
 
 Changing an economic input switches to local mode with an explanation because the
 canonical request has no economic override fields. Other inputs trigger a debounced,
 cancelable estimate request. While pending or unavailable, the app shows a clearly
 labeled local mock preview/fallback for the current inputs; Retry API tries again.
-Old responses cannot replace the results for newer inputs. Export records
+Both the estimate and its companion economic metadata must validate before the UI
+accepts an API result. GPU-hour/cost quantiles, early benefit, break-even, and the decision
+are checked against those defaults to catch a file change between GET and POST. Missing
+metadata or inconsistent results use the visible local fallback. Old responses cannot
+replace the results for newer inputs. Export records
 `{mode,status,response_origin,request,response,local_assumptions,result}`.
 
-The endpoint uses the same canonical fixture and cheap arithmetic. No real pipeline
-output, sourced economics, model confidence, or extracted clauses are implied by a
-successful HTTP connection. See [api/README.md](../api/README.md) for backend tests
+The endpoint calls Kristian's reader for valid precomputed output. Missing output
+retains assumption provenance; an HTTP connection alone is not evidence of real model
+confidence or extracted clauses. See [api/README.md](../api/README.md) for backend tests
 and the replaceable precomputed-provider boundary.
 
 To test the full HTTP contract with both servers running (PowerShell):
 
 ```powershell
-$env:HEADROOM_API_URL = 'http://127.0.0.1:5174' # use the actual Vite URL
+$env:HEADROOM_API_URL = 'http://127.0.0.1:8000'
 npm test -- src/api/live-contract.test.ts
 Remove-Item Env:HEADROOM_API_URL
 ```
@@ -161,6 +172,7 @@ Remove-Item Env:HEADROOM_API_URL
 src/App.tsx                 Workspace, controls, chart, economics, assumptions
 src/ScenarioContext.tsx     Shared inputs, provider mode, and current-input results
 src/api/client.ts           Validated HTTP boundary, used by the API provider
+src/api/assumptions.ts      Validated companion metadata and economics consistency check
 src/components/Sourced.tsx  Reusable provenance values, info controls, SVG ticks
 src/components/ConfidenceBadge.tsx  Supplied confidence level/score with mock status
 src/components/ExposureSurface.tsx  Sourced controls and labels for the 3D plot

@@ -56,6 +56,7 @@ function mapQuantiles<T>(map: (quantile: keyof Quantiles) => T): Quantiles<T> {
 export function createMockEstimate(
   request: EstimateRequest,
   localEconomics: Partial<MockEconomicInputs> = {},
+  decisionPolicy: SourcedValue = mockResponse.decision_policy.close_call_fraction,
 ): EstimateResponse {
   validateRequest(request)
   const location = mockResponse.locations.find((entry) => entry.id === request.location_id)
@@ -80,7 +81,9 @@ export function createMockEstimate(
   const benefit = Math.min(local.firm_wait_years, request.term_years)
     * request.load_mw * local.early_margin_usd_per_mw_year
   const costPerExposureHour = interruptibleMw * local.gpu_per_mw * local.gpu_hour_value_usd
-  const tolerance = mockResponse.decision_policy.close_call_fraction.value
+  const tolerance = decisionPolicy.value
+  assertFiniteNonNegative(tolerance, 'close_call_fraction')
+  if (tolerance >= 1) throw new RangeError('close_call_fraction must be less than 1.')
   const decision: EstimateResponse['economics']['decision'] = annualCost.p50 * request.term_years > benefit * (1 + tolerance)
     ? 'not_worth_it'
     : annualCost.p90 * request.term_years < benefit * (1 - tolerance) ? 'worth_it' : 'close_call'
@@ -113,10 +116,10 @@ export function createMockEstimate(
       breakeven_exposure_hours_per_year: costPerExposureHour === 0
         ? null : benefit / (request.term_years * costPerExposureHour),
       decision,
-      // docs/ASSUMPTIONS.md status is "mixed" (4 of 6 inputs sourced, 2 remain
-      // explicit assumptions) - stays mock:// until the file is fully "sourced",
-      // matching api/economics.py's is_mock = status != "sourced" or placeholder_exposure.
-      source: { source_type: 'assumption', ref: `mock://economics-placeholder/docs/ASSUMPTIONS.md?${economicsRef}; status=mixed` },
+      source: {
+        source_type: 'assumption',
+        ref: `mock://illustrative/api/estimate/economics?${economicsRef}; exposure_source=${source.ref}; economic_inputs=local assumptions, defaults documented in docs/ASSUMPTIONS.md; close_call_fraction=${tolerance}; policy_source=${decisionPolicy.ref}`,
+      },
     },
     tariff: {
       operator: 'SPP',
@@ -141,6 +144,7 @@ function sourced<T>(value: T, source: Source, path: string): SourcedValue<T> {
 export function adaptEstimateResponse(
   response: EstimateResponse,
   localEconomics: Partial<MockEconomicInputs> = {},
+  decisionPolicy: SourcedValue = mockResponse.decision_policy.close_call_fraction,
 ): ScenarioResult {
   const request = response.inputs_echo
   validateRequest(request)
@@ -207,6 +211,6 @@ export function adaptEstimateResponse(
       }, 'derived/breakeven-hours-divided-by-p50-baseline'),
     },
     decision: { worth_it: 'worth it', not_worth_it: 'not worth it', close_call: 'close call' }[economics.decision] as ScenarioResult['decision'],
-    decision_policy: mockResponse.decision_policy,
+    decision_policy: { close_call_fraction: decisionPolicy },
   }
 }

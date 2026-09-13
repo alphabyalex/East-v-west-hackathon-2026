@@ -79,14 +79,14 @@ function Header() {
     const href = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = href;
-    anchor.download = 'headroom-scenario.json';
+    anchor.download = 'fluxline-scenario.json';
     anchor.click();
     setTimeout(() => URL.revokeObjectURL(href), 1000);
     setExported(true);
   }
   return <>
     <header className="app-header">
-      <a href="/" className="brand" aria-label="Headroom home"><span className="brand-mark" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 2V16M15 2V16M3 9H15M7 5V13M11 5V13" stroke="currentColor" strokeWidth="1.3" /></svg></span>Headroom<span className="brand-divider" /><span className="brand-subtitle">INTERCONNECTION RISK</span></a>
+      <a href="/" className="brand" aria-label="Fluxline home"><span className="brand-mark" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 2V16M15 2V16M3 9H15M7 5V13M11 5V13" stroke="currentColor" strokeWidth="1.3" /></svg></span>Fluxline<span className="brand-divider" /><span className="brand-subtitle">INTERCONNECTION RISK</span></a>
       <div className="header-status"><span className="status-dot" />{status === 'api' ? 'API CONNECTED' : status === 'loading' ? 'API PENDING' : status === 'fallback' ? 'LOCAL FALLBACK' : 'LOCAL WORKSPACE'}</div>
     </header>
     <div className="workspace-heading">
@@ -122,7 +122,7 @@ function Inputs() {
     <div className="location-field">
       <div className="field-label"><label htmlFor="location"><MapPin size={13} />SPP LOCATION</label><SourceInfo value={inputs.location_id} source={sourceFor('location_id')} label="Location provenance" /></div>
       <div className="select-wrap"><select id="location" value={inputs.location_id} onChange={event => update('location_id', event.target.value)}>{mockResponse.locations.map(location => <option key={location.id} value={location.id}>{location.label}</option>)}</select><ChevronDown size={15} /></div>
-      <span className="field-note">Illustrative node · no site-specific grid data</span>
+      <span className="field-note">{inputs.location_id === 'SPP_SYSTEM' ? 'System aggregate · no site-specific grid data' : 'Illustrative node · no site-specific grid data'}</span>
     </div>
     <NumberField name="load_mw" label="LOAD SIZE" unit="MW" min={1} max={2000} icon={<Zap size={13} />} />
     <NumberField name="contract_years" label="CONTRACT TERM" unit="years" min={1} max={7} icon={<Activity size={13} />} />

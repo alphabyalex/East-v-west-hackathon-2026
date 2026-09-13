@@ -2,9 +2,10 @@
 
 FastAPI serves the canonical `POST /api/estimate` contract using Kristian's
 precomputed reader when available, with an explicit placeholder fallback when the
-reader or its parquet is absent. It never trains, simulates, or fetches grid data.
+reader, parquet, or provenance companions are absent. It never trains, simulates, or fetches grid data.
 Economics comes from [docs/ASSUMPTIONS.md](../docs/ASSUMPTIONS.md), whose current
-contents are **unsourced placeholders**. File presence does not establish real data.
+status is **mixed**: Tharun's cited scenario defaults plus explicitly unverified
+margin and decision-tolerance assumptions. File presence does not establish real data.
 
 From the repository root, using Python 3.11 or later:
 
@@ -24,6 +25,10 @@ file edits are read on the next request. OpenAPI is available at
 ```powershell
 .venv/Scripts/python.exe -m pytest -q
 ```
+
+For the complete offline ML suite, first install `requirements-ml.txt` into the same
+environment. The API requirements include only the parquet reader's dependencies;
+they do not install the training stack.
 
 Tests cover the HTTP contract, explicit placeholder provenance, imported-reader
 mapping, single site-factor application, missing versus broken pipeline behavior,
@@ -50,7 +55,7 @@ shape. Numeric descendants inherit their block's source; echoed inputs are user
 assumptions. `by_year` covers every requested year in ascending order. The agreed
 zero-cost boundary remains `breakeven_exposure_hours_per_year: null`.
 
-CORS permits browser calls from exactly `http://127.0.0.1:5174`, using `POST` and
+CORS permits browser calls from exactly `http://127.0.0.1:5174`, using `GET`, `POST`, and
 the `Content-Type` request header, without credentials. Other hostnames/ports are
 different origins and are not allowed. For example, run from that frontend:
 
@@ -71,16 +76,23 @@ const estimate = await response.json();
 
 Successful responses expose `X-Headroom-Exposure-Source: pipeline|placeholder` and
 send `Cache-Control: no-store`. This header describes exposure only; inspect each
-block's provenance for economics and tariffs. The current web client still uses
-its same-origin Vite proxy; direct access is available without requiring that proxy.
+block's provenance for economics and tariffs. The web client uses direct access
+by default; `VITE_API_BASE_URL=` selects the same-origin Vite proxy instead.
 No API body fields were added for transport status.
+
+`GET /api/economics-assumptions` returns the exact validated machine-readable block
+from `docs/ASSUMPTIONS.md`, with `Cache-Control: no-store`. Its keys and per-value
+shape are listed below. The frontend validates this response alongside the estimate
+before showing API results, so controls and provenance match the server's actual
+defaults. A missing/invalid assumptions file returns 503 on either endpoint.
 
 ## Precomputed reader and explicit fallback
 
 `api.main.get_location_provider()` selects
 `api.pipeline_provider.get_pipeline_location(location_id)`. It imports
 `pipeline.simulate`, checks that `get_location_estimate` is callable and
-`data/processed/exposure_by_location.parquet` exists, then calls:
+`data/processed/exposure_by_location.parquet` exists, validates its sibling
+`model_card.json` and `simulation_metadata.json`, then calls:
 
 ```text
 get_location_estimate(location_id: str) -> dict
@@ -102,20 +114,30 @@ get_location_estimate(location_id: str) -> dict
 
 The reader must only read precomputed output. The adapter validates finite ordered
 quantiles, complete ordered years starting at one, confidence bounds/counts, model
-version, and the requested location. It retains the model version and precedent
-count in `source_type: "model"` references. Confidence uses the contracted
+version, and the requested location. Companion metadata must describe the same
+model, explicit data/label sources, input hashes, and unscaled simulation output.
+Keep these files together when publishing an offline run to `data/processed`;
+the workflow's run directory is not automatically promoted into the API.
+It retains the model version, precedent count, and experimental annual-tail
+limitations in `source_type: "model"` references. Confidence uses the contracted
 `ensemble_disagreement` basis and is not changed by the site assumption.
+The current simulator caps annual confidence at Low; its score measures classifier
+agreement, not annual-tail calibration. `worst_contiguous_hours` is the p99 of
+annual longest modeled episodes, not a guaranteed upper bound. The API reports
+the maximum of those annual statistics over the requested term, scaled by the
+user's site factor; it is not an observed outage length.
 `api.estimate.build_estimate` applies `site_exposure` exactly once, downstream of
 the reader; the frontend must not apply it again.
 
-If the module, callable, or parquet is missing, or the file becomes unavailable
+If the module, callable, parquet, or either companion is missing, or a file becomes unavailable
 during import/read, the API returns the identical body shape with explicit
 assumption sources. Exposure/confidence refs include
 `mock://placeholder/...; placeholder, pipeline not wired yet; <reason>`.
 The fallback reuses the authored frontend fixture's numbers; these are not new
 measurements. It supports only `spp-wichita-demo`, `spp-oklahoma-city-demo`,
-`spp-lincoln-demo`, and the canonical example `SPP_SPS_HUB`. These placeholder IDs
-do not establish real node coverage. Once the reader is available, its returned
+`spp-lincoln-demo`, the canonical example `SPP_SPS_HUB`, and `SPP_SYSTEM`. The latter
+is the real load input's system-aggregate ID, but its fallback exposure remains
+authored. These placeholders do not establish real node coverage. Once the reader is available, its returned
 location set governs coverage. Tariffs remain unextracted placeholders, including
 when exposure comes from the pipeline.
 
@@ -154,10 +176,13 @@ an explicit `mock://` placeholder ref, and null URL/date. Reviewed entries requi
 an HTTPS source URL and retrieval date. Status must match per-entry provenance.
 Duplicate JSON keys, unknown fields, or multiple marked blocks are rejected.
 
-The current round placeholders preserve the frontend fixture's economics:
-1,000 GPUs/MW, $2/GPU-hour, $500,000/MW-year net margin, three years of earlier
-access capped at the contract term, and a 5% decision tolerance. The new $50/MWh
-electricity placeholder is **informational only**; it is not deducted from gross
+Current defaults preserve Tharun's selected grid basis: 575 GPUs/MW, $3/GPU-hour,
+four years of earlier access capped at the contract term, and $317,000/MW-year
+of **assumed** net operating margin. That last input is his unverified 3% margin
+assumption applied to $10,577,700/MW-year of derived gross revenue, rounded;
+neither a citation nor a decision flip validates the margin. It keeps placeholder
+provenance, as does the unreviewed 5% decision tolerance. Kansas electricity at
+$82.1/MWh is **informational only**, not a regional/site tariff; it is not deducted from gross
 lost rental value or deducted again from the independent net-margin input.
 
 Annual summaries are means of annual marginal quantiles. Costs compare their

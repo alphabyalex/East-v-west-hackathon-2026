@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { postEstimate } from './client';
+import { getEconomicsAssumptions, validateEconomicConsistency } from './assumptions';
 import { adaptEstimateResponse, createMockEstimate, defaultInputs, toEstimateRequest } from '../model';
 
 // Explicit integration run: HEADROOM_API_URL=http://127.0.0.1:8000 npm test -- src/api/live-contract.test.ts
@@ -17,30 +18,23 @@ const cases = [
   { ...baseline, location_id: 'spp-lincoln-demo', flexibility_split: 1, site_exposure: 1 },
 ];
 
-function compare(actual: unknown, expected: unknown): void {
-  if (typeof expected === 'number') {
-    expect(actual).toBeCloseTo(expected, 6);
-  } else if (Array.isArray(expected)) {
-    expect(Array.isArray(actual)).toBe(true);
-    expect(actual).toHaveLength(expected.length);
-    expected.forEach((value, index) => compare((actual as unknown[])[index], value));
-  } else if (expected && typeof expected === 'object') {
-    expect(Object.keys(actual as object).sort()).toEqual(Object.keys(expected).sort());
-    for (const [key, value] of Object.entries(expected)) {
-      const supplied = (actual as Record<string, unknown>)[key];
-      if (key === 'ref') expect(supplied).toMatch(/^mock:\/\//);
-      else compare(supplied, value);
-    }
-  } else expect(actual).toEqual(expected);
-}
-
 describe.skipIf(!baseUrl)('live FastAPI / frontend contract parity', () => {
   it.each(cases)('serves and adapts the current scenario: %j', async request => {
-    const response = await postEstimate(request, {
-      fetchImpl: (input, init) => fetch(new URL(String(input), baseUrl), init),
+    const options = {
+      fetchImpl: ((input, init) => fetch(new URL(new URL(String(input), 'http://127.0.0.1:8000').pathname, baseUrl), init)) as typeof fetch,
       signal: AbortSignal.timeout(5000),
-    });
-    compare(response, createMockEstimate(request));
+    };
+    const [response, assumptions] = await Promise.all([postEstimate(request, options), getEconomicsAssumptions(options)]);
+    validateEconomicConsistency(response, assumptions);
+    // A real reader may replace exposure independently of economics/evidence.
+    // Only compare authored exposure when the backend explicitly says it is mock.
+    if (response.modeled_exposure.source.ref.startsWith('mock://')) {
+      expect(response.modeled_exposure.source.source_type).toBe('assumption');
+      const expected = createMockEstimate(request).modeled_exposure;
+      for (const quantile of ['p50', 'p90', 'p99'] as const) {
+        expect(response.modeled_exposure[quantile]).toBeCloseTo(expected[quantile], 6);
+      }
+    }
     const result = adaptEstimateResponse(response);
     expect(result.annual_exposure.p50.value).toBe(response.modeled_exposure.p50);
     expect(result.annual_series).toHaveLength(request.term_years);

@@ -62,10 +62,10 @@ class AssumptionValue(ContractModel):
                 raise ValueError("Placeholder inputs must not imply source retrieval")
         else:
             if self.source_url is None or self.retrieved_on is None:
-                raise ValueError("Reviewed inputs require source URL and retrieval date")
+                raise ValueError("Referenced inputs require source URL and retrieval date")
             parsed = urlparse(self.source_url)
             if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
-                raise ValueError("Reviewed inputs require an HTTPS source URL without credentials")
+                raise ValueError("Referenced inputs require an HTTPS source URL without credentials")
             date.fromisoformat(self.retrieved_on)
         return self
 
@@ -160,7 +160,12 @@ def build_economics(
         f"{key}={getattr(local, key).value!r} [{getattr(local, key).ref}]"
         for key in _UNITS
     )
-    ref = f"{prefix}; status={local.status}; {input_refs}; exposure=[{exposure_source.ref}]; electricity=informational, not applied"
+    ref = (
+        f"{prefix}; status={local.status}; {input_refs}; exposure=[{exposure_source.ref}]; "
+        "annual_cost_basis=lost GPU-hours valued at gross rental price; "
+        "early_connection_basis=assumed operating margin, not gross revenue; "
+        "electricity=informational, not applied"
+    )
     if placeholder_exposure:
         ref += "; placeholder, pipeline not wired yet"
 

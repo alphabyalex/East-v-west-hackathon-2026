@@ -4,6 +4,7 @@ import { fireEvent, render, screen, cleanup, within } from '@testing-library/rea
 import { cloneElement, type ReactElement } from 'react';
 import App from './App';
 import { createMockEstimate } from './model';
+import { withEconomics } from './api/test-fixtures';
 
 // jsdom has no layout engine. Retain the real Recharts SVG/axes/tooltip components
 // while giving their responsive wrapper a deterministic layout for interaction tests.
@@ -28,19 +29,19 @@ describe('scenario workspace interactions', () => {
     expect(screen.getByText('Mock economics')).toBeTruthy();
     expect(screen.getByText('Mock decision')).toBeTruthy();
     expect(screen.getByText('USER ASSUMPTION')).toBeTruthy();
-    expect(screen.getByText('Illustrative node · no site-specific grid data')).toBeTruthy();
+    expect(screen.getByText('System aggregate · no site-specific grid data')).toBeTruthy();
     expect(screen.getByText('You set the mapping.')).toBeTruthy();
   });
 
   it('removes only earned mock labels when a mixed-source HTTP result arrives', async () => {
     vi.stubEnv('VITE_ESTIMATE_MODE', 'api');
-    vi.stubGlobal('fetch', vi.fn().mockImplementation((_url, options) => {
+    vi.stubGlobal('fetch', withEconomics(vi.fn().mockImplementation((_url, options) => {
       const response = createMockEstimate(JSON.parse(options.body));
       // Test-only supplied references: exposure can arrive before economics/evidence.
       response.modeled_exposure.source = { source_type: 'model', ref: 'test-fixture://pipeline/exposure' };
       response.confidence.source = { source_type: 'model', ref: 'test-fixture://pipeline/confidence' };
       return Promise.resolve(new Response(JSON.stringify(response), { status: 200 }));
-    }));
+    })));
     render(<App />);
     await screen.findByText(/API connected · current inputs synchronized/);
     expect(screen.queryByText('Mock exposure')).toBeNull();
@@ -49,7 +50,7 @@ describe('scenario workspace interactions', () => {
     expect(screen.getByText('Mock economics')).toBeTruthy();
     expect(screen.getByText('Mock decision')).toBeTruthy();
     expect(screen.getByText('USER ASSUMPTION')).toBeTruthy();
-    expect(screen.getByText('Illustrative node · no site-specific grid data')).toBeTruthy();
+    expect(screen.getByText('System aggregate · no site-specific grid data')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Model & evidence' }));
     expect(screen.getByText('Mock diagnostics · not computed.')).toBeTruthy();
     expect(screen.getByText('Mock clause · not extracted')).toBeTruthy();
@@ -59,11 +60,11 @@ describe('scenario workspace interactions', () => {
 
   it('retains the crossover mock label if exposure is still mock after sourced economics arrive', async () => {
     vi.stubEnv('VITE_ESTIMATE_MODE', 'api');
-    vi.stubGlobal('fetch', vi.fn().mockImplementation((_url, options) => {
+    vi.stubGlobal('fetch', withEconomics(vi.fn().mockImplementation((_url, options) => {
       const response = createMockEstimate(JSON.parse(options.body));
       response.economics.source = { source_type: 'data', ref: 'test-fixture://sourced-economics' };
       return Promise.resolve(new Response(JSON.stringify(response), { status: 200 }));
-    }));
+    })));
     render(<App />);
     await screen.findByText(/API connected · current inputs synchronized/);
     expect(screen.queryByText('Mock economics')).toBeNull();
@@ -95,7 +96,7 @@ describe('scenario workspace interactions', () => {
   it('makes HTTP fallback, retry, and the economic override mode switch visible', async () => {
     vi.stubEnv('VITE_ESTIMATE_MODE', 'api');
     const fetcher = vi.fn().mockRejectedValueOnce(new TypeError('Failed to fetch')).mockImplementation((_url, options) => Promise.resolve(new Response(JSON.stringify(createMockEstimate(JSON.parse(options.body))), { status: 200 })));
-    vi.stubGlobal('fetch', fetcher);
+    vi.stubGlobal('fetch', withEconomics(fetcher));
     render(<App />);
     expect(screen.getByText(/current inputs shown as a local mock preview/)).toBeTruthy();
     fireEvent.click(await screen.findByRole('button', { name: 'Retry API' }));

@@ -19,6 +19,9 @@ LOCATION_SCALES = {
     "spp-lincoln-demo": 0.9,
     # Canonical request example; support is placeholder-only, not node coverage.
     "SPP_SPS_HUB": 1.0,
+    # Real input data is system-aggregate; these exposure values are still authored
+    # placeholders until the matching precomputed system estimate is published.
+    "SPP_SYSTEM": 1.0,
 }
 
 

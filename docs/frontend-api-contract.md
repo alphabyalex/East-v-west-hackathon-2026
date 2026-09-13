@@ -17,7 +17,7 @@ adapter. A parity test verifies that the JSON example matches the provider.
 
 ```json
 {
-  "location_id": "spp-wichita-demo",
+  "location_id": "SPP_SYSTEM",
   "load_mw": 100,
   "term_years": 7,
   "flexibility_split": 0.6,
@@ -25,8 +25,10 @@ adapter. A parity test verifies that the JSON example matches the provider.
 }
 ```
 
-The example location is an illustrative SPP-region ID, not a validated pricing node.
-Replace dropdown IDs with Kristian's supplied precomputed identifiers during wiring.
+The initial location matches Kristian's real load input ID, `SPP_SYSTEM`: a system
+aggregate, not a site or pricing node. Its modeled exposure remains placeholder
+until a matching valid precomputed artifact exists. City demo choices remain
+explicitly illustrative and are never aliases for this aggregate.
 The supported term is one through seven years, matching the current pipeline contract.
 
 `toEstimateRequest(inputs)` maps the internal UI names `contract_years` to
@@ -84,7 +86,8 @@ Two boundary conventions refine the abbreviated example in BUILD_PLAN.md:
 - `by_year` must contain the complete selected horizon, ordered from year one through
   `inputs_echo.term_years`. Do not silently show an incomplete contract term.
 
-BUILD_PLAN.md is unchanged; these conventions are logged in FROM_CODEX.md for review.
+These conventions are logged in FROM_CODEX.md for review; the integrated producer's
+artifact requirements are also recorded in BUILD_PLAN.md section 1.
 
 ## Canonical data in the UI
 
@@ -111,19 +114,23 @@ explicitly a placeholder with no extracted clause or fabricated FERC citation.
 
 ## Mock arithmetic and decision rule
 
-All input values remain explicitly illustrative. Round economics defaults are:
+The local fallback uses the documented scenario defaults, with per-input provenance:
 
-| Internal input | Dummy value | Unit |
+| Internal input | Scenario value | Unit |
 |---|---:|---|
-| `firm_wait_years` | 3 | years of earlier access |
-| `gpu_per_mw` | 1000 | GPUs per MW |
-| `gpu_hour_value_usd` | 2 | USD per GPU-hour |
-| `early_margin_usd_per_mw_year` | 500000 | USD per MW-year |
+| `firm_wait_years` | 4 | years of earlier access |
+| `gpu_per_mw` | 575 | GPUs per grid-interconnection MW |
+| `gpu_hour_value_usd` | 3 | USD per GPU-hour |
+| `early_margin_usd_per_mw_year` | 317000 | assumed operating-margin proxy, USD per MW-year |
 
-The frontend's local default refs start with `mock://illustrative/economics-placeholder/`.
-The API now reads its defaults from the marked JSON block in
-[`docs/ASSUMPTIONS.md`](ASSUMPTIONS.md), which currently contains only clearly fake
-placeholders. Its presence on main is not evidence that the values have been sourced.
+The API reads the marked JSON block in [`docs/ASSUMPTIONS.md`](ASSUMPTIONS.md).
+The frontend's offline snapshot is `web/src/model/economics-assumptions.json`;
+API mode reads the same block over HTTP, including every input's provenance.
+Status is `mixed`: Tharun's cited planning assumptions plus unverified margin and
+decision-tolerance placeholders. $10,577,700/MW-year is derived scenario gross
+revenue; $317,000/MW-year applies his unverified 3% operating-margin assumption,
+rounded. Neither is observed site net profit. The latter retains `mock://`
+provenance. The cited defaults are assumptions, not independently verified facts.
 API economic refs start with `mock://economics-placeholder/` while any economic input
 or exposure dependency remains a placeholder. Replace applicable values, units,
 sources, retrieval dates, and ranges together when reviewed sourcing lands. Retain
@@ -150,31 +157,34 @@ multi-year benefit. The chosen mock decision margin is 5% of benefit:
 - `close_call` otherwise, including equality and zero benefit with zero cost.
 
 At current defaults (seven years), site exposure 0.4 / 0.55 / 0.9 demonstrates all
-three states. Earlier benefit is USD150 million. Median-hours break-even is about
-178.57 h/year. This economic equality is labeled **median cost crossover** in the UI;
+three states. Earlier benefit is USD126.8 million. Median-hours break-even is about
+175.02 h/year. This economic equality is labeled **median cost crossover** in the UI;
 it is not either boundary of the p50/p90 decision rule. Its site factor is null at
 zero exposure because a zero-scaled response cannot recover the baseline.
 
 The mock's `worst_contiguous_outage_hours` is a round authored 40-hour placeholder
 multiplied by site exposure. This field is retained for contract completeness, not
-shown as evidence of a site's actual outage duration. Its semantics require pipeline
-review before real-data use. Restart overhead, discounting, and SLA penalties remain
+shown as evidence of a site's actual outage duration. Kristian's implemented reader
+supplies p99 of annual longest modeled episodes; the API takes the maximum over the
+term and scales it by the site assumption. This is not a guaranteed maximum.
+Restart overhead, discounting, and SLA penalties remain
 outside the current economics.
 
 ## HTTP provider and explicit local fallback
 
-The workspace calls `postEstimate(request, {signal})` through the same-origin
-`/api/estimate`; Vite dev and preview proxy that path to `http://127.0.0.1:8000`.
+The workspace calls `postEstimate(request, {signal})` directly at
+`http://127.0.0.1:8000/api/estimate`. `VITE_API_BASE_URL` overrides that origin;
+an explicitly empty value selects a same-origin Vite proxy instead.
 `VITE_ESTIMATE_MODE=api` is the default. Set it to `local` (see
 `web/.env.example`) and restart Vite to make no HTTP requests. Visible controls can
 also select Local mock or return to API defaults without restarting.
 
 The backend also accepts direct browser calls to
 `http://127.0.0.1:8000/api/estimate` from exactly `http://127.0.0.1:5174` using
-`POST` and `Content-Type`, without credentials. CORS exposes the successful response
+`GET`, `POST`, and `Content-Type`, without credentials. CORS exposes the successful response
 header `X-Headroom-Exposure-Source: pipeline|placeholder`; this describes exposure
 only and does not certify economics or tariffs. No proxy is required for direct
-calls, although the current frontend still uses its existing proxy. See
+calls. See
 [api/README.md](../api/README.md) for a direct `fetch` example.
 
 While a request is pending, the outputs show a visibly labeled local mock preview
@@ -186,18 +196,25 @@ and the exact inputs echo; it never repairs a response or silently falls back.
 
 The four editable economic controls remain local-only: editing one switches the
 workspace to local mock mode with an explanation. Returning to API mode restores
-the fixed mock economic defaults. No economic override fields are sent to the server.
+the file-backed economic defaults fetched from `GET /api/economics-assumptions`.
+That endpoint returns the exact marked JSON block defined in BUILD_PLAN.md section 3;
+the frontend validates it alongside the estimate and checks their arithmetic agrees.
+If either response fails validation, the UI uses an explicit local mock fallback.
+No economic override fields are sent to the server.
 This preserves the five-field shared request until the team agrees an additive
 interface. The API's returned economics are displayed directly, never overwritten
 with unsent local assumptions.
 
 `api/main.py` selects `api.pipeline_provider.get_pipeline_location`, which imports
-and calls `pipeline.simulate.get_location_estimate(location_id)` only when the
-callable and `data/processed/exposure_by_location.parquet` are available. Its exact
+and calls `pipeline.simulate.get_location_estimate(location_id, path=...)` only when the
+callable, `data/processed/exposure_by_location.parquet`, and matching model-card and
+simulation provenance companions are available. Its exact
 reader return shape is in BUILD_PLAN.md section 1. It validates unscaled annual
 quantiles, ordered years, confidence level/score/precedent count, model version, and
 the requested location, then applies the site factor once in `api.estimate`.
-Exposure/confidence from a valid reader retain model provenance. Tariff extraction
+Exposure/confidence from a valid reader retain model provenance, experimental
+annual-tail limitations, and the current Low annual-confidence cap. The numeric
+score describes classifier agreement, not annual-tail validation. Tariff extraction
 is still unwired and explicitly marked as placeholder.
 
 A missing module/callable/file, including a file becoming unavailable at import or
@@ -205,7 +222,7 @@ read time, produces an explicit placeholder response in the same shape. Exposure
 and confidence refs include `mock://placeholder/...; placeholder, pipeline not wired
 yet; <reason>` with `source_type: "assumption"`. Numeric fallback values retain
 the frontend fixture's authored values. The placeholder set contains the three
-demo IDs plus `SPP_SPS_HUB`; none of this establishes actual node coverage.
+demo IDs plus `SPP_SPS_HUB` and `SPP_SYSTEM`; none of this establishes actual node coverage.
 
 Invalid requests return 422; unknown locations return 404, including the reader's
 exported `LocationNotFoundError`. A broken dependency/import, failed reader,
@@ -223,8 +240,9 @@ price, GPUs/MW, earlier-connection years, net margin/MW-year, and close-call tol
 each records `{value, source_type, ref, unit, source_url, retrieved_on, low, high}`.
 The exact keys and validation policy are in the assumptions file and API README.
 There are no silent numeric defaults. Electricity is informational in this version,
-not an avoided-cost credit or a second deduction from net margin. All current
-entries remain placeholders, so creating the file does not remove mock labels.
+not an avoided-cost credit or a second deduction from net margin. Unverified margin
+and tolerance remain placeholders; derived results also keep mock labels while
+their exposure dependency remains authored.
 The documented Uvicorn command has no automatic code reload: restart it after API
 or already-imported pipeline code changes; assumptions edits apply on the next request.
 
