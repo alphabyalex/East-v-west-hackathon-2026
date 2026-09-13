@@ -7,6 +7,7 @@ import type { EstimateResponse, Source, SourcedValue } from '../model'
 import { mockTransparencyDiagnostics } from '../model/transparency'
 import { ConfidenceBadge, type ConfidenceEstimate } from './ConfidenceBadge'
 import { SourceInfo, Sourced, SourcedTick } from './Sourced'
+import { MockLabel, isMockSource } from './MockLabel'
 
 export interface TransparencyPanelProps {
   confidence: ConfidenceEstimate
@@ -29,13 +30,13 @@ const reliabilityRows = diagnostics.reliability_curve.map(point => ({
 type ReliabilityRow = typeof reliabilityRows[number]
 
 function DiagnosticValue({ datum, label }: { datum: SourcedValue; label: string }) {
-  return <Sourced value={datum.value} source={datum} label={label} format={fraction} animate={false} />
+  return <Sourced value={datum.value} source={datum} label={label} format={fraction} />
 }
 
 function ReliabilityTooltip({ active, row }: { active?: boolean; row?: ReliabilityRow }) {
   if (!active || !row) return null
   return <div className="transparency-chart-tooltip">
-    <strong>MOCK BIN · NOT MEASURED</strong>
+    <span className="mock-label">Mock bin · not measured</span>
     <div><span>Mean predicted probability</span><DiagnosticValue datum={row.point.mean_predicted} label="Mock bin mean predicted probability" /></div>
     <div><span>Observed frequency</span><DiagnosticValue datum={row.point.observed_fraction} label="Mock bin observed frequency" /></div>
     <span>Fractions of grid-stress events; authored placeholders.</span>
@@ -83,7 +84,7 @@ export function TransparencyPanel({ confidence, tariff, siteExposure, onClose }:
 
       <section className="transparency-section" aria-labelledby="transparency-diagnostics-title" aria-describedby="transparency-diagnostics-notice">
         <h4 id="transparency-diagnostics-title">Model reliability</h4>
-        <p id="transparency-diagnostics-notice" className="transparency-diagnostics-status"><strong>MOCK DIAGNOSTICS · NOT COMPUTED.</strong> No held-out evaluation has been performed for these values. The scores and curve are authored placeholders, independent of the exposure slider. They will be replaced with Kristian's evaluation output.</p>
+        <p id="transparency-diagnostics-notice" className="transparency-diagnostics-status"><MockLabel sources={[diagnostics.brier_score]} children="Mock diagnostics · not computed." /> No held-out evaluation has been performed for these values. The scores and curve are authored placeholders, independent of the exposure slider.</p>
         <p>The reliability curve compares predicted grid-stress probability with observed grid-stress frequency. The Brier score measures squared probability error; lower is better. Neither diagnostic measures whether this site would be curtailed.</p>
         <div className="transparency-metrics">
           <div className="transparency-metric"><span>Mock Brier score</span><DiagnosticValue datum={diagnostics.brier_score} label="Mock Brier score, not computed" /><small>Authored placeholder</small></div>
@@ -112,10 +113,10 @@ export function TransparencyPanel({ confidence, tariff, siteExposure, onClose }:
         <p>{tariff.operator} · {tariff.service}</p>
         <p>Contract language defines the operator's rights. Public system data does not establish whether a particular site would have been interrupted under those rights.</p>
         {tariff.curtailment_triggers.length === 0 ? <p className="transparency-empty">No extracted clauses have been supplied. No verified citation is available.</p> : <ul className="transparency-clauses">{tariff.curtailment_triggers.map((trigger, index) => {
-          const mocked = /^mock:/i.test(trigger.source.ref)
+          const mocked = isMockSource(trigger.source)
           const url = clauseUrl(trigger.source)
           return <li key={`${trigger.source.ref}-${index}`} className="transparency-clause">
-            <strong>{mocked ? 'MOCK CLAUSE · NOT EXTRACTED' : 'Supplied clause record'}</strong>
+            {mocked ? <MockLabel sources={[trigger.source]} children="Mock clause · not extracted" /> : <strong>Supplied clause record</strong>}
             <p>{trigger.text}</p>
             <div className="transparency-citation"><SourceInfo value={trigger.text} source={trigger.source} label="Tariff clause provenance" />{url ? <a href={url} target="_blank" rel="noopener noreferrer">Open supplied clause citation<ExternalLink size={12} aria-hidden="true" /></a> : <span>{mocked ? 'No verified citation available.' : 'Supplied reference: '}{!mocked && trigger.source.ref}</span>}</div>
             <small>{trigger.observable ? 'Marked observable in the supplied record; site applicability still requires review.' : 'Not established from the public system data available here.'}</small>

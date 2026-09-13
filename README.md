@@ -80,9 +80,11 @@ Data: `gridstatus`, EIA-930, Open-Meteo, FERC eLibrary. All free, no credentiali
 
 ## Running the current checkpoint
 
-The runnable UI and API use explicitly labeled mock data. The pipeline, calibration,
-and tariff descriptions above are the intended full product; they are not a claim
-that those outputs are already connected to this checkpoint.
+The API attempts to read `pipeline.simulate.get_location_estimate()` and its
+precomputed parquet, with explicitly labeled placeholders while those files are
+absent. Economics reads `docs/ASSUMPTIONS.md`, which currently contains fake values.
+The pipeline, calibration, and tariff descriptions above are the intended full
+product; they are not a claim that real outputs are already available.
 
 Install Node.js 22.12+ and Python 3.11+, then use two terminals:
 
@@ -101,9 +103,11 @@ npm run dev
 
 Open Vite's printed URL. The UI calls the local API by default and visibly falls
 back to local mocks if it is unavailable. **Local mock** works without the backend;
-`VITE_ESTIMATE_MODE=local` makes that the startup mode. Both paths use local fixtures,
-fonts, and charts, with no external API/data/model calls during the demo.
+`VITE_ESTIMATE_MODE=local` makes that the startup mode. Direct browser calls to
+`http://127.0.0.1:8000/api/estimate` are also allowed from `http://127.0.0.1:5174`
+through CORS; the existing UI still uses its Vite proxy. Neither path trains,
+simulates, or fetches external grid data during the demo.
 
 See [web/README.md](web/README.md) for interactions and frontend checks,
-[api/README.md](api/README.md) for backend checks and the future pipeline adapter,
+[api/README.md](api/README.md) for backend checks and the pipeline adapter,
 and [docs/BUILD_PLAN.md](docs/BUILD_PLAN.md) for the shared contract and deadlines.

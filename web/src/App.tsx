@@ -5,6 +5,8 @@ import { ScenarioProvider, useScenario } from './ScenarioContext';
 import { Sourced, SourceInfo, SourcedTick } from './components/Sourced';
 import { TransparencyPanel } from './components/TransparencyPanel';
 import { ConfidenceBadge, type ConfidenceEstimate } from './components/ConfidenceBadge';
+import { MockLabel, isMockSource } from './components/MockLabel';
+import { useChangeMotion } from './hooks/useChangeMotion';
 import { deriveScenario, mockResponse, toEstimateRequest, type ScenarioInputs, type Source, type SourcedValue } from './model';
 
 const ExposureSurface = lazy(() => import('./components/ExposureSurface'));
@@ -57,7 +59,7 @@ function NumberField({ name, label, unit, min, max, step = 1, icon, compact = fa
     } else if (finish) setDraft(String(inputs[name]));
   };
   return <div className={`number-field ${compact ? 'compact-field' : ''}`}>
-    <div className="field-label"><label htmlFor={name}>{icon}{label}</label><SourceInfo value={visibleValue} source={visibleSource} label={`${label} provenance`} /></div>
+    <div className="field-label"><label htmlFor={name}>{icon}{label}</label><span className="field-source">{compact && <MockLabel sources={[visibleSource]} />}<SourceInfo value={visibleValue} source={visibleSource} label={`${label} provenance`} /></span></div>
     <div className="input-with-unit">
       <input id={name} type="number" inputMode="decimal" min={min} max={max} step={step} value={draft}
         onChange={event => commit(event.target.value)} onBlur={event => commit(event.target.value, true)}
@@ -85,7 +87,7 @@ function Header() {
   return <>
     <header className="app-header">
       <a href="/" className="brand" aria-label="Headroom home"><span className="brand-mark" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 2V16M15 2V16M3 9H15M7 5V13M11 5V13" stroke="currentColor" strokeWidth="1.3" /></svg></span>Headroom<span className="brand-divider" /><span className="brand-subtitle">INTERCONNECTION RISK</span></a>
-      <div className="header-status"><span className="status-dot" />{status === 'api' ? 'API CONNECTED' : status === 'loading' ? 'API PENDING' : status === 'fallback' ? 'LOCAL FALLBACK' : 'LOCAL WORKSPACE'}<span className="header-divider" /><span className="fixture-badge">ILLUSTRATIVE DATA</span></div>
+      <div className="header-status"><span className="status-dot" />{status === 'api' ? 'API CONNECTED' : status === 'loading' ? 'API PENDING' : status === 'fallback' ? 'LOCAL FALLBACK' : 'LOCAL WORKSPACE'}</div>
     </header>
     <div className="workspace-heading">
       <div><div className="eyebrow breadcrumb">SPP <span>/</span> SCENARIO ANALYSIS</div><h1>Flexible connection analysis</h1><p>Earlier grid access, modeled interruption exposure, and the cost of waiting.</p></div>
@@ -98,14 +100,14 @@ function Header() {
 function EstimateConnection() {
   const { mode, status, error, retry, chooseMode, modeNote } = useScenario();
   const message = status === 'api'
-    ? 'API connected · server mock response for the current inputs.'
+    ? 'API connected · current inputs synchronized.'
     : status === 'loading'
       ? 'Waiting for API · current inputs shown as a local mock preview.'
       : status === 'fallback'
         ? error
         : 'Local mock · instantaneous, no backend required.';
   return <section className={`estimate-connection estimate-connection-${status}`} aria-label="Estimate data connection">
-    <div className="estimate-mode-controls" role="group" aria-label="Estimate provider">
+    <div className="estimate-mode-controls segment-control" role="group" aria-label="Estimate provider">
       <button className="button button-quiet" aria-pressed={mode === 'api'} onClick={() => chooseMode('api')}>Use API defaults</button>
       <button className="button button-quiet" aria-pressed={mode === 'local'} onClick={() => chooseMode('local')}>Local mock</button>
     </div>
@@ -131,6 +133,7 @@ function Inputs() {
 function ExposureControl() {
   const { inputs, result, update, sourceFor } = useScenario();
   const crossover = result.economics.break_even_site_exposure;
+  const crossoverSources = [crossover, result.annual_exposure.p50];
   const marker = crossover.value !== null && crossover.value >= 0 && crossover.value <= 1 ? crossover.value : null;
   return <section className="exposure-control" aria-labelledby="exposure-label">
     <div className="exposure-copy">
@@ -144,10 +147,10 @@ function ExposureControl() {
         <span className="slider-progress" style={{ width: `calc(10px + (100% - 20px) * ${inputs.site_exposure})` }} aria-hidden="true" />
         <input type="range" min={0} max={1} step={0.01} value={inputs.site_exposure} onChange={event => update('site_exposure', Number(event.target.value))}
           aria-label="Site exposure factor" aria-describedby="exposure-explanation" aria-valuetext={`${inputs.site_exposure.toFixed(2)}, user-set assumption`} />
-        {marker !== null && <span className="break-even-marker" style={{ left: `calc(10px + (100% - 20px) * ${marker})` }} title="Illustrative median cost crossover under current assumptions" />}
+        {marker !== null && <span className="break-even-marker" style={{ left: `calc(10px + (100% - 20px) * ${marker})` }} title={`${crossoverSources.some(isMockSource) ? 'Mock ' : ''}Median cost crossover under current assumptions`} />}
       </div>
       <div className="slider-endpoints"><span><Sourced value={0} source={uiSource('site_exposure/min')} format={v => v.toFixed(1)} animate={false} /> No exposure</span><span>Full modeled exposure <Sourced value={1} source={uiSource('site_exposure/max')} format={v => v.toFixed(1)} animate={false} /></span></div>
-      <div className="slider-caption" id="exposure-explanation"><span className="tiny-diamond" />{marker !== null ? <span>Illustrative median cost crossover at <Value datum={crossover as SourcedValue} format={fixed} /> under these assumptions</span> : <span>No cost crossover within this slider range</span>}</div>
+      <div className="slider-caption" id="exposure-explanation"><span className="tiny-diamond" />{marker !== null ? <span>Median cost crossover at <Value datum={crossover as SourcedValue} format={fixed} /> <MockLabel sources={crossoverSources} /> under these assumptions</span> : <span>No cost crossover within this slider range</span>}</div>
     </div>
   </section>;
 }
@@ -160,7 +163,7 @@ function FanTooltip({ active, row, confidence }: { active?: boolean; row?: Chart
     <div><span><Percentile value={99} /> modeled exposure · h/yr</span><ExposureValue datum={row.original.p99} confidence={confidence} /></div>
     <div><span><Percentile value={90} /> modeled exposure · h/yr</span><ExposureValue datum={row.original.p90} confidence={confidence} /></div>
     <div><span><Percentile value={50} /> modeled exposure · h/yr</span><ExposureValue datum={row.original.p50} confidence={confidence} /></div>
-    <small>Illustrative quantiles · hover or tap a value for its source</small>
+    <small><MockLabel sources={[row.original.p50, row.original.p90, row.original.p99]} children="Mock quantiles" /> Hover or tap a value for its source</small>
   </div>;
 }
 
@@ -171,6 +174,8 @@ function ExposurePanel() {
   const transparencyTrigger = useRef<HTMLButtonElement>(null);
   const closeTransparency = () => { setTransparencyOpen(false); transparencyTrigger.current?.focus(); };
   const [view, setView] = useState<'surface' | 'fan'>('fan');
+  const chartRef = useRef<HTMLDivElement>(null);
+  useChangeMotion(chartRef, view);
   const [surfaceUnavailable, setSurfaceUnavailable] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   useEffect(() => {
@@ -187,15 +192,16 @@ function ExposurePanel() {
   return <section className="panel exposure-panel" aria-labelledby="exposure-panel-title">
     <div className="panel-heading"><div className="flex items-center gap-2"><Activity size={15} className="muted" /><h2 id="exposure-panel-title">Modeled exposure</h2></div><div className="exposure-panel-actions"><span className="eyebrow muted">HOURS / YEAR</span><button ref={transparencyTrigger} className="button transparency-trigger" aria-expanded={transparencyOpen} aria-controls="transparency-panel" onClick={() => setTransparencyOpen(open => !open)}><CircleHelp size={13} />Model &amp; evidence</button></div></div>
     <div className="metric-row">
-      {([['p50', 50, 'Median scenario'], ['p90', 90, 'Upper-tail scenario'], ['p99', 99, 'Extreme-tail scenario']] as const).map(([key, percentile, label]) => <div className={`metric metric-${key}`} key={key}>
+      {([['p50', 50, 'Median scenario'], ['p90', 90, 'Upper-tail scenario'], ['p99', 99, 'Extreme-tail scenario']] as const).map(([key, percentile, label]) => <div className={`metric metric-${key}${key === 'p50' ? ' metric-primary' : ''}`} key={key}>
         <div className="metric-label"><Percentile value={percentile} /><span>{label}</span></div>
         <div className="metric-number"><Value datum={result.annual_exposure[key]} format={numeric.format} /><span className="metric-unit">h/yr</span></div>
+        <MockLabel sources={[result.annual_exposure[key]]} children="Mock exposure" />
         <ConfidenceBadge confidence={result.confidence} />
       </div>)}
     </div>
     {transparencyOpen && <TransparencyPanel confidence={result.confidence} tariff={result.tariff} siteExposure={result.inputs.site_exposure} onClose={closeTransparency} />}
-    <div className="chart-section">
-      <div className="chart-heading"><div><h3>Exposure over the contract term</h3><p>Illustrative quantiles · fixed inputs · no live simulation</p></div><div className="chart-view-controls" role="group" aria-label="Exposure visualization"><button aria-pressed={view === 'fan'} onClick={() => setView('fan')}>Fan chart</button><button aria-pressed={view === 'surface'} onClick={() => { setSurfaceUnavailable(false); setView('surface'); }}>Surface</button></div></div>
+    <div className="chart-section" ref={chartRef}>
+      <div className="chart-heading"><div><h3>Exposure over the contract term</h3><p><MockLabel sources={[result.canonical_response.modeled_exposure.source]} children="Mock quantiles" /> Fixed inputs · no live simulation</p></div><div className="chart-view-controls segment-control" role="group" aria-label="Exposure visualization"><button aria-pressed={view === 'fan'} onClick={() => setView('fan')}>Fan chart</button><button aria-pressed={view === 'surface'} onClick={() => { setSurfaceUnavailable(false); setView('surface'); }}>Surface</button></div></div>
       {surfaceUnavailable && <p className="surface-fallback" role="status">Interactive surface unavailable on this device. Fan chart shown; exact sourced values remain below.</p>}
       {view === 'surface' ? <SurfaceBoundary onUnavailable={showFallback}><Suspense fallback={<div className="surface-loading" role="status">Preparing exposure surface…</div>}><ExposureSurface rows={result.annual_series} maximumHours={maximum} confidence={result.confidence} onUnavailable={showFallback} /></Suspense></SurfaceBoundary> : <>
       <div className="chart-legend fan-legend"><span><i className="legend-line" /><Percentile value={50} /></span><span><i className="legend-band" /><Percentile value={50} />–<Percentile value={90} /></span><span><i className="legend-line legend-upper" /><Percentile value={99} /></span></div>
@@ -207,9 +213,9 @@ function ExposurePanel() {
             <XAxis dataKey="year" tickLine={false} axisLine={{ stroke: 'var(--border-strong)' }} interval="preserveStartEnd" minTickGap={35} height={30} tick={<SourcedTick source={uiSource('contract_year; ordinal year in selected contract')} axis="x" />} />
             <YAxis domain={[0, maximum]} ticks={yTicks} axisLine={false} tickLine={false} width={44} tick={<SourcedTick source={uiSource('axis/hours_per_year; chart scale, not an observation')} axis="y" />} />
             <Tooltip content={({ active, payload }) => <FanTooltip active={active} row={payload?.[0]?.payload as ChartRow | undefined} confidence={result.confidence} />} cursor={{ stroke: 'var(--text-muted)', strokeDasharray: '3 4' }} wrapperStyle={{ pointerEvents: 'auto', zIndex: 30 }} />
-            <Area type="linear" dataKey="band" stroke="var(--teal)" strokeOpacity={0.65} fill="var(--teal)" fillOpacity={0.12} activeDot={false} animationDuration={280} isAnimationActive={!reducedMotion} />
-            <Line type="linear" dataKey="median" stroke="var(--text-primary)" strokeWidth={2} dot={data.length === 1 ? { r: 3 } : false} activeDot={{ r: 4, fill: 'var(--text-primary)', stroke: 'var(--bg-base)', strokeWidth: 2 }} animationDuration={280} isAnimationActive={!reducedMotion} />
-            <Line type="linear" dataKey="upper" stroke="var(--teal)" strokeWidth={1} strokeDasharray="4 4" dot={data.length === 1 ? { r: 3 } : false} activeDot={{ r: 3 }} animationDuration={280} isAnimationActive={!reducedMotion} />
+            <Area type="linear" dataKey="band" stroke="var(--teal)" strokeOpacity={0.65} fill="var(--teal)" fillOpacity={0.12} activeDot={false} animationDuration={320} animationEasing="ease-out" isAnimationActive={!reducedMotion} />
+            <Line type="linear" dataKey="median" stroke="var(--text-primary)" strokeWidth={2} dot={data.length === 1 ? { r: 3 } : false} activeDot={{ r: 4, fill: 'var(--text-primary)', stroke: 'var(--bg-base)', strokeWidth: 2 }} animationDuration={320} animationEasing="ease-out" isAnimationActive={!reducedMotion} />
+            <Line type="linear" dataKey="upper" stroke="var(--teal)" strokeWidth={1} strokeDasharray="4 4" dot={data.length === 1 ? { r: 3 } : false} activeDot={{ r: 3 }} animationDuration={320} animationEasing="ease-out" isAnimationActive={!reducedMotion} />
           </ComposedChart>
         </ResponsiveContainer>
       </div>
@@ -218,17 +224,20 @@ function ExposurePanel() {
       {tableOpen && <div id="annual-values" className="annual-table-wrap"><table className="annual-table"><caption className="sr-only">Sourced annual modeled exposure in hours per year</caption><thead><tr><th>Year</th><th><Percentile value={50} /> h/yr</th><th><Percentile value={90} /> h/yr</th><th><Percentile value={99} /> h/yr</th></tr></thead><tbody>{result.annual_series.map(row => <tr key={row.year.value}><td><Value datum={row.year} /></td><td><ExposureValue datum={row.p50} confidence={result.confidence} /></td><td><ExposureValue datum={row.p90} confidence={result.confidence} /></td><td><ExposureValue datum={row.p99} confidence={result.confidence} /></td></tr>)}</tbody></table></div>}
     </div>
     <div className="panel-footnote"><CircleHelp size={13} /><span>Annual summaries average each percentile across the selected term. They do not describe the distribution of total contract exposure.</span></div>
-    <div className="panel-footnote confidence-footnote"><CircleHelp size={13} /><span>Confidence describes support for an estimate, not the chance that the future matches it.{/^mock:/i.test(result.confidence.source.ref) && ' The mock confidence signal has not been computed by an ensemble.'}</span></div>
+    <div className="panel-footnote confidence-footnote"><CircleHelp size={13} /><span>Confidence describes support for an estimate, not the chance that the future matches it.{isMockSource(result.confidence.source) && ' The mock confidence signal has not been computed by an ensemble.'}</span></div>
   </section>;
 }
 
 function EconomicsPanel() {
   const { result, inputs, sourceFor } = useScenario();
   const { economics: e, decision } = result;
+  const economicsSource = result.canonical_response.economics.source;
+  const decisionRef = useRef<HTMLHeadingElement>(null);
+  useChangeMotion(decisionRef, decision);
   const state = decision === 'worth it' ? 'positive' : decision === 'not worth it' ? 'negative' : 'neutral';
-  return <section className={`panel economics-panel decision-${state}`} aria-labelledby="economics-title" aria-describedby="economics-mock-notice">
-    <div className="panel-heading"><div className="flex items-center gap-2"><span className="dollar-icon">$</span><h2 id="economics-title">Connection economics</h2></div><span className="eyebrow text-amber">SOURCED ECONOMICS</span></div>
-    <p className="economics-mock-notice" id="economics-mock-notice"><strong>Sourced inputs, illustrative exposure.</strong> GPU pricing, power conversion, and connection-timing assumptions are cited in docs/ASSUMPTIONS.md. Modeled exposure hours are still an illustrative fixture, so the decision below is not yet a real recommendation.</p>
+  return <section className={`panel economics-panel decision-${state}`} aria-labelledby="economics-title" aria-describedby={isMockSource(economicsSource) ? 'economics-mock-note' : undefined}>
+    <div className="panel-heading"><div className="flex items-center gap-2"><span className="dollar-icon">$</span><h2 id="economics-title">Connection economics</h2></div></div>
+    {isMockSource(economicsSource) && <p className="economics-mock-note" id="economics-mock-note"><MockLabel sources={[economicsSource]} children="Mock economics" /> GPU-hours, dollars and break-even use unverified placeholder inputs.</p>}
     <div className="economics-flow">
       <div className="economics-row"><div><span className="economics-label">Interruptible capacity</span><span className="economics-detail">Load × flexibility split</span></div><span><Value datum={e.interruptible_mw} /> <small>MW</small></span></div>
       <div className="flow-connector"><ArrowDownRight size={14} /><span>Modeled exposure × compute density</span></div>
@@ -236,16 +245,16 @@ function EconomicsPanel() {
       <div className="flow-connector"><ArrowDownRight size={14} /><span>Lost GPU-hours × value per GPU-hour</span></div>
       <div className="economics-row loss-row"><div><span className="economics-label">Modeled interruption cost</span><span className="economics-detail">Annual equivalent</span></div><span className="text-amber"><Value datum={e.annual_loss_usd} format={money} /> <small>/yr</small></span></div>
     </div>
-    <div className="economics-quantiles"><table><caption>MODELED ANNUAL COST SCENARIOS · USD / YEAR</caption><thead><tr>{([50, 90, 99] as const).map(percentile => <th key={percentile}><Percentile value={percentile} /></th>)}</tr></thead><tbody><tr>{(['p50', 'p90', 'p99'] as const).map(key => <td key={key}><Value datum={e.annual_loss_by_quantile[key]} format={money} /></td>)}</tr></tbody></table></div>
+    <div className="economics-quantiles"><table><caption>ANNUAL COST SCENARIOS · USD / YEAR <MockLabel sources={[economicsSource]} /></caption><thead><tr>{([50, 90, 99] as const).map(percentile => <th key={percentile}><Percentile value={percentile} /></th>)}</tr></thead><tbody><tr>{(['p50', 'p90', 'p99'] as const).map(key => <td key={key}><Value datum={e.annual_loss_by_quantile[key]} format={money} /></td>)}</tr></tbody></table></div>
     <div className="term-ledger">
       <div className="ledger-heading">OVER YOUR <Sourced value={inputs.contract_years} source={sourceFor('contract_years')} format={integer.format} />-YEAR TERM</div>
       <div><span>Earlier-access contribution</span><Value datum={e.early_access_value_usd} format={signedMoney} className="text-mint" /></div>
       <div><span>Modeled interruption cost</span><Value datum={{ ...e.term_loss_usd, value: -e.term_loss_usd.value, ref: `${e.term_loss_usd.ref}; display_as_ledger_debit = -term_loss_usd` }} format={money} /></div>
-      <div className="ledger-net"><span>Net value vs. waiting</span><Value datum={e.net_value_usd} format={signedMoney} /></div>
+      <div className="ledger-net"><span>Net value vs. waiting <MockLabel sources={[e.net_value_usd]} /></span><Value datum={e.net_value_usd} format={signedMoney} /></div>
     </div>
     <div className="decision-readout" role="status" aria-live="polite" aria-atomic="true">
       <div className="decision-icon">{state === 'positive' ? <ArrowUpRight size={22} /> : state === 'negative' ? <ArrowDownRight size={22} /> : <ArrowRight size={22} />}</div>
-      <div><span className="eyebrow">DECISION · UNDER THESE ASSUMPTIONS</span><h3>{decision}</h3><p>{state === 'positive' ? 'Earlier-access contribution exceeds the upper-tail term cost.' : state === 'negative' ? 'Median term cost exceeds earlier-access contribution.' : 'The quantiles straddle the trade-off or sit near break-even.'}</p></div>
+      <div><span className="eyebrow">UNDER THESE ASSUMPTIONS <MockLabel sources={[economicsSource]} children="Mock decision" /></span><h3 ref={decisionRef}>{decision}</h3><p>{state === 'positive' ? 'Earlier-access contribution exceeds the upper-tail term cost.' : state === 'negative' ? 'Median term cost exceeds earlier-access contribution.' : 'The quantiles straddle the trade-off or sit near break-even.'}</p></div>
     </div>
     <div className="break-even-row"><span>Break-even modeled exposure</span><strong>{e.break_even_exposure_hours.value === null ? 'No modeled cost' : <><Value datum={e.break_even_exposure_hours as SourcedValue} /> <small>h/yr</small></>}</strong></div>
   </section>;
@@ -254,7 +263,7 @@ function EconomicsPanel() {
 function Assumptions() {
   const { inputs, result, sourceFor } = useScenario();
   return <section className="assumptions-panel" aria-labelledby="assumptions-title">
-    <div className="assumptions-heading"><div className="flex items-center gap-2"><SlidersHorizontal size={14} /><h2 id="assumptions-title">Economic assumptions</h2></div><span className="eyebrow text-amber">ALL EDITABLE · SOURCED DEFAULTS</span></div>
+    <div className="assumptions-heading"><div className="flex items-center gap-2"><SlidersHorizontal size={14} /><h2 id="assumptions-title">Economic assumptions</h2></div><span className="eyebrow muted">EDITABLE INPUTS</span></div>
     <div className="assumption-fields">
       <NumberField compact name="firm_wait_years" label="EARLIER ACCESS" unit="years" min={0} max={20} step={0.25} />
       <NumberField compact name="gpu_per_mw" label="COMPUTE DENSITY" unit="GPU / MW" min={1} max={2000} />
@@ -263,12 +272,12 @@ function Assumptions() {
     </div>
     <div className="assumption-notes"><p><span className="note-label">VALUE OF TIME</span>Earlier contribution = total load × operating margin × earlier-access years, capped at your contract term. Losses apply to the interruptible share across the full term. The ledger follows the median path; percentile paths are comparisons, not percentiles of total contract loss.</p><p><span className="note-label">DECISION RULE</span>Compare full-term costs with earlier-access contribution, using a <Sourced value={result.decision_policy.close_call_fraction.value * 100} source={{ ...result.decision_policy.close_call_fraction, ref: `${result.decision_policy.close_call_fraction.ref}; display_percent = fraction * 100` }} format={integer.format} />% margin: “not worth it” when <Percentile value={50} /> cost exceeds it; “worth it” when <Percentile value={90} /> cost stays below it; “close call” otherwise. This scenario excludes discounting, restart overhead, and SLA penalties.</p></div>
     {inputs.firm_wait_years > inputs.contract_years && <p className="assumption-notice">Earlier-access contribution is capped at <Sourced value={inputs.contract_years} source={sourceFor('contract_years')} /> years for this contract.</p>}
-    <div className="honesty-note"><CircleHelp size={15} /><p><strong>A scenario, not a site forecast.</strong> All values are illustrative assumptions. Public grid data can establish system stress; local transmission headroom determines whether a specific site would be curtailed. A flexible share does not establish eligibility for a particular tariff.</p></div>
+    <div className="honesty-note"><CircleHelp size={15} /><p><strong>A scenario, not a site forecast.</strong> Public grid data can establish system stress; local transmission headroom determines whether a specific site would be curtailed. A flexible share does not establish eligibility for a particular tariff.</p></div>
   </section>;
 }
 
 function Workspace() {
-  return <div className="app-shell"><a className="skip-link" href="#main">Skip to analysis</a><Header /><main id="main"><Inputs /><ExposureControl /><div className="results-grid"><ExposurePanel /><EconomicsPanel /></div><Assumptions /></main><footer><span className="flex items-center gap-2"><Unplug size={12} />OFFLINE-READY FIXTURE · NO LIVE GRID DATA</span><span>Every number has a source. Hover, focus, or click a value or source tag.</span></footer></div>;
+  return <div className="app-shell"><a className="skip-link" href="#main">Skip to analysis</a><Header /><main id="main"><Inputs /><ExposureControl /><div className="results-grid"><ExposurePanel /><EconomicsPanel /></div><Assumptions /></main><footer><span className="flex items-center gap-2"><Unplug size={12} />NO LIVE GRID FETCHES</span><span>Every number has a source. Hover, focus, or click a value or source tag.</span></footer></div>;
 }
 
 export default function App() { return <ScenarioProvider><Workspace /></ScenarioProvider>; }

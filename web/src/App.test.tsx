@@ -20,6 +20,63 @@ beforeEach(() => vi.stubEnv('VITE_ESTIMATE_MODE', 'local'));
 afterEach(() => { cleanup(); vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
 describe('scenario workspace interactions', () => {
+  it('keeps mock status near results and preserves the permanent site caveats', () => {
+    render(<App />);
+    expect(screen.queryByText('ILLUSTRATIVE DATA')).toBeNull();
+    expect(screen.queryByText('MOCK ECONOMICS')).toBeNull();
+    expect(screen.getAllByText('Mock exposure')).toHaveLength(3);
+    expect(screen.getByText('Mock economics')).toBeTruthy();
+    expect(screen.getByText('Mock decision')).toBeTruthy();
+    expect(screen.getByText('USER ASSUMPTION')).toBeTruthy();
+    expect(screen.getByText('Illustrative node · no site-specific grid data')).toBeTruthy();
+    expect(screen.getByText('You set the mapping.')).toBeTruthy();
+  });
+
+  it('removes only earned mock labels when a mixed-source HTTP result arrives', async () => {
+    vi.stubEnv('VITE_ESTIMATE_MODE', 'api');
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((_url, options) => {
+      const response = createMockEstimate(JSON.parse(options.body));
+      // Test-only supplied references: exposure can arrive before economics/evidence.
+      response.modeled_exposure.source = { source_type: 'model', ref: 'test-fixture://pipeline/exposure' };
+      response.confidence.source = { source_type: 'model', ref: 'test-fixture://pipeline/confidence' };
+      return Promise.resolve(new Response(JSON.stringify(response), { status: 200 }));
+    }));
+    render(<App />);
+    await screen.findByText(/API connected · current inputs synchronized/);
+    expect(screen.queryByText('Mock exposure')).toBeNull();
+    expect(screen.queryByText('Mock quantiles')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Mock estimate confidence/ })).toBeNull();
+    expect(screen.getByText('Mock economics')).toBeTruthy();
+    expect(screen.getByText('Mock decision')).toBeTruthy();
+    expect(screen.getByText('USER ASSUMPTION')).toBeTruthy();
+    expect(screen.getByText('Illustrative node · no site-specific grid data')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Model & evidence' }));
+    expect(screen.getByText('Mock diagnostics · not computed.')).toBeTruthy();
+    expect(screen.getByText('Mock clause · not extracted')).toBeTruthy();
+    fireEvent.click(screen.getAllByRole('button', { name: /model provenance/ })[0]);
+    expect(JSON.parse(screen.getByRole('tooltip').querySelector('pre')!.textContent!).ref).toContain('test-fixture://pipeline/exposure');
+  });
+
+  it('retains the crossover mock label if exposure is still mock after sourced economics arrive', async () => {
+    vi.stubEnv('VITE_ESTIMATE_MODE', 'api');
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((_url, options) => {
+      const response = createMockEstimate(JSON.parse(options.body));
+      response.economics.source = { source_type: 'data', ref: 'test-fixture://sourced-economics' };
+      return Promise.resolve(new Response(JSON.stringify(response), { status: 200 }));
+    }));
+    render(<App />);
+    await screen.findByText(/API connected · current inputs synchronized/);
+    expect(screen.queryByText('Mock economics')).toBeNull();
+    expect(screen.queryByText('Mock decision')).toBeNull();
+    expect(screen.getAllByText('Mock exposure')).toHaveLength(3);
+    const crossover = document.getElementById('exposure-explanation')!;
+    expect(within(crossover).getByText('Mock')).toBeTruthy();
+    fireEvent.click(within(crossover).getByRole('button'));
+    const source = JSON.parse(screen.getByRole('tooltip').querySelector('pre')!.textContent!);
+    expect(source.ref).toContain('test-fixture://sourced-economics');
+    expect(source.ref).toContain('exposure_baseline_source=mock://');
+  });
+
   it('opens the inline transparency panel and restores trigger focus on Escape', () => {
     render(<App />);
     const trigger = screen.getByRole('button', { name: 'Model & evidence' });
@@ -42,14 +99,14 @@ describe('scenario workspace interactions', () => {
     render(<App />);
     expect(screen.getByText(/current inputs shown as a local mock preview/)).toBeTruthy();
     fireEvent.click(await screen.findByRole('button', { name: 'Retry API' }));
-    expect(await screen.findByText(/API connected · server mock response/)).toBeTruthy();
+    expect(await screen.findByText(/API connected · current inputs synchronized/)).toBeTruthy();
     const gpuValue = screen.getByRole('spinbutton', { name: 'LOST COMPUTE VALUE' });
     fireEvent.change(gpuValue, { target: { value: '5' } });
     expect(screen.getByRole('button', { name: 'Local mock' }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByText(/Economic input changed/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Use API defaults' }));
     expect((gpuValue as HTMLInputElement).value).toBe('3');
-    expect(await screen.findByText(/API connected · server mock response/)).toBeTruthy();
+    expect(await screen.findByText(/API connected · current inputs synchronized/)).toBeTruthy();
   });
 
   it('starts with the fan chart without initializing a graphics context', () => {
