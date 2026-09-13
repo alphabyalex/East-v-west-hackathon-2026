@@ -1,0 +1,142 @@
+{
+  "as_of_utc": "2026-09-13",
+  "status": "Curated historical observations; label-policy review pending. Not a complete alert archive.",
+  "sources": {
+    "summer_report_2024": {
+      "ref": "https://spp.org/documents/72631/20241101_2024%20summer%20quarterly%20report_08-136-u.pdf",
+      "retrieved_utc": "2026-09-13T01:03:33.303055+00:00",
+      "sha256": "5d531c8c4d71fa1a470cf2aa8caeec9895b3fdaba8081119135c7a60c80172b3"
+    },
+    "stakeholder_report_dec2024_snapshot_20260913": {
+      "ref": "https://spp.org/newsroom/stakeholder-report/",
+      "retrieved_utc": "2026-09-13T01:18:02.584730+00:00",
+      "sha256": "ecb9eebd3259fcfbc4f09987b7ba3d3e08b48cf4cffe49b0f4b3b5afe48fb94d"
+    },
+    "shreveport_20250426_report": {
+      "ref": "https://spp.org/documents/74283/spp's%20summary%20of%20the%20april%2026,%202025,%20shreveport-area%20load%20shed%20event.pdf",
+      "retrieved_utc": "2026-09-13T01:18:31.844482+00:00",
+      "sha256": "7acced1f10f4fd25176667c293ee00b4a5be246b88cb2c687ccf54fd9a1b4105"
+    },
+    "grid_conditions_20260913": {
+      "ref": "https://spp.org/markets-operations/current-grid-conditions/",
+      "retrieved_utc": "2026-09-13T01:03:32.922219+00:00",
+      "sha256": "bb4ebb53e93cc43ba2f07fa1692d9b3c2240cf14551c72f2f1dfc531fd32608c"
+    },
+    "chills_order_20260605": {
+      "ref": "https://spp.org/documents/76880/20260605_order%20-%20revisions%20to%20add%20the%20conditional%20high%20impact%20large%20load%20service_er26-1323.pdf",
+      "retrieved_utc": "2026-09-13T01:03:32.282065+00:00",
+      "sha256": "f35a6491193b19c26df0382f27bd17c66668af392e21b8bd2fcbfa5c8df69ce7"
+    },
+    "chills_clarification_20260902": {
+      "ref": "https://www.spp.org/documents/77674/20260902_revisions%20to%20clarify%20the%20conditional%20high%20impact%20large%20load%20policy_er26-3685-000.pdf",
+      "retrieved_utc": "2026-09-13T01:10:02.909477+00:00",
+      "sha256": "20313929268a2da3c8cc519c211ed41265a0bf7e86813e1afc4622b8df3ed96f"
+    }
+  },
+  "events": [
+    {
+      "id": "spp_20240826_eea1",
+      "kind": "EEA1",
+      "region_id": "SPP_BA_PRE_2026",
+      "time_precision": "interval",
+      "start": "2024-08-26T12:30:00-05:00",
+      "end": "2024-08-26T15:00:00-05:00",
+      "end_status": "confirmed",
+      "source_ids": [
+        "summer_report_2024",
+        "stakeholder_report_dec2024_snapshot_20260913"
+      ],
+      "source_pages": [
+        65,
+        66
+      ],
+      "notes": "High heat/load, low wind and resource outages. Emergency interval does not establish site load shedding."
+    },
+    {
+      "id": "spp_20240716_co",
+      "kind": "CONSERVATIVE_OPERATIONS",
+      "region_id": "SPP_BA_PRE_2026",
+      "time_precision": "date",
+      "date": "2024-07-16",
+      "timezone": "America/Chicago",
+      "end_status": "unknown",
+      "source_ids": [
+        "stakeholder_report_dec2024_snapshot_20260913"
+      ],
+      "notes": "Date confirmed; intraday start/end unavailable. Do not expand to 24 emergency hours."
+    },
+    {
+      "id": "spp_20240801_co",
+      "kind": "CONSERVATIVE_OPERATIONS",
+      "region_id": "SPP_BA_PRE_2026",
+      "time_precision": "date",
+      "date": "2024-08-01",
+      "timezone": "America/Chicago",
+      "end_status": "unknown",
+      "source_ids": [
+        "stakeholder_report_dec2024_snapshot_20260913"
+      ],
+      "notes": "Date confirmed; intraday start/end unavailable. Do not expand to 24 emergency hours."
+    },
+    {
+      "id": "spp_20240802_co",
+      "kind": "CONSERVATIVE_OPERATIONS",
+      "region_id": "SPP_BA_PRE_2026",
+      "time_precision": "date",
+      "date": "2024-08-02",
+      "timezone": "America/Chicago",
+      "end_status": "unknown",
+      "source_ids": [
+        "stakeholder_report_dec2024_snapshot_20260913"
+      ],
+      "notes": "Date confirmed; intraday start/end unavailable. Do not expand to 24 emergency hours."
+    },
+    {
+      "id": "spp_20240826_co",
+      "kind": "CONSERVATIVE_OPERATIONS",
+      "region_id": "SPP_BA_PRE_2026",
+      "time_precision": "date",
+      "date": "2024-08-26",
+      "timezone": "America/Chicago",
+      "end_status": "unknown",
+      "source_ids": [
+        "stakeholder_report_dec2024_snapshot_20260913"
+      ],
+      "notes": "Date confirmed; intraday start/end unavailable. Do not expand to 24 emergency hours."
+    },
+    {
+      "id": "spp_20240827_co",
+      "kind": "CONSERVATIVE_OPERATIONS",
+      "region_id": "SPP_BA_PRE_2026",
+      "time_precision": "date",
+      "date": "2024-08-27",
+      "timezone": "America/Chicago",
+      "end_status": "unknown",
+      "source_ids": [
+        "stakeholder_report_dec2024_snapshot_20260913"
+      ],
+      "notes": "Date confirmed; intraday start/end unavailable. Do not expand to 24 emergency hours."
+    },
+    {
+      "id": "shreveport_20250426_load_shed_instruction",
+      "kind": "LOCAL_LOAD_SHED",
+      "region_id": "AEP_SWEPCO_SHREVEPORT",
+      "time_precision": "interval",
+      "start": "2025-04-26T15:12:00-05:00",
+      "end": "2025-04-26T19:11:00-05:00",
+      "end_status": "confirmed",
+      "load_shed_mw": 140,
+      "instruction_completed": "2025-04-26T16:15:00-05:00",
+      "all_load_restored": "2025-04-26T21:23:00-05:00",
+      "source_ids": [
+        "shreveport_20250426_report"
+      ],
+      "source_pages": [
+        13,
+        15,
+        22
+      ],
+      "notes": "Instruction window, not uniform customer outage duration. Local voltage/transmission event; never apply as SPP-wide or Amarillo labels."
+    }
+  ]
+}

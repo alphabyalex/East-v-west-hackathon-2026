@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="workspace-token" content="__TOKEN__">
+  <title>Headroom | Kristian's ML workspace</title>
+  <link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script>
+</head>
+<body>
+  <header><div class="brand">HEADROOM <span>/ ML WORKSPACE</span></div><span class="local"><i></i> ON THIS COMPUTER</span></header>
+  <main>
+    <div class="heading"><div><p class="eyebrow">KRISTIAN / SPP RESEARCH</p><h1>Your model workspace</h1><p>Choose an area. Prepare weather inputs. Train and inspect saved results.</p></div><button id="refresh" class="secondary">Refresh files</button></div>
+    <div id="error" role="alert" hidden></div>
+    <section class="status-strip" aria-label="Pipeline status"><div><span class="label">DATA</span><strong id="data-status">Loading local files…</strong></div><div><span class="label">MODEL</span><strong id="model-status">Checking saved runs…</strong></div><div><span class="label">EXECUTION</span><strong id="job-status">Local research jobs</strong></div></section>
+    <div class="workspace-grid">
+      <aside>
+        <section class="panel"><div class="section-title"><span class="step">01</span><h2>Prepare an area</h2></div>
+          <form id="weather-form">
+            <label for="area">City and state</label><input id="area" placeholder="Amarillo, TX" required maxlength="120" autocomplete="off">
+            <label for="weather-dataset">Grid observations</label><select id="weather-dataset" required></select>
+            <label for="weather-location">Grid location</label><select id="weather-location" required></select>
+            <p class="hint">Weather is associated with this grid dataset. A city selection does not establish site-level cutoff risk.</p>
+            <button id="weather-submit" type="submit">Prepare temperature data <span aria-hidden="true">→</span></button>
+            <p class="hint">Downloads historical weather when needed. Reuses local caches. Completed calendar years only.</p>
+          </form>
+        </section>
+        <section class="panel"><div class="section-title"><span class="step">02</span><h2>Train with event labels</h2></div>
+          <form id="train-form">
+            <label for="train-dataset">Training observations</label><select id="train-dataset" required></select>
+            <label for="evidence">Reviewed event CSV</label><input id="evidence" type="file" accept=".csv,text/csv" required>
+            <p class="hint">Columns: timestamp_utc, location_id, event_active. Use UTC hour starts; 1 = event, 0 = confirmed non-event, blank = unknown.</p>
+            <a class="text-link" href="/event-template.csv" download>Download CSV header template ↗</a>
+            <label for="label-ref">Label source and coverage reference</label><textarea id="label-ref" rows="3" maxlength="2000" placeholder="Source URL or document reference, covered dates, and how event hours were reviewed" required minlength="5"></textarea>
+            <button id="train-submit" type="submit">Train a research model <span aria-hidden="true">→</span></button>
+            <p class="hint">Runs the existing chronological training and evaluation pipeline. You need both event and non-event hours. Temperature alone cannot label events.</p>
+          </form>
+        </section>
+      </aside>
+      <div class="results">
+        <section class="panel data-panel"><div class="section-title"><span class="step">DATA</span><h2>Historical observations</h2><span class="tag">CACHED DATA</span></div>
+          <div class="selectors"><div><label for="view-dataset">Prepared dataset</label><select id="view-dataset"></select></div><div><label for="view-location">Grid location</label><select id="view-location"></select></div></div>
+          <p id="data-range" class="hint">Select a prepared dataset.</p>
+          <div class="measurements"><div><span class="label">GRID HOURS</span><strong id="hours">—</strong></div><div><span class="label">TEMPERATURE HOURS</span><strong id="temperature-hours">—</strong></div><div><span class="label">LABELED HOURS</span><strong id="event-hours">—</strong></div></div>
+          <div class="chart-heading"><h3>Daily mean temperature</h3><span>°C · UTC</span></div><div id="temperature-chart" class="chart" aria-label="Daily mean temperature chart"></div>
+          <div class="chart-heading"><h3>Daily mean grid load</h3><span>MW · UTC</span></div><div id="load-chart" class="chart compact" aria-label="Daily mean grid load chart"></div>
+          <p class="hint">Daily means summarize available hourly observations. The model uses prior-hour features. Historical reanalysis supports retrospective study; live publication timing is unverified.</p>
+          <details><summary>Data sources and preparation records</summary><p id="data-source" class="path"></p><pre id="data-provenance"></pre></details>
+        </section>
+        <section class="panel" id="models"><div class="section-title"><span class="step">03</span><h2>Saved model &amp; results</h2><span class="tag">RESEARCH</span></div>
+          <div id="no-model" class="empty"><h3>Awaiting reviewed event labels</h3><p>Your grid and temperature inputs are ready to explore. Training needs historical hours labeled as events or confirmed non-events.</p><p>A trained run will appear here with its model file, evaluation, confidence, and hourly test predictions.</p></div>
+          <div id="model-results" hidden><label for="run-select">Saved training run</label><select id="run-select"></select><p id="model-version" class="path"></p>
+            <div class="measurements"><div><span class="label">TEST BRIER SCORE</span><strong id="brier">—</strong></div><div><span class="label">BASELINE BRIER</span><strong id="baseline">—</strong></div><div><span class="label">TEST HOURS</span><strong id="test-hours">—</strong></div></div>
+            <p class="hint">Lower Brier score is better. Metrics come from the saved model card and held-out test period.</p>
+            <div id="confidence"></div><div id="model-warnings"></div><nav id="downloads" aria-label="Download saved model files"></nav>
+            <details><summary>Training report</summary><pre id="model-report"></pre></details><details><summary>Model card and provenance</summary><pre id="model-card"></pre></details>
+          </div>
+          <p class="boundary">The model estimates system-level modeled exposure. A site's actual cutoff depends on local conditions and the separate site-exposure assumption. Research outputs require label and calibration review.</p>
+        </section>
+        <section id="job-panel" class="panel" hidden><div class="section-title"><span class="step">JOB</span><h2 id="job-title">Offline job</h2><span id="job-badge" class="tag"></span></div><p id="job-message" class="hint" role="status" aria-live="polite"></p><pre id="job-log"></pre></section>
+      </div>
+    </div>
+    <footer>SPP research workspace · Files stay in this repository · Opening this page does not start downloads or training</footer>
+  </main>
+</body>
+</html>
