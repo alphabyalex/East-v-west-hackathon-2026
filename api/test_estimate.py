@@ -17,6 +17,8 @@ DEFAULT_REQUEST = EXAMPLE["inputs_echo"]
 
 @pytest.fixture
 def client():
+    # Core arithmetic tests are independent of whatever Kristian installs locally.
+    app.dependency_overrides[get_location_provider] = lambda: get_mock_location
     with TestClient(app) as instance:
         yield instance
     app.dependency_overrides.clear()
@@ -33,7 +35,8 @@ def assert_fixture_match(actual, expected):
     if isinstance(expected, dict):
         assert set(actual) == set(expected)
         for key in expected:
-            assert_fixture_match(actual[key], expected[key])
+            if key != "ref":
+                assert_fixture_match(actual[key], expected[key])
     elif isinstance(expected, list):
         assert len(actual) == len(expected)
         for item, reference in zip(actual, expected):
@@ -44,10 +47,11 @@ def assert_fixture_match(actual, expected):
         assert actual == expected
 
 
-def test_default_response_matches_checked_in_frontend_fixture(client):
+def test_placeholder_response_preserves_frontend_fixture_shape_and_numeric_values(client):
     response = client.post("/api/estimate", json=DEFAULT_REQUEST)
     assert response.status_code == 200
     assert response.headers["cache-control"] == "no-store"
+    assert response.headers["x-headroom-exposure-source"] == "placeholder"
     assert_fixture_match(response.json(), EXAMPLE)
 
 
@@ -63,7 +67,8 @@ def test_exposure_assumption_changes_distribution_costs_and_decision(client, sit
         )
     assert result["economics"]["decision"] == decision
     # Mock estimate support is explicit and fixed, not a future probability.
-    assert result["confidence"] == EXAMPLE["confidence"]
+    for key in ("level", "score", "basis"):
+        assert result["confidence"][key] == EXAMPLE["confidence"][key]
 
 
 @pytest.mark.parametrize("location_id,scale", LOCATION_SCALES.items())
@@ -151,7 +156,8 @@ def test_all_mock_blocks_have_explicit_assumption_provenance(client):
     sources += [row["source"] for row in result["tariff"]["curtailment_triggers"]]
     for source in sources:
         assert source["source_type"] == "assumption"
-        assert source["ref"].startswith("mock://illustrative/")
+        assert source["ref"].startswith("mock://")
+        assert "placeholder" in source["ref"]
     assert "not_ensemble_inference" in result["confidence"]["basis"]
     assert "not extracted" in result["tariff"]["service"]
 
@@ -185,3 +191,70 @@ def test_precomputed_provider_can_be_replaced_without_changing_http_contract(cli
     # Real exposure would not silently make the still-unsourced economics real.
     assert result["economics"]["source"]["source_type"] == "assumption"
     assert result["economics"]["source"]["ref"].startswith("mock://")
+
+
+def test_canonical_build_plan_location_is_explicitly_placeholder_while_pipeline_absent(client):
+    result = estimate(client, location_id="SPP_SPS_HUB", load_mw=250, site_exposure=0.3)
+    assert result["inputs_echo"]["location_id"] == "SPP_SPS_HUB"
+    assert result["modeled_exposure"]["source"]["source_type"] == "assumption"
+    assert "placeholder, pipeline not wired yet" in result["modeled_exposure"]["source"]["ref"]
+
+
+def test_short_precomputed_horizon_returns_503_instead_of_fabricating_years(client):
+    def short_provider(location_id):
+        value = get_mock_location(location_id)
+        return replace(value, by_year=value.by_year[:1])
+    app.dependency_overrides[get_location_provider] = lambda: short_provider
+    response = client.post("/api/estimate", json=DEFAULT_REQUEST)
+    assert response.status_code == 503
+    assert "does not cover" in response.json()["detail"]
+
+
+def test_missing_economics_file_is_an_explicit_service_error(client, monkeypatch, tmp_path):
+    from api import economics
+    monkeypatch.setattr(economics, "ASSUMPTIONS_PATH", tmp_path / "missing.md")
+    response = client.post("/api/estimate", json=DEFAULT_REQUEST)
+    assert response.status_code == 503
+    assert "docs/ASSUMPTIONS.md" in response.json()["detail"]
+
+
+def test_direct_frontend_cors_preflight_and_post(client):
+    origin = "http://127.0.0.1:5174"
+    preflight = client.options("/api/estimate", headers={
+        "Origin": origin,
+        "Access-Control-Request-Method": "POST",
+        "Access-Control-Request-Headers": "content-type",
+    })
+    assert preflight.status_code == 200
+    assert preflight.headers["access-control-allow-origin"] == origin
+    assert "POST" in preflight.headers["access-control-allow-methods"]
+    response = client.post("/api/estimate", json=DEFAULT_REQUEST, headers={"Origin": origin})
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == origin
+    assert "X-Headroom-Exposure-Source" in response.headers["access-control-expose-headers"]
+
+
+@pytest.mark.parametrize("origin,method", [
+    ("https://unrelated.example", "POST"),
+    ("http://127.0.0.1:5174", "DELETE"),
+])
+def test_cors_does_not_enable_unrequested_origins_or_methods(client, origin, method):
+    response = client.options("/api/estimate", headers={
+        "Origin": origin,
+        "Access-Control-Request-Method": method,
+    })
+    assert response.status_code == 400
+
+
+def test_cors_headers_remain_on_invalid_input_and_pipeline_errors(client):
+    from api.pipeline_provider import PipelineDataError
+    origin = {"Origin": "http://127.0.0.1:5174"}
+    response = client.post("/api/estimate", json={**DEFAULT_REQUEST, "site_exposure": 2}, headers=origin)
+    assert response.status_code == 422
+    assert response.headers["access-control-allow-origin"] == origin["Origin"]
+    def broken(_location):
+        raise PipelineDataError("Precomputed pipeline reader failed")
+    app.dependency_overrides[get_location_provider] = lambda: broken
+    response = client.post("/api/estimate", json=DEFAULT_REQUEST, headers=origin)
+    assert response.status_code == 503
+    assert response.headers["access-control-allow-origin"] == origin["Origin"]
