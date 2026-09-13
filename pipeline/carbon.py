@@ -18,12 +18,14 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from datetime import date, time, timedelta
+from fractions import Fraction
 import hashlib
 from io import BytesIO
 import json
 import math
 from numbers import Real
 from pathlib import Path
+from sys import float_info
 
 import numpy as np
 import pandas as pd
@@ -429,10 +431,22 @@ def fuel_mix_intensity(frame: pd.DataFrame, factors: Mapping[str, Mapping], *, e
         known = math.fsum(datum["value"] for fuel, datum in observed.items() if fuel in checked)
         coverage_source = {**policy, "ref": f"{policy['ref']}; expected_fuels={sorted(expected)}; missing_generation_fuels={missing_generation}; missing_factor_fuels={missing}"}
         sources = list(fuels.values()) + [checked[fuel] for fuel in sorted(fuels) if fuel in checked] + [coverage_source]
-        intensity = None if missing_generation or missing or total == 0 else math.fsum(
-            datum["value"] / total * checked[fuel]["value"]
-            for fuel, datum in observed.items() if datum["value"] > 0
-        )
+        intensity = None
+        if not missing_generation and not missing and total > 0:
+            terms = [(datum["value"] / total, checked[fuel]["value"])
+                     for fuel, datum in observed.items() if datum["value"] > 0]
+            weighted = [ratio * factor for ratio, factor in terms]
+            if any(factor > 0 and (ratio < float_info.min or term < float_info.min)
+                   for (ratio, factor), term in zip(terms, weighted)):
+                # A tiny ratio/product can lose a representable final intensity.
+                # Recompute the whole mean, including its exact input denominator,
+                # only in this subnormal path; ordinary binary64 results stay fixed.
+                numerator = sum((Fraction(datum["value"]) * Fraction(checked[fuel]["value"])
+                                 for fuel, datum in observed.items() if datum["value"] > 0), Fraction())
+                denominator = sum((Fraction(datum["value"]) for datum in observed.values()), Fraction())
+                intensity = float(numerator / denominator)
+            else:
+                intensity = math.fsum(weighted)
         result.append({
             "timestamp_utc": time,
             "boundary": BOUNDARY,
@@ -509,7 +523,16 @@ def shift_carbon(intensities: Sequence[Mapping], moves: Sequence[Mapping], *, se
         before, after = hours[risk], hours[makeup]
         provenance = [energy, before, after, policy, limits[risk]["removable_mwh"], limits[makeup]["makeup_capacity_mwh"],
                       {"source_type": "assumption", "ref": f"submitted conserved-energy pair: risk_hour={risk}; makeup_hour={makeup}; no loss or extra makeup energy modeled"}]
-        shift = None if before["value"] is None or after["value"] is None else energy["value"] * (before["value"] - after["value"])
+        shift = None
+        if before["value"] is not None and after["value"] is not None:
+            difference = before["value"] - after["value"]
+            shift = energy["value"] * difference
+            if energy["value"] > 0 and before["value"] != after["value"] and (
+                energy["value"] < float_info.min or abs(difference) < float_info.min or abs(shift) < float_info.min
+            ):
+                # Avoid double rounding around underflow, retaining signed output.
+                # The aggregate still sums the published, once-rounded pair values.
+                shift = float(Fraction(energy["value"]) * (Fraction(before["value"]) - Fraction(after["value"])))
         selected_energy = _derived(energy["value"], provenance, "same submitted MWh removed and made up within the sourced hourly limits")
         pair = {"risk_hour": risk, "makeup_hour": makeup,
                 "mwh_removed": dict(selected_energy), "mwh_made_up": dict(selected_energy),
