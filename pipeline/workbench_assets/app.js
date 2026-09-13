@@ -4,6 +4,7 @@ const number = value => Number(value).toLocaleString("en-US");
 const token = document.querySelector('meta[name="workspace-token"]').content;
 let state = {datasets: [], runs: [], job: null};
 let pollTimer, dataVersion = 0, runVersion = 0, submitting = false;
+let activeRun = null;
 
 async function request(path, options = {}) {
   const response = await fetch(path, {...options, signal: AbortSignal.timeout(20000)});
@@ -36,12 +37,14 @@ function buttons() {
   const busy = submitting || state.job?.status === "running";
   $("weather-submit").disabled = busy || !$("weather-dataset").value;
   $("train-submit").disabled = busy || !$("train-dataset").value || !$("evidence").files.length || $("label-ref").value.trim().length < 5;
+  $("hours-submit").disabled = busy || !activeRun;
+  $("annual-submit").disabled = busy || !activeRun?.hours || !Object.values(activeRun.hours.locations).every(info => info.annual_simulation_ready);
 }
 function jobView() {
   const job = state.job;
   $("job-panel").hidden = !job;
   if (!job) { buttons(); return; }
-  $("job-title").textContent = job.kind === "weather" ? "Temperature preparation" : "Training & evaluation";
+  $("job-title").textContent = job.kind === "weather" ? "Temperature preparation" : job.kind === "hours" ? "Exposure hours calculation" : "Training & evaluation";
   $("job-badge").textContent = job.status.toUpperCase();
   $("job-status").textContent = job.status === "running" ? "Offline job running" : `Last job ${job.status}`;
   $("job-message").textContent = job.status === "running" ? "Working in the background. You can inspect cached data while this runs." : job.status === "succeeded" ? "Finished. The saved output is available above." : "The job stopped. See the log below, correct the input, and try again. Successful downloads remain cached.";
@@ -73,7 +76,7 @@ async function pollJob() {
     state.job = next.job;
     jobView();
     if (next.job?.status === "running") pollTimer = setTimeout(pollJob, 1500);
-    else await refresh(next.job?.kind === "weather" && next.job.status === "succeeded" ? next.job.result_id : "", next.job?.kind === "train" && next.job.status === "succeeded" ? next.job.result_id : "");
+    else await refresh(next.job?.kind === "weather" && next.job.status === "succeeded" ? next.job.result_id : "", ["train", "hours"].includes(next.job?.kind) && next.job.status === "succeeded" ? next.job.result_id : "");
   } catch (e) {
     error(`Cannot reach the workspace: ${e.message} Use Refresh files to reconnect.`);
   }
@@ -139,10 +142,14 @@ async function showDataset() {
 }
 async function showRun() {
   const version = ++runVersion, id = $("run-select").value;
+  activeRun = null; buttons();
   if (!id) return;
   const result = await request(`/api/run?id=${encodeURIComponent(id)}`);
   if (version !== runVersion) return;
   const card = result.card;
+  activeRun = result;
+  options("hours-location", Object.keys(result.hours?.locations || card.confidence || {}).map(id => ({id, label: id})));
+  showHours(); buttons();
   $("model-version").textContent = `${card.model_version} · ${result.id}`;
   $("brier").textContent = card.test.brier_score.toFixed(4);
   $("baseline").textContent = card.baseline_test.brier_score.toFixed(4);
@@ -155,6 +162,34 @@ async function showRun() {
   }));
   $("model-report").textContent = result.report;
   $("model-card").textContent = JSON.stringify(card, null, 2);
+}
+function showHours() {
+  const location = $("hours-location").value, info = activeRun?.hours?.locations[location];
+  const share = Number($("site-exposure").value), fmt = value => Number(value).toLocaleString("en-US", {maximumFractionDigits: 1});
+  $("site-exposure-value").textContent = `${Math.round(share * 100)}%`;
+  $("hours-target").textContent = activeRun?.card.policy.target_description || activeRun?.card.policy.label_ref || "";
+  $("expected-hours").textContent = info ? fmt(info.expected_exposure_hours) : "—";
+  $("site-hours").textContent = info ? fmt(info.expected_exposure_hours * share) : "—";
+  $("missing-hours").textContent = info ? number(info.unscored_hours) : "—";
+  $("hours-period").textContent = info ? `${info.start_utc} to ${info.end_exclusive_utc} (end exclusive). ${number(info.scored_hours)} scored hours. Expected hours sum hourly probabilities across this held-out period; this is not an annualized result or a future-date forecast.` : "Calculate hours from this run's saved probabilities.";
+  $("hours-spread").textContent = info ? `Ensemble expected-hours range: ${fmt(info.member_expected_hours_min)}–${fmt(info.member_expected_hours_max)}. This measures model variation, not an outcome interval. Confidence: ${info.confidence.level}.` : "";
+  $("ranked-hours").textContent = info ? JSON.stringify({source: activeRun.hours.ref, model: activeRun.hours.model_version, highest_scored_hours: info.highest_scored_hours, assumptions: activeRun.hours.limitations}, null, 2) : "";
+  $("annual-status").textContent = info ? (info.annual_simulation_ready ? "Annual simulation uses historical seasonal conditions. Confidence is Low; future load growth and climate changes are not modeled." : info.annual_blockers.join(" ")) : "A scored-period summary is required before annual simulation.";
+  $("annual-hours").replaceChildren(); $("contract-hours").textContent = "";
+  const annual = activeRun?.annual?.locations[location];
+  if (!annual) return;
+  const table = document.createElement("table");
+  const header = document.createElement("tr");
+  ["Year", "System P50 h", "System P90 h", "System P99 h", "Assumed site P50 h"].forEach(text => {const cell = document.createElement("th"); cell.textContent = text; header.append(cell);});
+  const head = document.createElement("thead"); head.append(header); table.append(head);
+  const body = document.createElement("tbody");
+  annual.by_year.forEach(row => {
+    const tr = document.createElement("tr");
+    [row.year_offset, fmt(row.p50_hours), fmt(row.p90_hours), fmt(row.p99_hours), fmt(row.p50_hours * share)].forEach(text => {const cell = document.createElement("td"); cell.textContent = text; tr.append(cell);});
+    body.append(tr);
+  }); table.append(body); $("annual-hours").append(table);
+  const contract = activeRun.annual.contract?.locations[location];
+  if (contract) $("contract-hours").textContent = `${contract.term_years}-year system total: P50 ${fmt(contract.p50_total_hours)} h, P90 ${fmt(contract.p90_total_hours)} h, P99 ${fmt(contract.p99_total_hours)} h. Assumed site P50: ${fmt(contract.p50_total_hours * share)} h. Term quantiles come from joint trials, not sums of yearly quantiles. Source: ${annual.model_version}, saved simulation trials.`;
 }
 async function submit(data) {
   submitting = true; buttons(); error();
@@ -181,6 +216,10 @@ $("weather-dataset").addEventListener("change", () => { locations("weather-datas
 $("view-dataset").addEventListener("change", () => { locations("view-dataset", "view-location"); showDataset().catch(e => error(e.message)); });
 $("view-location").addEventListener("change", () => showDataset().catch(e => error(e.message)));
 $("run-select").addEventListener("change", () => showRun().catch(e => error(e.message)));
+$("hours-location").addEventListener("change", showHours);
+$("site-exposure").addEventListener("input", showHours);
+$("hours-submit").addEventListener("click", () => submit({kind: "hours", run: activeRun.id, years: 0}));
+$("annual-submit").addEventListener("click", () => submit({kind: "hours", run: activeRun.id, years: Number($("contract-years").value)}));
 $("evidence").addEventListener("change", buttons); $("label-ref").addEventListener("input", buttons);
 $("train-dataset").addEventListener("change", buttons);
 $("refresh").addEventListener("click", () => { error(); refresh().catch(e => error(e.message)); });

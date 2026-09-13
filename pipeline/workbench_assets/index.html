@@ -52,6 +52,17 @@
             <div class="measurements"><div><span class="label">TEST BRIER SCORE</span><strong id="brier">—</strong></div><div><span class="label">BASELINE BRIER</span><strong id="baseline">—</strong></div><div><span class="label">TEST HOURS</span><strong id="test-hours">—</strong></div></div>
             <p class="hint">Lower Brier score is better. Metrics come from the saved model card and held-out test period.</p>
             <div id="confidence"></div><div id="model-warnings"></div><nav id="downloads" aria-label="Download saved model files"></nav>
+            <h3>Modeled exposure hours</h3><p id="hours-target" class="hint"></p>
+            <label for="hours-location">Model location</label><select id="hours-location"></select>
+            <label for="site-exposure">Assumed site exposure: <output id="site-exposure-value">100%</output></label>
+            <input id="site-exposure" type="range" min="0" max="1" step="0.01" value="1">
+            <p class="hint">User assumption: the share of modeled system exposure assigned to this site. 100% is full exposure for comparison. This is not measured cutoff likelihood or a reduction in load MW.</p>
+            <div class="measurements"><div><span class="label">EXPECTED SYSTEM HOURS</span><strong id="expected-hours">—</strong></div><div><span class="label">ASSUMED SITE HOURS</span><strong id="site-hours">—</strong></div><div><span class="label">UNSCORED HOURS</span><strong id="missing-hours">—</strong></div></div>
+            <p id="hours-period" class="hint"></p><p id="hours-spread" class="hint"></p>
+            <button id="hours-submit" class="secondary" type="button">Calculate scored-period hours</button>
+            <div class="selectors"><div><label for="contract-years">Annual scenario term</label><select id="contract-years"><option value="1">1 year</option><option value="3">3 years</option><option value="5">5 years</option><option value="7" selected>7 years</option></select></div><div><label for="annual-submit">Offline simulation</label><button id="annual-submit" type="button">Calculate annual hours</button></div></div>
+            <p id="annual-status" class="hint"></p><div id="annual-hours" class="table-scroll"></div><p id="contract-hours" class="hint"></p>
+            <details><summary>Highest scored historical hours and evidence</summary><p class="hint">These are historical scored hours, not dates of predicted future interruptions.</p><pre id="ranked-hours"></pre></details>
             <details><summary>Training report</summary><pre id="model-report"></pre></details><details><summary>Model card and provenance</summary><pre id="model-card"></pre></details>
           </div>
           <p class="boundary">The model estimates system-level modeled exposure. A site's actual cutoff depends on local conditions and the separate site-exposure assumption. Research outputs require label and calibration review.</p>

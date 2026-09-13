@@ -111,6 +111,15 @@ class WorkspaceTests(unittest.TestCase):
         self.assertEqual(self.workspace.snapshot()["job"]["status"], "succeeded")
         saved = self.workspace.run(job["result_id"])
         self.assertIn("model.joblib", saved["downloads"])
+        self.assertIn("hours_summary.json", saved["downloads"])
+        self.assertIsNotNone(saved["hours"])
+        self.assertGreater(saved["hours"]["locations"]["TEST_ONLY"]["expected_exposure_hours"], 0)
+        self.assertIsNone(saved["annual"])
+        with self.assertRaisesRegex(ValueError, "more held-out history"):
+            self.workspace.submit({"kind": "hours", "run": job["result_id"], "years": 7})
+        with patch("threading.Thread.start"):
+            summary_job = self.workspace.submit({"kind": "hours", "run": job["result_id"], "years": 0})
+        self.assertEqual(summary_job["kind"], "hours")
         self.assertEqual(saved["card"]["policy"]["label_ref"], "test://reviewed-synthetic-events-only")
         self.assertEqual(saved["card"]["temperature_data"]["source_refs"], ["test://disposable-workspace-fixture"])
         self.assertIn("test_predictions.parquet", saved["downloads"])

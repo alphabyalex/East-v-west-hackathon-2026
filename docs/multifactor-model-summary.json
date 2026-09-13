@@ -1,0 +1,558 @@
+{
+  "status": "research_high_demand_proxy_not_site_cutoff_forecast",
+  "model_version": "spp_lgbm_20260913T041851_30b0029de7",
+  "target_policy": {
+    "operator": "SPP",
+    "label_method": "observed_event",
+    "data_ref": "data\\processed\\ml_inputs\\spp_2019_2024_multifactor.parquet; sha256=a32c4b16eb2bb2075dba281777023096949c760b2ef04ec56eb77e7e9bea6c9c",
+    "label_ref": "ASSUMPTION: high aggregate demand >= reference 0.95 quantile; data\\processed\\ml_inputs\\spp_2019_2024_demand_proxy.policy.json",
+    "target_name": "high_demand_stress_proxy",
+    "target_source_type": "assumption",
+    "target_description": "High aggregate demand proxy; not an emergency, network-overload measurement, or site interruption.",
+    "demand_proxy": {
+      "quantile": 0.95,
+      "thresholds_mw": {
+        "SPP_SYSTEM": 42064.0228
+      },
+      "reference_end_exclusive": "2022-01-01T00:00:00+00:00",
+      "reference_start": "2019-01-01 06:00:00+00:00",
+      "method": "Fixed per-location empirical quantile, fit only within the training period.",
+      "split_counts": {
+        "train": {
+          "hours": 31350,
+          "positive_hours": 1841
+        },
+        "calibration": {
+          "hours": 10426,
+          "positive_hours": 893
+        },
+        "test": {
+          "hours": 10426,
+          "positive_hours": 835
+        }
+      }
+    }
+  },
+  "input_factors": {
+    "load_mw": {
+      "observed_hours": 52541,
+      "missing_hours": 67
+    },
+    "wind_mw": {
+      "observed_hours": 51579,
+      "missing_hours": 1029
+    },
+    "solar_mw": {
+      "observed_hours": 51579,
+      "missing_hours": 1029
+    },
+    "temperature_c": {
+      "observed_hours": 52608,
+      "missing_hours": 0
+    },
+    "temperature_area_min_c": {
+      "observed_hours": 52608,
+      "missing_hours": 0
+    },
+    "temperature_area_max_c": {
+      "observed_hours": 52608,
+      "missing_hours": 0
+    }
+  },
+  "unavailable_factors": [
+    "available_reserves_mw",
+    "required_reserves_mw",
+    "lmp_usd_mwh",
+    "binding_constraint_count",
+    "generation_outage_mw",
+    "net_import_mw"
+  ],
+  "input_hashes": {
+    "hourly_sha256": "30b0029de7b7d0f8b884ceef918a8f3d12dc48c328297d7c85abd805d416a993",
+    "policy_sha256": "f8a67011ea4346036e31486f54fb97374cb3de08f63473c9ea5df53e7d7e2fc2"
+  },
+  "splits": {
+    "train": {
+      "start": "2019-01-02 06:00:00+00:00",
+      "end": "2022-08-06 17:00:00+00:00",
+      "rows": 31350,
+      "positive_hours": 1841
+    },
+    "calibration": {
+      "start": "2022-08-07 18:00:00+00:00",
+      "end": "2023-10-20 16:00:00+00:00",
+      "rows": 10426,
+      "positive_hours": 893
+    },
+    "test": {
+      "start": "2023-10-21 17:00:00+00:00",
+      "end": "2025-01-01 05:00:00+00:00",
+      "rows": 10426,
+      "positive_hours": 835
+    }
+  },
+  "test_metrics": {
+    "brier_score": 0.003015828394369256,
+    "log_loss": 0.01079259902612783,
+    "event_rate": 0.08008824093612124,
+    "mean_prediction": 0.07859108425427085,
+    "n_hours": 10426,
+    "positive_hours": 835,
+    "roc_auc": 0.9997752383877849,
+    "average_precision": 0.9976264648683361,
+    "reliability_bins": [
+      {
+        "n": 9535,
+        "mean_prediction": 0.00043072482143005804,
+        "observed_fraction": 0.0006292606187729418
+      },
+      {
+        "n": 21,
+        "mean_prediction": 0.15890841405769662,
+        "observed_fraction": 0.23809523809523808
+      },
+      {
+        "n": 21,
+        "mean_prediction": 0.24889748048909996,
+        "observed_fraction": 0.38095238095238093
+      },
+      {
+        "n": 18,
+        "mean_prediction": 0.3553439196708644,
+        "observed_fraction": 0.3333333333333333
+      },
+      {
+        "n": 14,
+        "mean_prediction": 0.4460912585711985,
+        "observed_fraction": 0.35714285714285715
+      },
+      {
+        "n": 9,
+        "mean_prediction": 0.5537748293379533,
+        "observed_fraction": 0.4444444444444444
+      },
+      {
+        "n": 10,
+        "mean_prediction": 0.6545070531580292,
+        "observed_fraction": 0.7
+      },
+      {
+        "n": 17,
+        "mean_prediction": 0.7631550035477522,
+        "observed_fraction": 0.8823529411764706
+      },
+      {
+        "n": 32,
+        "mean_prediction": 0.8574068663041109,
+        "observed_fraction": 0.9375
+      },
+      {
+        "n": 749,
+        "mean_prediction": 0.9908392423571054,
+        "observed_fraction": 1.0
+      }
+    ]
+  },
+  "baseline_metrics": {
+    "brier_score": 0.0741305418469926,
+    "log_loss": 0.28271469191425463,
+    "event_rate": 0.08008824093612124,
+    "mean_prediction": 0.05872408293460924,
+    "n_hours": 10426,
+    "positive_hours": 835,
+    "roc_auc": 0.5,
+    "average_precision": 0.08008824093612124,
+    "reliability_bins": [
+      {
+        "n": 10426,
+        "mean_prediction": 0.05872408293460924,
+        "observed_fraction": 0.08008824093612124
+      }
+    ]
+  },
+  "previous_hour_persistence_brier": 0.018415499712257817,
+  "confidence": {
+    "SPP_SYSTEM": {
+      "level": "Low",
+      "score": 0.9976631414546541,
+      "n_similar_historical_hours": 0,
+      "mean_ensemble_probability_std": 0.0011684292726729674,
+      "limitations": [],
+      "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
+    }
+  },
+  "hours": {
+    "status": "research_retrospective_expected_exposure",
+    "model_version": "spp_lgbm_20260913T041851_30b0029de7",
+    "source_type": "model",
+    "ref": "Saved held-out hourly ensemble probabilities; sum(p * 1 hour).",
+    "target_policy": {
+      "operator": "SPP",
+      "label_method": "observed_event",
+      "data_ref": "data\\processed\\ml_inputs\\spp_2019_2024_multifactor.parquet; sha256=a32c4b16eb2bb2075dba281777023096949c760b2ef04ec56eb77e7e9bea6c9c",
+      "label_ref": "ASSUMPTION: high aggregate demand >= reference 0.95 quantile; data\\processed\\ml_inputs\\spp_2019_2024_demand_proxy.policy.json",
+      "target_name": "high_demand_stress_proxy",
+      "target_source_type": "assumption",
+      "target_description": "High aggregate demand proxy; not an emergency, network-overload measurement, or site interruption.",
+      "demand_proxy": {
+        "quantile": 0.95,
+        "thresholds_mw": {
+          "SPP_SYSTEM": 42064.0228
+        },
+        "reference_end_exclusive": "2022-01-01T00:00:00+00:00",
+        "reference_start": "2019-01-01 06:00:00+00:00",
+        "method": "Fixed per-location empirical quantile, fit only within the training period.",
+        "split_counts": {
+          "train": {
+            "hours": 31350,
+            "positive_hours": 1841
+          },
+          "calibration": {
+            "hours": 10426,
+            "positive_hours": 893
+          },
+          "test": {
+            "hours": 10426,
+            "positive_hours": 835
+          }
+        }
+      }
+    },
+    "site_exposure_applied": false,
+    "forecast_of_future_dates": false,
+    "locations": {
+      "SPP_SYSTEM": {
+        "start_utc": "2023-10-21T17:00:00+00:00",
+        "end_exclusive_utc": "2025-01-01T06:00:00+00:00",
+        "scored_hours": 10426,
+        "calendar_hours": 10501,
+        "unscored_hours": 75,
+        "expected_exposure_hours": 819.3906444350279,
+        "observed_target_hours": 835,
+        "member_expected_hours_min": 811.3968998633958,
+        "member_expected_hours_max": 825.6387781993359,
+        "confidence": {
+          "level": "Low",
+          "score": 0.9976631414546541,
+          "n_similar_historical_hours": 0,
+          "mean_ensemble_probability_std": 0.0011684292726729674,
+          "limitations": [],
+          "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
+        },
+        "monthly": [
+          {
+            "month_utc": "2023-10",
+            "scored_hours": 247,
+            "expected_exposure_hours": 0.004154106306587279,
+            "observed_target_hours": 0
+          },
+          {
+            "month_utc": "2023-11",
+            "scored_hours": 720,
+            "expected_exposure_hours": 0.011993988859668965,
+            "observed_target_hours": 0
+          },
+          {
+            "month_utc": "2023-12",
+            "scored_hours": 744,
+            "expected_exposure_hours": 0.01236019928522657,
+            "observed_target_hours": 0
+          },
+          {
+            "month_utc": "2024-01",
+            "scored_hours": 744,
+            "expected_exposure_hours": 50.69451473901752,
+            "observed_target_hours": 69
+          },
+          {
+            "month_utc": "2024-02",
+            "scored_hours": 696,
+            "expected_exposure_hours": 0.012046659022907968,
+            "observed_target_hours": 0
+          },
+          {
+            "month_utc": "2024-03",
+            "scored_hours": 719,
+            "expected_exposure_hours": 0.012681756135565849,
+            "observed_target_hours": 0
+          },
+          {
+            "month_utc": "2024-04",
+            "scored_hours": 695,
+            "expected_exposure_hours": 0.012566226139747004,
+            "observed_target_hours": 0
+          },
+          {
+            "month_utc": "2024-05",
+            "scored_hours": 744,
+            "expected_exposure_hours": 0.03490293540337639,
+            "observed_target_hours": 0
+          },
+          {
+            "month_utc": "2024-06",
+            "scored_hours": 720,
+            "expected_exposure_hours": 175.55787002563008,
+            "observed_target_hours": 178
+          },
+          {
+            "month_utc": "2024-07",
+            "scored_hours": 744,
+            "expected_exposure_hours": 250.03725318042405,
+            "observed_target_hours": 248
+          },
+          {
+            "month_utc": "2024-08",
+            "scored_hours": 744,
+            "expected_exposure_hours": 276.620932521765,
+            "observed_target_hours": 276
+          },
+          {
+            "month_utc": "2024-09",
+            "scored_hours": 720,
+            "expected_exposure_hours": 66.31096380515525,
+            "observed_target_hours": 64
+          },
+          {
+            "month_utc": "2024-10",
+            "scored_hours": 744,
+            "expected_exposure_hours": 0.04227212665699031,
+            "observed_target_hours": 0
+          },
+          {
+            "month_utc": "2024-11",
+            "scored_hours": 695,
+            "expected_exposure_hours": 0.01214642541262356,
+            "observed_target_hours": 0
+          },
+          {
+            "month_utc": "2024-12",
+            "scored_hours": 744,
+            "expected_exposure_hours": 0.013878533063126143,
+            "observed_target_hours": 0
+          },
+          {
+            "month_utc": "2025-01",
+            "scored_hours": 6,
+            "expected_exposure_hours": 0.00010720675009493692,
+            "observed_target_hours": 0
+          }
+        ],
+        "highest_scored_hours": [
+          {
+            "timestamp_utc": "2024-07-15T18:00:00+00:00",
+            "probability": 0.9992943738801857
+          },
+          {
+            "timestamp_utc": "2024-07-15T19:00:00+00:00",
+            "probability": 0.9992943738801857
+          },
+          {
+            "timestamp_utc": "2024-07-14T19:00:00+00:00",
+            "probability": 0.9992939535618738
+          },
+          {
+            "timestamp_utc": "2024-08-05T18:00:00+00:00",
+            "probability": 0.9992925634892387
+          },
+          {
+            "timestamp_utc": "2024-07-15T17:00:00+00:00",
+            "probability": 0.9992912465355702
+          },
+          {
+            "timestamp_utc": "2024-08-25T19:00:00+00:00",
+            "probability": 0.9992905103303784
+          },
+          {
+            "timestamp_utc": "2024-08-05T19:00:00+00:00",
+            "probability": 0.9992904041487785
+          },
+          {
+            "timestamp_utc": "2024-07-31T18:00:00+00:00",
+            "probability": 0.999290231659286
+          },
+          {
+            "timestamp_utc": "2024-07-30T19:00:00+00:00",
+            "probability": 0.9992890939525444
+          },
+          {
+            "timestamp_utc": "2024-07-30T18:00:00+00:00",
+            "probability": 0.9992890123699316
+          },
+          {
+            "timestamp_utc": "2024-07-11T19:00:00+00:00",
+            "probability": 0.9992885868164764
+          },
+          {
+            "timestamp_utc": "2024-07-31T19:00:00+00:00",
+            "probability": 0.9992879922585041
+          },
+          {
+            "timestamp_utc": "2024-08-07T19:00:00+00:00",
+            "probability": 0.9992853431686303
+          },
+          {
+            "timestamp_utc": "2024-07-31T17:00:00+00:00",
+            "probability": 0.9992849872570712
+          },
+          {
+            "timestamp_utc": "2024-08-25T18:00:00+00:00",
+            "probability": 0.9992847627772155
+          },
+          {
+            "timestamp_utc": "2024-08-15T19:00:00+00:00",
+            "probability": 0.9992823890416556
+          },
+          {
+            "timestamp_utc": "2024-08-07T20:00:00+00:00",
+            "probability": 0.9992814439754584
+          },
+          {
+            "timestamp_utc": "2024-08-28T19:00:00+00:00",
+            "probability": 0.9992813779857511
+          },
+          {
+            "timestamp_utc": "2024-08-26T18:00:00+00:00",
+            "probability": 0.9992730974728308
+          },
+          {
+            "timestamp_utc": "2024-07-24T19:00:00+00:00",
+            "probability": 0.999271023632721
+          },
+          {
+            "timestamp_utc": "2024-07-15T20:00:00+00:00",
+            "probability": 0.9992670892062621
+          },
+          {
+            "timestamp_utc": "2024-08-27T19:00:00+00:00",
+            "probability": 0.9992668414561078
+          },
+          {
+            "timestamp_utc": "2024-07-11T20:00:00+00:00",
+            "probability": 0.9992664110664135
+          },
+          {
+            "timestamp_utc": "2024-07-25T18:00:00+00:00",
+            "probability": 0.9992661683102214
+          }
+        ],
+        "annual_simulation_ready": true,
+        "annual_blockers": []
+      }
+    },
+    "limitations": [
+      "Expected hours sum probabilities; they are not a count above an arbitrary probability threshold.",
+      "Each target represents an hourly event/proxy indicator, not measured within-hour interruption duration.",
+      "Only scored hours are included. Missing periods are neither zero-filled nor extrapolated to a year.",
+      "Ensemble min/max describe variation in expected hours, not outcome quantiles or confidence intervals.",
+      "Highest scored historical hours are not a schedule of future outages.",
+      "Annual scenarios require separate seasonal simulation; site exposure remains a visible downstream assumption."
+    ],
+    "input_hashes": {
+      "model_card_sha256": "4671763435c8af48e08963bead97936ce50a5aa0bf4f7e4843336da6d091692d",
+      "predictions_sha256": "0d59c61d9e4d1b5882635480d2014e48b59df05c02b7a7a61fcf2ccf7b41010b"
+    }
+  },
+  "annual": [
+    {
+      "location_id": "SPP_SYSTEM",
+      "year_offset": 1,
+      "p50_hours": 834.0,
+      "p90_hours": 950.1,
+      "p99_hours": 1033.01,
+      "worst_contiguous_hours": 33.0,
+      "confidence_level": "Low",
+      "confidence_score": 0.9976631415,
+      "n_similar_historical_hours": 0,
+      "model_version": "spp_lgbm_20260913T041851_30b0029de7"
+    },
+    {
+      "location_id": "SPP_SYSTEM",
+      "year_offset": 2,
+      "p50_hours": 835.0,
+      "p90_hours": 952.1,
+      "p99_hours": 1032.0,
+      "worst_contiguous_hours": 33.0,
+      "confidence_level": "Low",
+      "confidence_score": 0.9976631415,
+      "n_similar_historical_hours": 0,
+      "model_version": "spp_lgbm_20260913T041851_30b0029de7"
+    },
+    {
+      "location_id": "SPP_SYSTEM",
+      "year_offset": 3,
+      "p50_hours": 839.0,
+      "p90_hours": 943.0,
+      "p99_hours": 1039.03,
+      "worst_contiguous_hours": 33.0,
+      "confidence_level": "Low",
+      "confidence_score": 0.9976631415,
+      "n_similar_historical_hours": 0,
+      "model_version": "spp_lgbm_20260913T041851_30b0029de7"
+    },
+    {
+      "location_id": "SPP_SYSTEM",
+      "year_offset": 4,
+      "p50_hours": 841.0,
+      "p90_hours": 949.0,
+      "p99_hours": 1036.01,
+      "worst_contiguous_hours": 33.0,
+      "confidence_level": "Low",
+      "confidence_score": 0.9976631415,
+      "n_similar_historical_hours": 0,
+      "model_version": "spp_lgbm_20260913T041851_30b0029de7"
+    },
+    {
+      "location_id": "SPP_SYSTEM",
+      "year_offset": 5,
+      "p50_hours": 837.0,
+      "p90_hours": 949.0,
+      "p99_hours": 1044.0,
+      "worst_contiguous_hours": 33.0,
+      "confidence_level": "Low",
+      "confidence_score": 0.9976631415,
+      "n_similar_historical_hours": 0,
+      "model_version": "spp_lgbm_20260913T041851_30b0029de7"
+    },
+    {
+      "location_id": "SPP_SYSTEM",
+      "year_offset": 6,
+      "p50_hours": 840.0,
+      "p90_hours": 953.0,
+      "p99_hours": 1042.01,
+      "worst_contiguous_hours": 33.0,
+      "confidence_level": "Low",
+      "confidence_score": 0.9976631415,
+      "n_similar_historical_hours": 0,
+      "model_version": "spp_lgbm_20260913T041851_30b0029de7"
+    },
+    {
+      "location_id": "SPP_SYSTEM",
+      "year_offset": 7,
+      "p50_hours": 841.0,
+      "p90_hours": 953.1,
+      "p99_hours": 1047.02,
+      "worst_contiguous_hours": 33.0,
+      "confidence_level": "Low",
+      "confidence_score": 0.9976631415,
+      "n_similar_historical_hours": 0,
+      "model_version": "spp_lgbm_20260913T041851_30b0029de7"
+    }
+  ],
+  "contract": {
+    "source_type": "model",
+    "ref": "Joint saved simulation trials; quantiles of each trial's term total.",
+    "model_version": "spp_lgbm_20260913T041851_30b0029de7",
+    "site_exposure_applied": false,
+    "locations": {
+      "SPP_SYSTEM": {
+        "term_years": 7,
+        "simulations": 2000,
+        "expected_total_hours": 5872.797,
+        "p50_total_hours": 5876.5,
+        "p90_total_hours": 6161.1,
+        "p99_total_hours": 6387.0
+      }
+    }
+  },
+  "local_model_run": "data\\processed\\workbench\\runs\\spp_multifactor_demand_20260913"
+}

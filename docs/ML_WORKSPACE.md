@@ -98,3 +98,6 @@ A live HTTP job also prepared all 8,784 Amarillo temperature hours successfully
 through the running service. The browser loaded the application, fonts and data
 endpoints successfully; visual inspection was unavailable because browser control
 was not connected in the development session.
+
+
+Update (2026-09-13 UTC): the [multi-factor prediction model](MULTIFACTOR_PREDICTION.md) now uses real 2019?2024 load, temperature, wind and solar data to predict a high-demand stress proxy. Saved expected hours, annual scenarios and an explicit site-exposure slider are available in the local ML workspace. This is separate from the earlier emergency-only evidence catalog.

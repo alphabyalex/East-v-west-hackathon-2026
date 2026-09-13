@@ -121,3 +121,6 @@ and [docs/BUILD_PLAN.md](docs/BUILD_PLAN.md) for the shared contract and deadlin
 
 Historical SPP cases, the load/temperature event join, and CHILLS rule interpretation
 are in [docs/SPP_EVENT_AND_CHILLS_ANALYSIS.md](docs/SPP_EVENT_AND_CHILLS_ANALYSIS.md).
+
+
+Update (2026-09-13 UTC): the [multi-factor prediction model](docs/MULTIFACTOR_PREDICTION.md) now uses real 2019?2024 load, temperature, wind and solar data to predict a high-demand stress proxy. Saved expected hours, annual scenarios and an explicit site-exposure slider are available in the local ML workspace. This is separate from the earlier emergency-only evidence catalog.

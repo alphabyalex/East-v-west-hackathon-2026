@@ -1,4 +1,4 @@
-param([switch]$NoBrowser)
+param([switch]$NoBrowser, [switch]$Restart)
 $ErrorActionPreference = 'Stop'
 $workspaceRoot = Split-Path -Parent $PSScriptRoot
 $workspacePython = Join-Path $workspaceRoot '.venv\Scripts\python.exe'
@@ -11,6 +11,18 @@ function Test-Workspace {
         $health = Invoke-RestMethod -Uri "$workspaceUrl/health" -TimeoutSec 2
         return $health.app -eq 'headroom-ml-workspace'
     } catch { return $false }
+}
+if ($Restart -and (Test-Workspace)) {
+    $workspaceState = Invoke-RestMethod -Uri "$workspaceUrl/api/state" -TimeoutSec 5
+    if ($workspaceState.job.status -eq 'running') { throw 'Wait for the active workspace job before restarting.' }
+    $workspacePidPath = Join-Path $workspaceRoot 'data\processed\workbench\server.pid'
+    $workspacePid = [int](Get-Content -LiteralPath $workspacePidPath)
+    $workspaceExisting = Get-CimInstance Win32_Process -Filter "ProcessId = $workspacePid"
+    if ($workspaceExisting.ExecutablePath -ne $workspacePython -or $workspaceExisting.CommandLine -notmatch '-m\s+pipeline\.workbench(?:\s|$)') {
+        throw 'The recorded process is not this workspace server; it was not stopped.'
+    }
+    Stop-Process -Id $workspacePid -ErrorAction Stop
+    Wait-Process -Id $workspacePid -Timeout 5 -ErrorAction SilentlyContinue
 }
 if (-not (Test-Workspace)) {
     $workspaceLogs = Join-Path $workspaceRoot 'data\processed\workbench'
