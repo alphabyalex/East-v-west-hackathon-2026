@@ -7,6 +7,13 @@ export const mockAssumption = <T>(value: T, ref: string): SourcedValue<T> => ({
   ref: `mock://illustrative/${ref}`,
 })
 
+/** A real, cited team-set assumption - still an assumption, but sourced, not an invented placeholder. */
+export const citedAssumption = <T>(value: T, ref: string): SourcedValue<T> => ({
+  value,
+  source_type: 'assumption',
+  ref: `docs/ASSUMPTIONS.md${ref}`,
+})
+
 // Fixed quantile fixture: [year, p50, p90, p99], in hours/year.
 // These tuples are authored demo values. No simulation or random sampling runs here.
 const baseline = [
@@ -32,12 +39,16 @@ export const defaultInputs: ScenarioInputs = {
   contract_years: 7,
   flexibility_percent: 60,
   site_exposure: 0.4,
-  // Round UI-development placeholders, not sourced economic estimates.
-  // Replace from the team's docs/ASSUMPTIONS.md once it is available on main.
-  firm_wait_years: 3,
-  gpu_per_mw: 1_000,
-  gpu_hour_value_usd: 2,
-  early_margin_usd_per_mw_year: 500_000,
+  // Sourced from docs/ASSUMPTIONS.md: gpu_per_mw (section 1, grid-interconnection
+  // basis), gpu_hour_value_usd (section 2, H100 cross-provider composite),
+  // firm_wait_years (section 3, derived firm-vs-flexible gap). early_margin_usd_per_mw_year
+  // is a 3% assumed operating margin on the doc's sourced gross-revenue derivation -
+  // no public margin figure exists for this business model, so it stays a labeled
+  // ASSUMPTION layered on top of a sourced revenue number (see section 4).
+  firm_wait_years: 4,
+  gpu_per_mw: 575,
+  gpu_hour_value_usd: 3,
+  early_margin_usd_per_mw_year: 317_000,
 }
 
 export const mockResponse: MockResponse = {
@@ -60,10 +71,10 @@ export const mockResponse: MockResponse = {
     contract_years: mockAssumption(defaultInputs.contract_years, 'inputs/contract_years'),
     flexibility_percent: mockAssumption(defaultInputs.flexibility_percent, 'inputs/flexibility_percent'),
     site_exposure: mockAssumption(defaultInputs.site_exposure, 'inputs/site_exposure'),
-    firm_wait_years: mockAssumption(defaultInputs.firm_wait_years, 'economics-placeholder/inputs/firm_wait_years?pending=docs/ASSUMPTIONS.md'),
-    gpu_per_mw: mockAssumption(defaultInputs.gpu_per_mw, 'economics-placeholder/inputs/gpu_per_mw?pending=docs/ASSUMPTIONS.md'),
-    gpu_hour_value_usd: mockAssumption(defaultInputs.gpu_hour_value_usd, 'economics-placeholder/inputs/gpu_hour_value_usd?pending=docs/ASSUMPTIONS.md'),
-    early_margin_usd_per_mw_year: mockAssumption(defaultInputs.early_margin_usd_per_mw_year, 'economics-placeholder/inputs/early_margin_usd_per_mw_year?pending=docs/ASSUMPTIONS.md'),
+    firm_wait_years: citedAssumption(defaultInputs.firm_wait_years, '#3-value-of-connecting-early'),
+    gpu_per_mw: citedAssumption(defaultInputs.gpu_per_mw, '#1-hardware--power-conversion'),
+    gpu_hour_value_usd: citedAssumption(defaultInputs.gpu_hour_value_usd, '#2-cost-of-interrupted-compute'),
+    early_margin_usd_per_mw_year: citedAssumption(defaultInputs.early_margin_usd_per_mw_year, '#4-what-changes-in-the-app'),
   },
   decision_policy: {
     close_call_fraction: mockAssumption(0.05, 'decision_policy/close_call_fraction-of-early-access-value'),

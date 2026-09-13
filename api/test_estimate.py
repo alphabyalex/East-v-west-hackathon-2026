@@ -76,7 +76,7 @@ def test_locations_and_full_ordered_contract_horizon(client, location_id, scale,
     for quantile in ("p50", "p90", "p99"):
         assert result["modeled_exposure"][quantile] == pytest.approx(sum(row[quantile] for row in rows) / term_years)
     assert result["inputs_echo"] == {**DEFAULT_REQUEST, "location_id": location_id, "term_years": term_years, "site_exposure": 1}
-    assert result["economics"]["value_of_early_connection_usd"] == min(term_years, 3) * 100 * 500000
+    assert result["economics"]["value_of_early_connection_usd"] == min(term_years, 4) * 100 * 317000
 
 
 def test_load_and_flexibility_change_economics_without_changing_exposure(client):
@@ -147,11 +147,15 @@ def test_unknown_location_does_not_silently_substitute_a_fixture(client):
 
 def test_all_mock_blocks_have_explicit_assumption_provenance(client):
     result = estimate(client)
-    sources = [result[key]["source"] for key in ("modeled_exposure", "confidence", "economics")]
+    # Exposure/confidence/tariff remain illustrative fixture output; economics is now
+    # sourced from docs/ASSUMPTIONS.md, so it is checked separately below.
+    sources = [result[key]["source"] for key in ("modeled_exposure", "confidence")]
     sources += [row["source"] for row in result["tariff"]["curtailment_triggers"]]
     for source in sources:
         assert source["source_type"] == "assumption"
         assert source["ref"].startswith("mock://illustrative/")
+    assert result["economics"]["source"]["source_type"] == "assumption"
+    assert result["economics"]["source"]["ref"].startswith("docs/ASSUMPTIONS.md?")
     assert "not_ensemble_inference" in result["confidence"]["basis"]
     assert "not extracted" in result["tariff"]["service"]
 
@@ -182,6 +186,6 @@ def test_precomputed_provider_can_be_replaced_without_changing_http_contract(cli
     assert result["modeled_exposure"]["source"]["ref"].startswith("test://precomputed/exposure/version?")
     assert result["confidence"]["basis"] == "test-provider-disagreement"
     assert result["confidence"]["score"] == 0.2
-    # Real exposure would not silently make the still-unsourced economics real.
+    # Swapping the exposure provider must not change the independently-sourced economics.
     assert result["economics"]["source"]["source_type"] == "assumption"
-    assert result["economics"]["source"]["ref"].startswith("mock://")
+    assert result["economics"]["source"]["ref"].startswith("docs/ASSUMPTIONS.md?")

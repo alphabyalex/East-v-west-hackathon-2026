@@ -175,7 +175,7 @@ describe('scenario HTTP provider', () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
     act(() => result.current.chooseMode('api'));
     expect(result.current.inputs.gpu_hour_value_usd).toBe(defaultInputs.gpu_hour_value_usd);
-    expect(result.current.sourceFor('gpu_hour_value_usd').ref).toContain('mock://');
+    expect(result.current.sourceFor('gpu_hour_value_usd').ref).toContain('docs/ASSUMPTIONS.md');
     expect(result.current.modeNote).toContain('reset');
     expect(result.current.status).toBe('loading');
     await tick();

@@ -7,13 +7,19 @@ from .mock_provider import LocationProvider
 from .schemas import EstimateRequest, EstimateResponse
 
 
-# Round, explicitly mocked defaults shared with web/src/model/fixture.ts.
-# Replace these from docs/ASSUMPTIONS.md when the team's sourcing lands on main.
-MOCK_ECONOMICS = {
-    "firm_wait_years": 3,
-    "gpu_per_mw": 1000,
-    "gpu_hour_value_usd": 2,
-    "early_margin_usd_per_mw_year": 500000,
+# Sourced defaults from docs/ASSUMPTIONS.md, shared with web/src/model/fixture.ts.
+# gpu_per_mw: grid-interconnection-basis GPUs/MW for H100 (post-PUE), doc section 1.
+# gpu_hour_value_usd: H100 cross-provider rental composite, doc section 2.
+# firm_wait_years: derived firm-vs-flexible connection gap, doc section 3.
+# early_margin_usd_per_mw_year: an explicit 3% assumed operating margin on the doc's
+# sourced $10,577,700/MW/yr gross-revenue derivation (section 3) - no public opex/capex
+# margin figure exists for AI-GPU-neocloud infrastructure, so this stays a labeled
+# ASSUMPTION rather than a directly sourced figure. See docs/ASSUMPTIONS.md section 4.
+ECONOMICS_DEFAULTS = {
+    "firm_wait_years": 4,
+    "gpu_per_mw": 575,
+    "gpu_hour_value_usd": 3,
+    "early_margin_usd_per_mw_year": 317000,
 }
 MOCK_CLOSE_CALL_FRACTION = 0.05
 QUANTILES = ("p50", "p90", "p99")
@@ -47,7 +53,7 @@ def build_estimate(request: EstimateRequest, provider: LocationProvider) -> Esti
     # Means of annual marginal quantiles, matching the existing frontend mock.
     # A summed marginal-quantile path is not a quantile of total contract loss.
     summary = {key: sum(row[key] for row in by_year) / len(by_year) for key in QUANTILES}
-    local = MOCK_ECONOMICS
+    local = ECONOMICS_DEFAULTS
     interruptible_mw = request.load_mw * request.flexibility_split
     gpu_hours = {key: summary[key] * interruptible_mw * local["gpu_per_mw"] for key in QUANTILES}
     annual_cost = {key: gpu_hours[key] * local["gpu_hour_value_usd"] for key in QUANTILES}
@@ -93,9 +99,7 @@ def build_estimate(request: EstimateRequest, provider: LocationProvider) -> Esti
             "decision": decision,
             "source": {
                 "source_type": "assumption",
-                "ref": "mock://illustrative/economics-placeholder/api/estimate?" + _query({
-                    **echo, **local, "pending": "docs/ASSUMPTIONS.md",
-                }),
+                "ref": "docs/ASSUMPTIONS.md?" + _query({**echo, **local}) + "#4-what-changes-in-the-app",
             },
         },
         "tariff": location.tariff,

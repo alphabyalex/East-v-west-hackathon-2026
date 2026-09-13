@@ -38,7 +38,7 @@ function useScenarioState(initialMode: EstimateMode) {
     if (next === 'api') {
       setInputs(previous => ({ ...previous, ...Object.fromEntries(economicKeys.map(key => [key, defaultInputs[key]])) }));
       setEdited(previous => new Set([...previous].filter(key => !(economicKeys as readonly (keyof ScenarioInputs)[]).includes(key))));
-      setModeNote('API mode uses the default mock economics. Local overrides have been reset.');
+      setModeNote('API mode uses the sourced default economics. Local overrides have been reset.');
       transport.retry();
     } else {
       setModeNote('Local mock mode works without the backend. No estimate requests are sent.');

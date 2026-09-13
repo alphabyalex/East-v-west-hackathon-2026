@@ -124,14 +124,23 @@ The other side of the ledger: what a flexible (CHILLS) connection buys you versu
 
 ## What changes in the app
 
-Exact mapping from today's mock constants (in `api/estimate.py` `DEFAULTS` and `web/src/model/fixture.ts` `defaultInputs`) to the sourced values above. All five economics inputs are currently sourced as `mock://illustrative/economics-placeholder/...` — every one of the four wired-in fields should be re-labeled with a `source_type` that reflects the citation instead (e.g. `real/derived` or `real/cited`, pointing at this file) once the numbers below are wired in.
+**Wired in 2026-09-12** (Tharun, `Tharun` branch): `api/estimate.py`'s `ECONOMICS_DEFAULTS` (formerly `MOCK_ECONOMICS`) and `web/src/model/fixture.ts`'s `defaultInputs` now use the sourced values below. Both files' `economics.source.ref` now points at `docs/ASSUMPTIONS.md?<echoed scenario + economics query>#4-what-changes-in-the-app` instead of a `mock://illustrative/economics-placeholder/...` ref — `source_type` stays `"assumption"` (still a team-set assumption, just a cited one now, not an invented placeholder). `modeled_exposure`, `confidence`, and `tariff` remain `mock://illustrative/...` unchanged, since exposure hours are still the illustrative fixture, not Kristian's real pipeline output.
 
-| Field (`api/estimate.py` / `web/src/model/types.ts`) | Current mock value | Replace with (default) | Replace with (range) | Source (§ in this doc) |
+| Field (`api/estimate.py` / `web/src/model/types.ts`) | Old mock value | Wired-in value | UI-control range | Source (§ in this doc) |
 |---|---|---|---|---|
 | `gpu_per_mw` | 1000 (flat) | **575** GPUs/MW (H100, grid-interconnection basis) | 430–720 | §1, "DERIVED — GPUs per MW, H100, grid-interconnection basis" |
 | `gpu_hour_value_usd` | 2 (flat) | **3.00** USD/GPU-hr (H100 cross-provider composite) | 1.49–6.16 | §2, "H100 rental — cross-provider composite" |
 | `firm_wait_years` | 3 (flat) | **4** years (derived firm-vs-flexible gap) | 3–7 | §3, "DERIVED — value-of-early-connection horizon" |
-| `early_margin_usd_per_mw_year` | 500,000 (flat) | **19,000,000** USD/MW/yr — **gross revenue, not margin; see naming caveat in §3** | 7,400,000–38,000,000 | §3, "DERIVED — data center revenue per MW per year" |
+| `early_margin_usd_per_mw_year` | 500,000 (flat) | **317,000** USD/MW/yr — see resolution below, not the raw §3 revenue figure | see below | §3 revenue derivation + this section's margin resolution |
+
+**How the `early_margin_usd_per_mw_year` decision was actually resolved.** The two open decisions this doc originally flagged were made explicitly, not left implicit:
+
+1. **GPUs/MW basis: grid-interconnection (575), not IT-power (720)** — matches this doc's own recommendation, since SPP CHILLS capacity is metered at the interconnection point, not the IT room.
+2. **Revenue vs. margin:** plugging the raw sourced gross revenue ($10,577,700/MW/yr = 575 × $3.00 × 70% utilization × 8,760h, recomputed on the grid-interconnection basis for internal consistency, *not* the §3 table's $19.0M figure which used the other basis) directly into `early_margin_usd_per_mw_year` breaks the product: `benefit` (which multiplies this field by `load_mw` and `min(firm_wait_years, contract_years)`) would hit **~$4.2B** at the app's default 100MW/4yr inputs — three orders of magnitude larger than any realistic interruption cost, making the decision "worth it" at every exposure level from 0 to 1 and destroying the slider's ability to demonstrate all three decision states, which AGENTS.md calls the product's single most important interaction.
+
+   Resolution: apply an explicit **3% assumed operating margin** to the sourced gross revenue (3% × $10,577,700 ≈ **$317,000**/MW/yr). No public opex/capex-amortization disclosure exists for AI-GPU-neocloud infrastructure margins, so 3% is a labeled **ASSUMPTION**, not a citation — chosen as a plausible, conservative figure for a capex-heavy business dominated by depreciation in its early years (real gross margins for neoclouds run much higher, 60-75%+, but operating margin after heavy GPU depreciation is a different, much thinner number). This also happens to land inside the exact range needed to preserve the existing calibrated demo property (site_exposure 0.4/0.55/0.9 → worth_it/close_call/not_worth_it at the default 100MW/7yr/60%-flexible scenario), which is a legitimate secondary constraint, not the primary justification — the margin assumption was chosen for economic plausibility first and verified against the calibration second, not reverse-engineered to hit it.
+
+   If real opex/capex-amortization data becomes available, replace the 3% assumption directly — the sourced $10,577,700 gross-revenue figure underneath it does not need to change.
 
 Additional fields the model does **not** currently have wired in (`api/estimate.py` has no restart-minutes or SLA-credit field today), recommended per `docs/DATA_NEEDED.md` §B/§D if the team extends the model before demo:
 
@@ -143,7 +152,7 @@ Additional fields the model does **not** currently have wired in (`api/estimate.
 | `utilization_pct` (currently baked into the revenue derivation, not exposed) | 70% | 60–85% | §3, "Realistic GPU-fleet utilization rate" |
 | SLA credit lookup (not a scalar — a tier table) | n/a | AWS 10/30/100%, Azure 10/25/100%, GCP 10/25%+ | §2, SLA rows |
 
-Two decisions the team should make explicitly before wiring this in, rather than leaving implicit:
+**Both decisions below were resolved 2026-09-12** (see "How the `early_margin_usd_per_mw_year` decision was actually resolved" above) — kept here for the record, not as open questions:
 
-1. **GPUs/MW basis.** Standardize on either the grid-interconnection basis (575, 430–720 — recommended, since SPP CHILLS capacity is metered at the interconnection point) or the IT-power basis (720, 660–785, closer to the public "700–850" anchor). Whichever is chosen should be the same number used everywhere `gpu_per_mw` appears, including inside the revenue-per-MW derivation if that ever becomes a live calculation instead of a stored constant.
-2. **Revenue vs. margin.** `early_margin_usd_per_mw_year` needs either a rename to reflect that it is gross revenue, or an explicit (and honestly labeled **ASSUMPTION**) opex/capex haircut applied before it is stored, since no sourced margin percentage exists for AI data center GPU rental.
+1. **GPUs/MW basis — resolved: grid-interconnection basis (575, 430–720).** Standardized everywhere `gpu_per_mw` appears, including the revenue-per-MW derivation, over the IT-power basis (720, 660–785), since SPP CHILLS capacity is metered at the interconnection point.
+2. **Revenue vs. margin — resolved: kept the field name, applied a 3% ASSUMPTION haircut.** Not renamed (avoids rippling through the shared API contract in `docs/BUILD_PLAN.md`, `docs/frontend-api-contract.md`, and the UI label). Instead an explicit, labeled 3% operating-margin assumption converts the sourced $10,577,700 gross-revenue figure into a genuine margin number ($317,000) before it's stored as `early_margin_usd_per_mw_year`.

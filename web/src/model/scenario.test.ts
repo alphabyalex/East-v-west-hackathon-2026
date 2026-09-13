@@ -86,7 +86,7 @@ describe('canonical offline estimate contract', () => {
 
   it('uses term p50 and p90 comparison proxies to produce all three decisions', () => {
     const base = deriveScenario(defaultInputs)
-    expect(base.economics.break_even_exposure_hours.value).toBeCloseTo(150_000_000 / (7 * 120_000), 12)
+    expect(base.economics.break_even_exposure_hours.value).toBeCloseTo(126_800_000 / (7 * 103_500), 12)
     expect(base.decision).toBe('worth it')
     expect(deriveScenario({ ...defaultInputs, site_exposure: 0.55 }).decision).toBe('close call')
     expect(deriveScenario({ ...defaultInputs, site_exposure: base.economics.break_even_site_exposure.value! }).decision).toBe('close call')
@@ -142,11 +142,14 @@ describe('canonical offline estimate contract', () => {
 
   it('retains mock provenance for every canonical result block and never fabricates a clause citation', () => {
     const response = createMockEstimate(toEstimateRequest(defaultInputs))
-    for (const source of [response.modeled_exposure.source, response.confidence.source, response.economics.source, ...response.tariff.curtailment_triggers.map((trigger) => trigger.source)]) {
+    // Exposure/confidence/tariff remain illustrative fixture output; economics is now
+    // sourced from docs/ASSUMPTIONS.md, so it is checked separately below.
+    for (const source of [response.modeled_exposure.source, response.confidence.source, ...response.tariff.curtailment_triggers.map((trigger) => trigger.source)]) {
       expect(source.source_type).toBe('assumption')
       expect(source.ref).toMatch(/^mock:\/\/illustrative\//)
     }
-    expect(response.economics.source.ref).toContain('economics-placeholder')
+    expect(response.economics.source.source_type).toBe('assumption')
+    expect(response.economics.source.ref).toMatch(/^docs\/ASSUMPTIONS\.md\?/)
     expect(response.tariff.service).toContain('mock; not extracted')
     expect(response.tariff.curtailment_triggers[0].text).toContain('no tariff clause has been extracted')
     expect(JSON.stringify(response)).not.toContain('FERC')
@@ -163,7 +166,7 @@ describe('canonical offline estimate contract', () => {
         const object = value as Record<string, unknown>
         if ('value' in object) {
           expect(object.source_type).toBe('assumption')
-          expect(object.ref).toMatch(/^(mock:\/\/illustrative\/|user:\/\/estimate\/)/)
+          expect(object.ref).toMatch(/^(mock:\/\/illustrative\/|user:\/\/estimate\/|docs\/ASSUMPTIONS\.md)/)
           if (typeof object.value === 'number') expect(Number.isFinite(object.value)).toBe(true)
         } else Object.values(object).forEach(verify)
       } else expect(typeof value).not.toBe('number')
