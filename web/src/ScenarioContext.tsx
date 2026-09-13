@@ -12,12 +12,38 @@ const economicFields = {
 } as const;
 const configuredMode = (): EstimateMode => import.meta.env.VITE_ESTIMATE_MODE === 'local' ? 'local' : 'api';
 
+export interface SavedScenario {
+  id: string
+  name: string
+  timestamp: number
+  inputs: ScenarioInputs
+  result: ReturnType<typeof deriveScenario>
+}
+
 function useScenarioState(initialMode: EstimateMode) {
   const [storedInputs, setInputs] = useState<ScenarioInputs>({ ...defaultInputs });
   const [edited, setEdited] = useState<Set<keyof ScenarioInputs>>(new Set());
   const [mode, setMode] = useState<EstimateMode>(initialMode);
   const [modeNote, setModeNote] = useState('');
   const [serverDefaults, setServerDefaults] = useState<EconomicsAssumptions>();
+  const [savedScenarios, setSavedScenarios] = useState<SavedScenario[]>(() => {
+    try {
+      const saved = localStorage.getItem('fluxline_saved_scenarios');
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // Ignore in tests
+    }
+    return [];
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('fluxline_saved_scenarios', JSON.stringify(savedScenarios));
+    } catch {
+      // Ignore in tests
+    }
+  }, [savedScenarios]);
+
   const request = useMemo(() => toEstimateRequest(storedInputs), [storedInputs]);
   const transport = useEstimateTransport(request, mode);
   useEffect(() => {
@@ -53,6 +79,44 @@ function useScenarioState(initialMode: EstimateMode) {
     }])) as SourcedInputs;
     return derived;
   }, [inputs, edited, transport.response, economicDefaults, decisionPolicy]);
+
+  function saveScenario(name?: string) {
+    const defaultLabel = `Scenario ${savedScenarios.length + 1}: ${
+      inputs.location_id === 'SPP_SYSTEM'
+        ? 'SPP System'
+        : inputs.location_id.replace('spp-', '').replace('-demo', '').toUpperCase()
+    } (${inputs.load_mw} MW)`;
+    const newScenario: SavedScenario = {
+      id: `scen_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      name: name || defaultLabel,
+      timestamp: Date.now(),
+      inputs: { ...inputs },
+      result: { ...result },
+    };
+    setSavedScenarios(prev => [...prev, newScenario]);
+  }
+
+  function deleteScenario(id: string) {
+    setSavedScenarios(prev => prev.filter(scen => scen.id !== id));
+  }
+
+  function loadScenario(id: string) {
+    const target = savedScenarios.find(scen => scen.id === id);
+    if (target) {
+      setInputs({ ...target.inputs });
+      const editedKeys = Object.keys(target.inputs).filter(key => {
+        const val = target.inputs[key as keyof ScenarioInputs];
+        const def = defaultInputs[key as keyof ScenarioInputs];
+        return val !== def;
+      });
+      setEdited(new Set(editedKeys as (keyof ScenarioInputs)[]));
+    }
+  }
+
+  function clearAllScenarios() {
+    setSavedScenarios([]);
+  }
+
   function update<K extends keyof ScenarioInputs>(key: K, value: ScenarioInputs[K]) {
     if (inputs[key] === value) return;
     if ((economicKeys as readonly (keyof ScenarioInputs)[]).includes(key)) {
@@ -78,7 +142,24 @@ function useScenarioState(initialMode: EstimateMode) {
     setEdited(new Set());
     setModeNote('');
   }
-  return { inputs, result, update, reset, sourceFor, mode, chooseMode, modeNote, status: transport.status, error: transport.error, retry: transport.retry };
+  return {
+    inputs,
+    result,
+    update,
+    reset,
+    sourceFor,
+    mode,
+    chooseMode,
+    modeNote,
+    status: transport.status,
+    error: transport.error,
+    retry: transport.retry,
+    savedScenarios,
+    saveScenario,
+    deleteScenario,
+    loadScenario,
+    clearAllScenarios,
+  };
 }
 
 const ScenarioContext = createContext<ReturnType<typeof useScenarioState> | null>(null);

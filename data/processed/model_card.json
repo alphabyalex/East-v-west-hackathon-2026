@@ -1,0 +1,242 @@
+{
+  "status": "research_only_pending_label_and_calibration_review",
+  "prediction_task": "Target-hour system event/proxy from previous observed hours; not site curtailment.",
+  "settings": {
+    "n_estimators": 100,
+    "num_leaves": 7,
+    "max_depth": 3,
+    "learning_rate": 0.05,
+    "min_child_samples": 30,
+    "reg_lambda": 1.0,
+    "verbosity": -1,
+    "n_jobs": 1,
+    "deterministic": true,
+    "force_col_wise": true,
+    "seed": 2026,
+    "ensemble_members": 15,
+    "bootstrap_block_hours": 24,
+    "embargo_hours": 24,
+    "split_fractions": [
+      0.6,
+      0.2,
+      0.2
+    ],
+    "calibration": "sigmoid on separate middle time window"
+  },
+  "versions": {
+    "numpy": "2.2.6",
+    "pandas": "2.3.3",
+    "scikit-learn": "1.7.2",
+    "lightgbm": "4.7.0",
+    "pyarrow": "25.0.1"
+  },
+  "splits": {
+    "train": {
+      "start": "2024-01-02 06:00:00+00:00",
+      "end": "2024-08-08 06:00:00+00:00",
+      "rows": 5209,
+      "positive_hours": 10
+    },
+    "calibration": {
+      "start": "2024-08-09 07:00:00+00:00",
+      "end": "2024-10-19 14:00:00+00:00",
+      "rows": 1712,
+      "positive_hours": 7
+    },
+    "test": {
+      "start": "2024-10-20 15:00:00+00:00",
+      "end": "2024-12-31 23:00:00+00:00",
+      "rows": 1713,
+      "positive_hours": 5
+    }
+  },
+  "test": {
+    "brier_score": 0.0029068507842563256,
+    "log_loss": 0.01935559384140366,
+    "event_rate": 0.002918855808523059,
+    "mean_prediction": 0.0027782073582734742,
+    "n_hours": 1713,
+    "positive_hours": 5,
+    "roc_auc": 0.8607728337236533,
+    "average_precision": 0.013116883116883117,
+    "reliability_bins": [
+      {
+        "n": 1713,
+        "mean_prediction": 0.0027782073582734742,
+        "observed_fraction": 0.002918855808523059
+      }
+    ]
+  },
+  "uncalibrated_test": {
+    "brier_score": 0.0029176823635188496,
+    "log_loss": 0.02492458968154205,
+    "event_rate": 0.002918855808523059,
+    "mean_prediction": 0.0001288443162527343,
+    "n_hours": 1713,
+    "positive_hours": 5,
+    "roc_auc": 0.8585480093676815,
+    "average_precision": 0.012991718426501035,
+    "reliability_bins": [
+      {
+        "n": 1713,
+        "mean_prediction": 0.0001288443162527343,
+        "observed_fraction": 0.002918855808523059
+      }
+    ]
+  },
+  "baseline_test": {
+    "brier_score": 0.0029113342931734857,
+    "log_loss": 0.020175062541247176,
+    "event_rate": 0.002918855808523059,
+    "mean_prediction": 0.001919754271453255,
+    "n_hours": 1713,
+    "positive_hours": 5,
+    "roc_auc": 0.5,
+    "average_precision": 0.002918855808523059,
+    "reliability_bins": [
+      {
+        "n": 1713,
+        "mean_prediction": 0.001919754271453255,
+        "observed_fraction": 0.002918855808523059
+      }
+    ]
+  },
+  "brier_skill_vs_train_prevalence": 0.0015400185844933745,
+  "test_by_location": {
+    "SPP_SYSTEM": {
+      "brier_score": 0.0029068507842563256,
+      "log_loss": 0.01935559384140366,
+      "event_rate": 0.002918855808523059,
+      "mean_prediction": 0.0027782073582734742,
+      "n_hours": 1713,
+      "positive_hours": 5,
+      "roc_auc": 0.8607728337236533,
+      "average_precision": 0.013116883116883117,
+      "reliability_bins": [
+        {
+          "n": 1713,
+          "mean_prediction": 0.0027782073582734742,
+          "observed_fraction": 0.002918855808523059
+        }
+      ],
+      "brier_skill_vs_train_prevalence": 0.0015400185844933745
+    }
+  },
+  "feature_names": [
+    "hour_sin",
+    "hour_cos",
+    "year_sin",
+    "year_cos",
+    "weekend",
+    "load_mw_lag_1h",
+    "load_mw_lag_24h",
+    "load_mw_lag_168h",
+    "load_mw_mean_24h",
+    "load_mw_std_24h",
+    "temperature_c_lag_1h",
+    "temperature_c_lag_24h",
+    "temperature_c_lag_168h",
+    "temperature_c_mean_24h",
+    "temperature_c_std_24h",
+    "temperature_area_min_c_lag_1h",
+    "temperature_area_min_c_lag_24h",
+    "temperature_area_min_c_lag_168h",
+    "temperature_area_min_c_mean_24h",
+    "temperature_area_min_c_std_24h",
+    "temperature_area_max_c_lag_1h",
+    "temperature_area_max_c_lag_24h",
+    "temperature_area_max_c_lag_168h",
+    "temperature_area_max_c_mean_24h",
+    "temperature_area_max_c_std_24h",
+    "temperature_c_min_24h",
+    "temperature_c_max_24h",
+    "temperature_c_change_24h"
+  ],
+  "mean_feature_importance": {
+    "hour_sin": 34.4,
+    "hour_cos": 0.13333333333333333,
+    "year_sin": 26.2,
+    "year_cos": 30.333333333333332,
+    "weekend": 0.0,
+    "load_mw_lag_1h": 9.933333333333334,
+    "load_mw_lag_24h": 7.333333333333333,
+    "load_mw_lag_168h": 4.533333333333333,
+    "load_mw_mean_24h": 16.733333333333334,
+    "load_mw_std_24h": 7.333333333333333,
+    "temperature_c_lag_1h": 0.4,
+    "temperature_c_lag_24h": 17.666666666666668,
+    "temperature_c_lag_168h": 25.533333333333335,
+    "temperature_c_mean_24h": 5.133333333333334,
+    "temperature_c_std_24h": 9.066666666666666,
+    "temperature_area_min_c_lag_1h": 0.0,
+    "temperature_area_min_c_lag_24h": 0.0,
+    "temperature_area_min_c_lag_168h": 0.0,
+    "temperature_area_min_c_mean_24h": 0.0,
+    "temperature_area_min_c_std_24h": 0.0,
+    "temperature_area_max_c_lag_1h": 0.0,
+    "temperature_area_max_c_lag_24h": 0.0,
+    "temperature_area_max_c_lag_168h": 0.0,
+    "temperature_area_max_c_mean_24h": 0.0,
+    "temperature_area_max_c_std_24h": 0.0,
+    "temperature_c_min_24h": 2.8,
+    "temperature_c_max_24h": 16.733333333333334,
+    "temperature_c_change_24h": 29.8
+  },
+  "warnings": [
+    "The held-out period covers less than a year; seasonal generalization is unverified."
+  ],
+  "model_version": "spp_lgbm_20260913T045221_8c82768ff3",
+  "policy": {
+    "operator": "SPP",
+    "label_method": "observed_event",
+    "data_ref": "https://portal.spp.org/file-browser-api/download/hourly-load?path=/2024/2024.zip",
+    "label_ref": "local://spp_events.csv"
+  },
+  "input_hashes": {
+    "hourly_sha256": "8c82768ff3e9ee42f78f6f57e572bb88451630926ebcd5d74414fd65c2605639",
+    "policy_sha256": "e0251f75ea31a72a5a1a76d804b218658f3b8b421e2dc4c1d7824a753c21486d"
+  },
+  "input_rows": 8784,
+  "usable_rows": 8682,
+  "unknown_label_rows": 6,
+  "confidence": {
+    "SPP_SYSTEM": {
+      "level": "Low",
+      "score": 0.9976282980878528,
+      "n_similar_historical_hours": 0,
+      "mean_ensemble_probability_std": 0.0011858509560736079,
+      "limitations": [
+        "less_than_one_year_of_heldout_history",
+        "fewer_than_20_positive_test_hours"
+      ],
+      "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
+    }
+  },
+  "confidence_policy": {
+    "agreement_score": "clip(1 - 2 * mean(ensemble probability standard deviation), 0, 1)",
+    "similarity_radius_rms_standard_deviations": 0.5,
+    "query_sample_limit": 256,
+    "precedent_count_aggregation": "median count of same-location training hours within radius of sampled test hours",
+    "high_score_min": 0.9,
+    "medium_score_min": 0.7,
+    "high_precedent_min": 100,
+    "medium_precedent_min": 20,
+    "minimum_heldout_span_days_for_above_low": 365,
+    "minimum_positive_test_hours_for_above_low": 20,
+    "meaning": "Ensemble agreement and historical support for the proxy classifier, not a probability of correctness or calibrated coverage of annual tails."
+  },
+  "temperature_data": {
+    "observed_hours": 8784,
+    "missing_hours": 0,
+    "source_refs": [
+      "data/processed/ml_inputs/spp_2024_amarillo_temperature.weather.json#hourly-temperature; map_sha256=c9ad45117f951a2ec497f61705ac9b6a50dc1200ceba7a5a27fecee88e2d00e0"
+    ],
+    "feature_policy": {
+      "ref": "pipeline/features.py:TEMPERATURE_FEATURE_POLICY",
+      "features": "1/24/168-hour lags and previous-24-hour mean/std for mean and regional min/max temperature; previous-day mean-temperature min/max and signed 24-hour change.",
+      "cutoff": "All observed temperature features end before the target hour; no same-hour temperatures or future daily extrema.",
+      "effect": "Learned by the classifier from independent event/proxy labels; no hardcoded hot/cold cutoff probability or monotonicity assumption.",
+      "availability": "Reanalysis inputs support retrospective study; historical timestamps alone do not verify real-time availability."
+    }
+  }
+}
