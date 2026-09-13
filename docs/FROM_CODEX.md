@@ -267,3 +267,9 @@
 - Validation: production TypeScript/Vite build passed (existing chunk-size advisory only). Source audit found no remaining old product labels; live frontend HTML and OpenAPI titles display Fluxline. Package and lockfile names agree.
 - Outside /web: README.md, docs/ASSUMPTIONS.md heading, api/main.py title, pipeline/workbench.py launch text and its HTML labels, plus this outbox, per the requested complete text rename. AGENTS.md and FROM_CLAUDE.md untouched. Publishing to main.
 - Needs review: no design change; brand-mark/favicon artwork remains Tharun's design.
+
+## Branch refresh and Tharun accessibility/presentation merge — 2026-09-13 03:15 UTC
+- Changed: fetched all origin branches. Tharun advanced from d3b2770 to 042ece5: 1ed82eb aligns provenance-button accessible names with formatted visible labels, b800be4 incorporates prior main, and 042ece5 refines landing color discipline/closing-line spacing. Merged into main without conflicts as 9a83c72. These are Tharun's design changes; Fluxline branding is preserved. Kristian remains 2e4d9d2 and Alex remains ec9ae7f, both already integrated; origin/main had no incoming commits beyond our existing 595dcbb.
+- New/changed interface: provenance primitives now compute accessible names from formatted/plain visible text; exact underlying values remain in provenance JSON. No API, model, schema, or runtime wiring changes.
+- Validation: 212 frontend tests passed; 8 opt-in live tests skipped in the ordinary suite. TypeScript/production build passed with the existing large-chunk advisory. No backend changes required a Python rerun. Publishing merge and this log to main; teammate branches untouched.
+- Needs review: nonblocking primitive API detail for Tharun: displayText is present in exported prop types but not forwarded as a caller override by Sourced/SourceInfo; current callers do not use it. No integration blocker found. No files outside /web changed except this outbox.
