@@ -53,7 +53,7 @@ describe('transparency panel', () => {
     expect(region.textContent).toContain('local transmission headroom we do not have')
     expect(region.textContent).toContain('not a fitted coefficient or a measured site risk')
     expect(region.textContent).toContain('Confidence describes support for the estimate, not the probability')
-    expect(region.textContent).toContain('MOCK DIAGNOSTICS · NOT COMPUTED')
+    expect(region.textContent).toContain('Mock diagnostics · not computed')
     expect(region.textContent).toContain('No held-out evaluation has been performed')
     expect(region.textContent).toContain('independent of the exposure slider')
     expect(screen.getByText('Mock reliability curve')).toBeTruthy()
@@ -112,7 +112,7 @@ describe('transparency panel', () => {
   it('labels mock tariff records as unextracted and supplies no fabricated citation link', () => {
     const config = props()
     render(<TransparencyPanel {...config} />)
-    expect(screen.getByText('MOCK CLAUSE · NOT EXTRACTED')).toBeTruthy()
+    expect(screen.getByText('Mock clause · not extracted')).toBeTruthy()
     expect(screen.getByText('No verified citation available.')).toBeTruthy()
     expect(screen.queryByRole('link')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: /Tariff clause provenance/ }))

@@ -91,11 +91,21 @@ fixture value uses `source_type: "assumption"`; mock references do not claim rea
 dataset or tariff support. The one-to-seven-year horizon matches the pipeline
 contract, not a claim about an allowed tariff term.
 
-Economics are explicitly marked **MOCK ECONOMICS**, including the decision and the
-slider's break-even caption. The round fixture defaults (1,000 GPUs/MW, $2/GPU-hour,
+Economics carry small **Mock economics** labels beside their results, including
+the decision and the slider's break-even caption; there is no global warning banner.
+Each result block checks its supplied `mock://` reference independently, so sourced
+exposure can replace its mock label while economics or diagnostics remain marked.
+The round fixture defaults (1,000 GPUs/MW, $2/GPU-hour,
 $500,000/MW-year early margin, and three years of earlier access) are dummy values,
 not sourced estimates. Their provenance references identify economics placeholders
 pending `docs/ASSUMPTIONS.md`; editable inputs remain user assumptions.
+
+Primary median exposure and net value have greater numeric scale; upper-tail
+quantiles remain visible with separate confidence/provenance. Numeric changes use
+bounded cubic easing that retargets from the displayed value during rapid dragging.
+Chart selection, confidence-level and decision changes have brief eased feedback;
+native inputs remain direct, and neither new views nor numbers count up on first
+load. All motion respects reduced-motion preferences and stops when idle/hidden.
 
 Kristian/Tharun's economics sourcing will arrive through `main` in
 `docs/ASSUMPTIONS.md`. Check main at integration checkpoints. When it arrives, replace

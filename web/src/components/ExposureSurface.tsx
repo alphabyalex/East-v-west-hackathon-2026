@@ -3,6 +3,8 @@ import { ChevronLeft, ChevronRight, Minus, Plus, RotateCcw, RotateCw } from 'luc
 import type { BaselineYear, Source } from '../model';
 import { Sourced, SourceInfo } from './Sourced';
 import { ConfidenceBadge, type ConfidenceEstimate } from './ConfidenceBadge';
+import { useChangeMotion } from '../hooks/useChangeMotion';
+import { MockLabel } from './MockLabel';
 import { QUANTILES, type SurfaceQuantile } from './exposure-surface/geometry';
 import { createSurfaceRenderer, type AxisLabel, type SurfaceController } from './exposure-surface/renderer';
 
@@ -21,6 +23,8 @@ export default function ExposureSurface({ rows, maximumHours, confidence, onUnav
   const currentYearIndex = Math.min(yearIndex, rows.length - 1);
   const row = rows[currentYearIndex];
   const datum = row[`p${quantile}`];
+  const inspector = useRef<HTMLDivElement>(null);
+  useChangeMotion(inspector, `${row.year.value}:${quantile}`);
 
   useEffect(() => {
     if (!host.current || typeof WebGL2RenderingContext === 'undefined') { unavailable.current(); return; }
@@ -70,10 +74,10 @@ export default function ExposureSurface({ rows, maximumHours, confidence, onUnav
       </div>)}</div>
     </div>
     <p id="surface-keyboard-help" className="sr-only">Arrow keys rotate the surface. Plus and minus zoom. Home resets the camera. Use the year and percentile inspector below or the annual data table for exact sourced values.</p>
-    <div className="surface-inspector" aria-label="Selected supplied quantile">
+    <div className="surface-inspector" ref={inspector} aria-label="Selected supplied quantile">
       <div className="surface-inspector-year"><span className="eyebrow">YEAR</span><button onClick={() => setYearIndex(Math.max(0, currentYearIndex - 1))} disabled={currentYearIndex === 0} aria-label="Inspect previous year"><ChevronLeft size={13} /></button><Sourced value={row.year.value} source={row.year} animate={false} /><button onClick={() => setYearIndex(Math.min(rows.length - 1, currentYearIndex + 1))} disabled={currentYearIndex === rows.length - 1} aria-label="Inspect next year"><ChevronRight size={13} /></button></div>
       <div className="surface-quantile-controls" role="group" aria-label="Inspect percentile">{QUANTILES.map(value => <span key={value} className={quantile === value ? 'selected-quantile' : ''}><button onClick={() => setQuantile(value)} aria-pressed={quantile === value} aria-label={`Inspect p${value}`} title={JSON.stringify({ value, ...quantileSource(value) })}>p{value}</button><SourceInfo value={value} source={quantileSource(value)} label={`p${value} percentile definition`} /></span>)}</div>
-      <div className="surface-inspected-value"><Sourced value={quantile} source={quantileSource(quantile)} animate={false}>p{quantile}</Sourced><span>modeled exposure</span><strong><Sourced value={datum.value} source={datum} format={hours} /></strong><span>h/yr</span>{confidence && <ConfidenceBadge confidence={confidence} compact />}</div>
+      <div className="surface-inspected-value"><Sourced value={quantile} source={quantileSource(quantile)} animate={false}>p{quantile}</Sourced><span>modeled exposure</span><MockLabel sources={[datum]} /><strong><Sourced value={datum.value} source={datum} format={hours} /></strong><span>h/yr</span>{confidence && <ConfidenceBadge confidence={confidence} compact />}</div>
     </div>
     <p className="surface-explanation">{rows.length === 1 ? 'A single-year quantile cross-section; no time surface is implied. ' : 'Faces connect supplied annual quantiles; intermediate positions are visual interpolation. '}Percentile spacing is proportional. This is not a probability-density estimate. Readouts are rounded; source tags retain exact values.</p>
   </div>;

@@ -199,7 +199,10 @@ export function adaptEstimateResponse(
       early_access_value_usd: sourced(economics.value_of_early_connection_usd, economics.source, 'economics/value_of_early_connection_usd'),
       net_value_usd: sourced(economics.value_of_early_connection_usd - termLoss, economics.source, 'derived/early-benefit-minus-p50-term-cost'),
       break_even_exposure_hours: sourced(breakEvenHours, economics.source, 'economics/breakeven_exposure_hours_per_year'),
-      break_even_site_exposure: sourced(breakEvenFactor, economics.source, 'derived/breakeven-hours-divided-by-p50-baseline'),
+      break_even_site_exposure: sourced(breakEvenFactor, {
+        ...economics.source,
+        ref: `${economics.source.ref}; exposure_baseline_source=${exposure.source.ref}`,
+      }, 'derived/breakeven-hours-divided-by-p50-baseline'),
     },
     decision: { worth_it: 'worth it', not_worth_it: 'not worth it', close_call: 'close call' }[economics.decision] as ScenarioResult['decision'],
     decision_policy: mockResponse.decision_policy,
