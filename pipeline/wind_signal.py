@@ -127,9 +127,15 @@ def sourced(value: float | int | None, origin: Mapping) -> dict:
 
 
 def finite_number(value: object, name: str, *, minimum=None, maximum=None) -> float:
-    if isinstance(value, (bool, np.bool_)) or not isinstance(value, Real) or not np.isfinite(value):
+    if isinstance(value, (bool, np.bool_)) or not isinstance(value, Real):
         raise ValueError(f"{name} must be a finite number, not a boolean.")
-    number = float(value)
+    # JSON integers and Real fractions need not fit a NumPy scalar dtype.
+    try:
+        number = float(value)
+    except (OverflowError, TypeError, ValueError) as error:
+        raise ValueError(f"{name} must be a finite number, not a boolean.") from error
+    if not np.isfinite(number):
+        raise ValueError(f"{name} must be a finite number, not a boolean.")
     if minimum is not None and number < minimum or maximum is not None and number > maximum:
         raise ValueError(f"{name} is outside its allowed range.")
     return number
@@ -172,8 +178,11 @@ class WindPolicy:
     maximum_lmp_usd_mwh: float = 0.0
 
     def __post_init__(self):
-        finite_number(self.minimum_wind_share, "minimum_wind_share", minimum=0, maximum=1)
-        finite_number(self.maximum_lmp_usd_mwh, "maximum_lmp_usd_mwh")
+        # Screening must compare the same binary64 thresholds recorded in source.
+        object.__setattr__(self, "minimum_wind_share",
+                           finite_number(self.minimum_wind_share, "minimum_wind_share", minimum=0, maximum=1))
+        object.__setattr__(self, "maximum_lmp_usd_mwh",
+                           finite_number(self.maximum_lmp_usd_mwh, "maximum_lmp_usd_mwh"))
 
     @property
     def source(self) -> dict:

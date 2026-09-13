@@ -109,11 +109,17 @@ def _source(source: Mapping) -> dict:
 def _number(value, name: str, *, nullable=False, signed=False) -> float | None:
     if nullable and value is None:
         return None
-    if isinstance(value, bool) or not isinstance(value, Real) or not math.isfinite(value):
+    if isinstance(value, bool) or not isinstance(value, Real):
+        raise ValueError(f"{name} must be a finite number")
+    try:
+        number = float(value)
+    except (OverflowError, TypeError, ValueError) as error:
+        raise ValueError(f"{name} must be a finite number") from error
+    if not math.isfinite(number):
         raise ValueError(f"{name} must be a finite number")
     if not signed and value < 0:
         raise ValueError(f"{name} must be nonnegative")
-    return float(value)
+    return number
 
 
 def _datum(datum: Mapping, name: str, *, nullable=False) -> dict:
