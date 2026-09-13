@@ -43,7 +43,7 @@ function props(): TransparencyPanelProps {
 }
 
 function readProvenance() {
-  return JSON.parse(screen.getByRole('tooltip').querySelector('pre')!.textContent!)
+  return JSON.parse(screen.getByRole('tooltip').getAttribute('data-provenance')!)
 }
 
 describe('transparency panel', () => {

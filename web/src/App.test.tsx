@@ -91,10 +91,10 @@ describe('scenario workspace interactions', () => {
     expect(screen.getByText('Evaluation unavailable.')).toBeTruthy();
     expect(screen.getByText('Tariff evidence not supplied')).toBeTruthy();
     fireEvent.click(screen.getAllByRole('button', { name: /model provenance/ })[0]);
-    expect(JSON.parse(screen.getByRole('tooltip').querySelector('pre')!.textContent!).ref).toContain('test-fixture://pipeline/exposure');
+    expect(JSON.parse(screen.getByRole('tooltip').getAttribute('data-provenance')!).ref).toContain('test-fixture://pipeline/exposure');
   });
 
-  it('retains the crossover mock label if exposure is still mock after sourced economics arrive', async () => {
+  it('retains mixed-source crossover provenance without repeating the assumption caption', async () => {
     vi.stubEnv('VITE_ESTIMATE_MODE', 'api');
     vi.stubGlobal('fetch', withEconomics(vi.fn().mockImplementation((_url, options) => {
       const response = createMockEstimate(JSON.parse(options.body));
@@ -107,9 +107,11 @@ describe('scenario workspace interactions', () => {
     expect(screen.queryByText('Assumed decision')).toBeNull();
     expect(screen.getAllByText('Assumed exposure')).toHaveLength(3);
     const crossover = document.getElementById('exposure-explanation')!;
-    expect(within(crossover).getByText('Assumed')).toBeTruthy();
+    expect(within(crossover).queryByText('Assumed')).toBeNull();
+    expect(crossover.textContent).not.toContain('under these assumptions');
+    expect(screen.getByText('USER ASSUMPTION')).toBeTruthy();
     fireEvent.click(within(crossover).getByRole('button'));
-    const source = JSON.parse(screen.getByRole('tooltip').querySelector('pre')!.textContent!);
+    const source = JSON.parse(screen.getByRole('tooltip').getAttribute('data-provenance')!);
     expect(source.ref).toContain('test-fixture://sourced-economics');
     expect(source.ref).toContain('exposure_baseline_source=mock://');
   });
@@ -129,13 +131,21 @@ describe('scenario workspace interactions', () => {
     expect(document.activeElement).toBe(trigger);
   });
 
-  it('makes HTTP fallback, retry, and the economic override mode switch visible', async () => {
+  it('makes HTTP fallback and successful retry visible', async () => {
     vi.stubEnv('VITE_ESTIMATE_MODE', 'api');
     const fetcher = vi.fn().mockRejectedValueOnce(new TypeError('Failed to fetch')).mockImplementation((_url, options) => Promise.resolve(new Response(JSON.stringify(createMockEstimate(JSON.parse(options.body))), { status: 200 })));
     vi.stubGlobal('fetch', withEconomics(fetcher));
     render(<App />);
     expect(screen.getByText(/current inputs shown as assumed scenario values/)).toBeTruthy();
     fireEvent.click(await screen.findByRole('button', { name: 'Retry estimate' }));
+    expect(await screen.findByText(/Estimate service connected · current inputs synchronized/)).toBeTruthy();
+  });
+
+  it('makes economic overrides explicit and restores supplied defaults', async () => {
+    vi.stubEnv('VITE_ESTIMATE_MODE', 'api');
+    const fetcher = vi.fn().mockImplementation((_url, options) => Promise.resolve(new Response(JSON.stringify(createMockEstimate(JSON.parse(options.body))), { status: 200 })));
+    vi.stubGlobal('fetch', withEconomics(fetcher));
+    render(<App />);
     expect(await screen.findByText(/Estimate service connected · current inputs synchronized/)).toBeTruthy();
     const gpuValue = screen.getByRole('spinbutton', { name: 'LOST COMPUTE VALUE' });
     fireEvent.change(gpuValue, { target: { value: '5' } });
@@ -168,7 +178,7 @@ describe('scenario workspace interactions', () => {
     fireEvent.change(screen.getByRole('slider', { name: 'Site exposure factor' }), { target: { value: '0' } });
     const upperTail = within(table).getAllByRole('cell')[3];
     fireEvent.click(within(upperTail).getAllByRole('button')[0]);
-    const provenance = JSON.parse(screen.getByRole('tooltip').querySelector('pre')!.textContent!);
+    const provenance = JSON.parse(screen.getByRole('tooltip').getAttribute('data-provenance')!);
     expect(provenance.value).toBe(0);
     expect(provenance.source_type).toBe('assumption');
     expect(provenance.ref).toContain('p99');
@@ -205,18 +215,30 @@ describe('scenario workspace interactions', () => {
     expect(document.body.textContent).not.toMatch(/NaN|Infinity/);
   });
 
-  it('exposes the exact value and user-assumption provenance, with pin and Escape dismissal', () => {
+  it('keeps exact source metadata with intentional inspection and Escape dismissal, without a raw JSON box', () => {
     render(<App />);
     const input = screen.getByRole('spinbutton', { name: 'LOAD SIZE' });
     fireEvent.change(input, { target: { value: '120' } });
     const source = screen.getByRole('button', { name: /LOAD SIZE provenance/ });
+    fireEvent.mouseEnter(source);
+    fireEvent.focus(source);
+    expect(screen.queryByRole('tooltip')).toBeNull();
+    expect(JSON.parse(source.getAttribute('data-provenance')!)).toEqual({ value: 120, source_type: 'assumption', ref: 'user://scenario/load_mw' });
     fireEvent.click(source);
     const tooltip = screen.getByRole('tooltip');
-    const provenance = JSON.parse(tooltip.querySelector('pre')!.textContent!);
+    const provenance = JSON.parse(tooltip.getAttribute('data-provenance')!);
     expect(provenance).toEqual({ value: 120, source_type: 'assumption', ref: 'user://scenario/load_mw' });
+    expect(tooltip.textContent).toBe('assumption');
+    expect(tooltip.querySelector('pre')).toBeNull();
+    expect(screen.queryByText(/Activate the value or its source tag to pin/)).toBeNull();
     expect(source.getAttribute('aria-pressed')).toBe('true');
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByRole('tooltip')).toBeNull();
+    fireEvent.click(source);
+    expect(screen.getByRole('tooltip')).toBeTruthy();
+    fireEvent.pointerDown(document.body);
+    expect(screen.queryByRole('tooltip')).toBeNull();
+    expect(source.getAttribute('aria-pressed')).toBe('false');
   });
 
   it('keeps sourced annual values synchronized with the horizon, location, and slider', () => {

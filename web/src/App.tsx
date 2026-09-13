@@ -151,7 +151,7 @@ function ExposureControl() {
         {marker !== null && <span className="break-even-marker" style={{ left: `calc(10px + (100% - 20px) * ${marker})` }} title={`${crossoverSources.some(isMockSource) ? 'Assumed ' : ''}Median cost crossover under current assumptions`} />}
       </div>
       <div className="slider-endpoints"><span><Sourced value={0} source={uiSource('site_exposure/min')} format={v => v.toFixed(1)} animate={false} /> No exposure</span><span>Full modeled exposure <Sourced value={1} source={uiSource('site_exposure/max')} format={v => v.toFixed(1)} animate={false} /></span></div>
-      <div className="slider-caption" id="exposure-explanation"><span className="tiny-diamond" />{marker !== null ? <span>Median cost crossover at <Value datum={crossover as SourcedValue} format={fixed} /> <MockLabel sources={crossoverSources} /> under these assumptions</span> : <span>No cost crossover within this slider range</span>}</div>
+      <div className="slider-caption" id="exposure-explanation"><span className="tiny-diamond" />{marker !== null ? <span>Median cost crossover at <Value datum={crossover as SourcedValue} format={fixed} /></span> : <span>No cost crossover within this slider range</span>}</div>
     </div>
   </section>;
 }
@@ -164,7 +164,7 @@ function FanTooltip({ active, row, confidence }: { active?: boolean; row?: Chart
     <div><span><Percentile value={99} /> modeled exposure · h/yr</span><ExposureValue datum={row.original.p99} confidence={confidence} /></div>
     <div><span><Percentile value={90} /> modeled exposure · h/yr</span><ExposureValue datum={row.original.p90} confidence={confidence} /></div>
     <div><span><Percentile value={50} /> modeled exposure · h/yr</span><ExposureValue datum={row.original.p50} confidence={confidence} /></div>
-    <small><MockLabel sources={[row.original.p50, row.original.p90, row.original.p99]} children="Assumed quantiles" /> Hover or tap a value for its source</small>
+    <small><MockLabel sources={[row.original.p50, row.original.p90, row.original.p99]} children="Assumed quantiles" /> Click or tap a value for its source</small>
   </div>;
 }
 
@@ -255,7 +255,7 @@ function EconomicsPanel() {
     </div>
     <div className="decision-readout" role="status" aria-live="polite" aria-atomic="true">
       <div className="decision-icon">{state === 'positive' ? <ArrowUpRight size={22} /> : state === 'negative' ? <ArrowDownRight size={22} /> : <ArrowRight size={22} />}</div>
-      <div><span className="eyebrow">UNDER THESE ASSUMPTIONS <MockLabel sources={[economicsSource]} children="Assumed decision" /></span><h3 ref={decisionRef}>{decision}</h3><p>{state === 'positive' ? 'Earlier-access contribution exceeds the upper-tail term cost.' : state === 'negative' ? 'Median term cost exceeds earlier-access contribution.' : 'The quantiles straddle the trade-off or sit near break-even.'}</p></div>
+      <div><span className="eyebrow">DECISION <MockLabel sources={[economicsSource]} children="Assumed decision" /></span><h3 ref={decisionRef}>{decision}</h3><p>{state === 'positive' ? 'Earlier-access contribution exceeds the upper-tail term cost.' : state === 'negative' ? 'Median term cost exceeds earlier-access contribution.' : 'The quantiles straddle the trade-off or sit near break-even.'}</p></div>
     </div>
     <div className="break-even-row"><span>Break-even modeled exposure</span><strong>{e.break_even_exposure_hours.value === null ? 'No modeled cost' : <><Value datum={e.break_even_exposure_hours as SourcedValue} /> <small>h/yr</small></>}</strong></div>
   </section>;
