@@ -104,6 +104,38 @@ def test_mismatched_saved_bundle_is_not_evaluated(comparison):
         compare(comparison)
 
 
+def test_added_sensors_are_used_only_by_models_trained_with_them(comparison, monkeypatch):
+    runs, path, _ = comparison
+    frame = pd.read_parquet(path).assign(outage_outlook_mw=500.0)
+    frame.to_parquet(path, index=False)
+    model_path = runs[1] / "model.joblib"
+    bundle = joblib.load(model_path)
+    _, names = build_features(frame.assign(target=0), bundle["report"]["policy"])
+    bundle["feature_names"] = names
+    bundle["report"]["feature_names"] = names
+    joblib.dump(bundle, model_path)
+    write_json(runs[1] / "model_card.json", bundle["report"])
+    seen = []
+    def predict(model, rows):
+        seen.append(rows.columns.tolist())
+        return np.full((len(rows), 2), model["probability"])
+    monkeypatch.setattr(backtest, "predict_members", predict)
+    report = compare(comparison)
+    assert "outage_outlook_mw_lag_1h" not in seen[0]
+    assert "outage_outlook_mw_lag_1h" in seen[1]
+    assert report["runs"][0]["metrics"]["n_hours"] == report["runs"][1]["metrics"]["n_hours"]
+
+
+@pytest.mark.parametrize("names", [[], ["unknown_sensor"], ["load_mw_lag_1h", "load_mw_lag_1h"], [None]])
+def test_missing_or_invalid_model_feature_names_are_rejected(comparison, names):
+    path = comparison[0][0] / "model.joblib"
+    bundle = joblib.load(path)
+    bundle["feature_names"] = names
+    joblib.dump(bundle, path)
+    with pytest.raises(ValueError, match="feature schema"):
+        compare(comparison)
+
+
 @pytest.mark.parametrize("probability", [np.nan, np.inf, -.1, 1.1])
 def test_invalid_predictions_are_rejected(comparison, monkeypatch, probability):
     monkeypatch.setattr(backtest, "predict_members", lambda bundle, frame: np.full((len(frame), 2), probability))

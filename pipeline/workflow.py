@@ -54,6 +54,14 @@ def train_run(hourly_path: Path, policy_path: Path, run_dir: Path, *, seed: int 
     report["joint_feature_policy"] = "Prior-hour temperature x load, temperature squared, load ramps, and net load when actual wind/solar inputs exist. Relationships are learned; no fixed hot-weather cutoff probability."
     if "generation_source_ref" in hourly:
         report["generation_data"] = {"source_refs": sorted(hourly.generation_source_ref.dropna().unique().tolist())}
+    if "outage_outlook_mw" in hourly:
+        from pipeline.outages import TIMING_POLICY
+        report["outage_outlook_data"] = {
+            "source_refs": sorted(hourly.outage_source_ref.dropna().unique().tolist())
+                if "outage_source_ref" in hourly else [policy["data_ref"]],
+            "timing_policy": TIMING_POLICY,
+            "interpretation": "Dated generation-outage outlooks, not measured forced outages.",
+        }
     if "temperature_c" in hourly:
         report["temperature_data"] = {
             "observed_hours": int(hourly.temperature_c.notna().sum()),

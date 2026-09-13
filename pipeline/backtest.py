@@ -91,11 +91,17 @@ def compare_runs(run_dirs: list[Path], hourly_path: Path, start_utc: str, end_ut
     results = []
     for index, (run_dir, card) in enumerate(zip(run_dirs, cards)):
         bundle = joblib.load(run_dir / "model.joblib")  # Trusted local artifacts only.
-        if bundle["report"] != card or list(bundle["feature_names"]) != names:
+        expected = bundle["feature_names"]
+        if (bundle["report"] != card or not isinstance(expected, list) or not expected
+                or any(not isinstance(name, str) for name in expected)
+                or len(set(expected)) != len(expected) or not set(expected).issubset(names)
+                or ("feature_names" in card and card["feature_names"] != expected)):
             raise ValueError("Saved model/card or input feature schema do not match.")
         if set(bundle["density_training_locations"]) != {"SPP_SYSTEM"}:
             raise ValueError("Comparison requires an SPP_SYSTEM-only training run.")
-        probability = predict_members(bundle, features).mean(axis=1)
+        # A richer input can evaluate an earlier model alongside a candidate
+        # with added sensors. Each gets only its own recorded feature schema.
+        probability = predict_members(bundle, features[[*expected, "timestamp_utc", "location_id", "target"]]).mean(axis=1)
         if not np.isfinite(probability).all() or not ((probability >= 0) & (probability <= 1)).all():
             raise ValueError("Saved model returned invalid probabilities.")
         predictions[f"run_{index}_probability"] = probability
@@ -104,6 +110,7 @@ def compare_runs(run_dirs: list[Path], hourly_path: Path, start_utc: str, end_ut
         results.append({"run_dir": str(run_dir), "model_version": card["model_version"],
                         "model_sha256": fingerprint(run_dir / "model.joblib"),
                         "model_card_sha256": fingerprint(run_dir / "model_card.json"),
+                        "feature_names": expected,
                         "training_hours": training["rows"], "metrics": evaluate(observed, probability),
                         "training_prevalence_baseline": evaluate(observed, np.full(len(observed), prevalence))})
     paired = [paired_brier_interval(features.timestamp_utc, observed,
