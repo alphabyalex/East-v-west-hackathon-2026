@@ -1039,6 +1039,40 @@ def test_wind_scenario_is_deterministic_isolated_and_avoids_heavy_revalidation(t
         assert read_grid_impact_snapshot("NODE", path, cache=memo)["wind_absorption_mwh_in_observed_hours"]["value"] == 200.
 
 
+def test_concurrent_wind_requests_keep_capacity_and_provenance_isolated(tmp_path):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+
+    path = snapshot(tmp_path / "concurrent.json", wind_summary=wind())
+    original_bytes = path.read_bytes()
+    memo = GridImpactSnapshotCache()
+    ready = Barrier(8, timeout=15)
+    populated = Barrier(8, timeout=15)
+
+    def request(index):
+        controls = {"flexible_load_mw": datum(10. * index, f"request {index} capacity"),
+                    "available_fraction": datum(.25, f"request {index} availability")}
+        ready.wait()
+        result = read_wind_scenario("NODE", path, cache=memo, **controls)
+        populated.wait()
+        assert result["wind_absorption_mwh_in_observed_hours"]["value"] == 10. * index
+        assert wind_scenario_context(result)["scenario_inputs"] == controls
+        assert result["wind_absorption_mwh_per_year"]["value"] is None
+        assert result["carbon_absorbed_tonnes_in_observed_hours"]["value"] == 0.
+        assert result["carbon_shifted_tonnes_in_observed_hours"]["value"] is None
+        # Mutating one caller's output must not poison another request or cache hit.
+        result["evidence"].clear()
+        baseline = read_grid_impact_snapshot("NODE", path, cache=memo, required=True)
+        assert baseline["wind_absorption_mwh_in_observed_hours"]["value"] == 200.
+        repeated = read_wind_scenario("NODE", path, cache=memo, **controls)
+        assert wind_scenario_context(repeated)["scenario_inputs"] == controls
+        assert repeated["wind_absorption_mwh_in_observed_hours"]["value"] == 10. * index
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        list(executor.map(request, range(1, 9)))
+    assert path.read_bytes() == original_bytes
+
+
 def test_wind_snapshot_published_period_cannot_disagree_with_screening_context(tmp_path):
     path = snapshot(tmp_path / "bound.json", wind_summary=wind())
     def change_period(result):

@@ -28,7 +28,7 @@ def write_cache(tmp_path, monkeypatch, *, members=None, source_type="assumption"
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         for name, frame in members:
-            archive.writestr(name, frame.to_csv(index=False))
+            archive.writestr(name, frame if isinstance(frame, str) else frame.to_csv(index=False))
     content = buffer.getvalue()
     manifest = {"source_type": source_type, "ref": URL, "requested_url": URL,
                 "sha256": hashlib.sha256(content).hexdigest(), **(metadata_changes or {})}
@@ -94,6 +94,40 @@ def test_missing_price_remains_missing_and_unrelated_node_is_not_averaged(tmp_pa
     assert actual.LMP.iloc[1] == 10.
 
 
+@pytest.mark.parametrize("record", [
+    "01/01/2024 07:00:00,EXACT_NODE,EXACT_PNODE,-1,23",  # Extra unheaded field was discarded by usecols.
+    "01/01/2024 07:00:00,EXACT_NODE,EXACT_PNODE",  # Missing field is not an explicit missing value.
+    "01/01/2024 07:00:00,OTHER,OTHER_PNODE,-1,23",  # Projection must not hide malformed other-node rows.
+    ",,", ",,,,",  # Delimiter-only records still have a declared width.
+])
+def test_full_csv_record_width_is_checked_before_selected_columns_or_nodes(tmp_path, monkeypatch, record):
+    content = ("GMTIntervalEnd,Settlement Location,Pnode,LMP\n"
+               "01/01/2024 08:00:00,EXACT_NODE,EXACT_PNODE,10\n" + record + "\n")
+    write_cache(tmp_path, monkeypatch, members=[(DAILY, content)])
+    with pytest.raises(ValueError, match="expected exactly 4 declared columns"):
+        read()
+
+
+def test_empty_lines_exact_missing_fields_and_quoted_commas_newlines_keep_their_values(tmp_path, monkeypatch):
+    content = ("GMTIntervalEnd,Settlement Location,Pnode,LMP\n\n"
+               '01/01/2024 07:00:00,EXACT_NODE,"EXACT,PNODE\nquoted continuation",-5\n'
+               ",,,\n\n"  # Exact-width all-missing row does not supply an identified price point.
+               "01/01/2024 08:00:00,EXACT_NODE,EXACT_PNODE,\n")
+    write_cache(tmp_path, monkeypatch, members=[(DAILY, content)])
+    actual, _source = read()
+    assert actual.Pnode.tolist() == ["EXACT,PNODE\nquoted continuation", "EXACT_PNODE"]
+    assert actual.LMP.iloc[0] == -5.
+    assert pd.isna(actual.LMP.iloc[1])
+
+
+def test_malformed_quoted_csv_record_is_rejected_without_partial_price_output(tmp_path, monkeypatch):
+    content = ("GMTIntervalEnd,Settlement Location,Pnode,LMP\n"
+               '01/01/2024 07:00:00,EXACT_NODE,"unterminated Pnode,-5\n')
+    write_cache(tmp_path, monkeypatch, members=[(DAILY, content)])
+    with pytest.raises(ValueError, match="malformed quoted records"):
+        read()
+
+
 @pytest.mark.parametrize("changes", [{"LMP": 2.}, {"Pnode": "CHANGED_PNODE"}])
 def test_conflicting_same_node_hour_is_rejected(tmp_path, monkeypatch, changes):
     frame = prices()
@@ -115,6 +149,14 @@ def test_invalid_delivery_hour_is_rejected(tmp_path, monkeypatch, stamp):
     frame.loc[0, "GMTIntervalEnd"] = stamp
     write_cache(tmp_path, monkeypatch, members=[(DAILY, frame)])
     with pytest.raises(ValueError):
+        read()
+
+
+def test_day_ahead_reader_cannot_silently_discard_a_timestamp_timezone(tmp_path, monkeypatch):
+    frame = prices()
+    frame["GMTIntervalEnd"] += " CST"
+    write_cache(tmp_path, monkeypatch, members=[(DAILY, frame)])
+    with pytest.raises(ValueError, match="unrecognized timezone"):
         read()
 
 

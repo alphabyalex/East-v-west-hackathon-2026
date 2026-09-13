@@ -191,6 +191,32 @@ def test_bad_or_unaligned_gmt_timestamps_are_rejected(invalid):
         labels(frame)
 
 
+@pytest.mark.parametrize("zone", ["CST", "CDT", "PDT"])
+def test_timezone_abbreviations_cannot_silently_move_a_complete_event_hour(zone):
+    frame = observations(start="2024-01-01T00:00:00Z")
+    frame["GMTIntervalEnding"] += " " + zone
+    with pytest.raises(ValueError, match="unrecognized timezone.*explicit UTC offset"):
+        labels(frame)
+
+
+@pytest.mark.parametrize("representation", ["plain", "Z", "GMT", "offset", "mixed"])
+def test_documented_gmt_and_explicit_offsets_keep_the_same_interval_membership(representation):
+    frame = observations(hours=2)
+    frame.loc[11, WIND[0]] = 1.
+    expected = labels(frame)
+    ends = pd.to_datetime(frame.GMTIntervalEnding, utc=True)
+    if representation == "Z":
+        frame["GMTIntervalEnding"] = ends.dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+    elif representation == "GMT":
+        frame["GMTIntervalEnding"] += " GMT"
+    elif representation == "offset":
+        frame["GMTIntervalEnding"] = ends.dt.tz_convert("America/Chicago").map(lambda value: value.isoformat())
+    elif representation == "mixed":
+        frame["GMTIntervalEnding"] = [value.tz_convert("America/Chicago").isoformat() if index % 2
+                                       else value.isoformat() for index, value in enumerate(ends)]
+    pd.testing.assert_frame_equal(labels(frame), expected)
+
+
 @pytest.mark.parametrize("scope", [None, {}, {"source_type": "assumption", "ref": " "}])
 def test_historical_rows_without_baa_require_a_sourced_footprint_declaration(scope):
     with pytest.raises(ValueError):
@@ -373,6 +399,14 @@ def test_daily_content_cannot_claim_a_different_operating_day_than_its_member(tm
     wrong_day = observations(start="2024-01-02T06:00:00Z")
     cached_archive(tmp_path, monkeypatch, [(DAILY, wrong_day.to_csv(index=False))])
     with pytest.raises(ValueError):
+        wind.read_cached_wind_curtailment_archive(2024)
+
+
+def test_daily_reader_rejects_timezone_dropping_before_accepting_member_day(tmp_path, monkeypatch):
+    frame = observations()
+    frame["GMTIntervalEnding"] += " CST"
+    cached_archive(tmp_path, monkeypatch, [(DAILY, frame.to_csv(index=False))])
+    with pytest.raises(ValueError, match="unrecognized timezone"):
         wind.read_cached_wind_curtailment_archive(2024)
 
 

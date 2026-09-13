@@ -43,6 +43,7 @@ from pathlib import Path
 import re
 import tempfile
 from typing import Mapping
+import warnings
 import zipfile
 
 import numpy as np
@@ -178,16 +179,44 @@ VER_DESCRIPTION_REF = "https://portal.spp.org/api/pageConfig/by-slug/ver-curtail
 
 
 def _archive_csv_header(stream):
-    """Reject duplicate source fields before pandas silently renames them."""
-    header = next(csv.reader([stream.readline().decode("utf-8-sig")]))
-    if not header or any(not name.strip() for name in header) or len(header) != len(set(name.strip() for name in header)):
-        raise ValueError("Archive CSV has duplicate or missing column headers.")
-    stream.seek(0)
+    """Validate complete CSV records before pandas renames/projects source fields.
+
+    This offline streaming pass uses bounded memory, then rewinds the same input
+    for the existing pandas parser. In particular, usecols can otherwise silently
+    discard unheaded extra fields. Empty physical lines are not observations;
+    delimiter-only rows still require exactly the declared number of fields.
+    """
+    text = io.TextIOWrapper(stream, encoding="utf-8-sig", newline="")
+    try:
+        records = csv.reader(text, strict=True)
+        header = next(records, None)
+        if not header or any(not name.strip() for name in header) or len(header) != len(set(name.strip() for name in header)):
+            raise ValueError("Archive CSV has duplicate or missing column headers.")
+        for record in records:
+            if record and len(record) != len(header):
+                raise ValueError(f"Archive CSV record ending on line {records.line_num} has {len(record)} fields; "
+                                 f"expected exactly {len(header)} declared columns.")
+    except (csv.Error, UnicodeDecodeError) as exc:
+        raise ValueError("Archive CSV contains malformed quoted records or invalid UTF-8.") from exc
+    finally:
+        text.detach()
+        stream.seek(0)
+
+
+def _archive_gmt_times(values):
+    """Keep documented bare GMT/explicit offsets; never discard a timezone label."""
+    with warnings.catch_warnings():
+        warnings.filterwarnings("error", message=r".*(?:un-recognized|unrecognized) timezone.*", category=FutureWarning)
+        try:
+            return pd.to_datetime(values, utc=True, format="mixed")
+        except FutureWarning as exc:
+            raise ValueError("Archive GMT timestamps contain an unrecognized timezone; provide actual documented GMT values "
+                             "or an explicit UTC offset without discarding the timezone label.") from exc
 
 
 def _archive_operating_day(raw_ends, day, *, minutes):
     """Check the member's Central operating day using interval starts, not ends."""
-    ends = pd.to_datetime(raw_ends, utc=True, format="mixed")
+    ends = _archive_gmt_times(raw_ends)
     starts = ends - pd.Timedelta(minutes, unit="min")
     local_days = starts.dt.tz_convert("America/Chicago").dt.strftime("%Y-%m-%d")
     if ends.isna().any() or not local_days.eq(day.strftime("%Y-%m-%d")).all():
@@ -215,7 +244,7 @@ def read_cached_wind_curtailment_archive(year: int) -> tuple[pd.DataFrame, dict]
     row = cached.iloc[0]
     filename = f"{year}-VER-Curtailments-ANNUAL-ROLLUP.zip" if rollup else f"{year}.zip"
     url = f"https://portal.spp.org/file-browser-api/download/ver-curtailments?path=/{year}/{filename}"
-    manifest = json.loads(row.source_json)
+    manifest = _strict_wind_json(row.source_json)
     if not isinstance(manifest, dict) or row.request_url != url or manifest.get("requested_url") != url or manifest.get("ref") != url:
         raise ValueError("VER cache must identify its exact SPP archive URL.")
     origin = source({key: manifest.get(key) for key in ("source_type", "ref")})
@@ -243,7 +272,7 @@ def read_cached_wind_curtailment_archive(year: int) -> tuple[pd.DataFrame, dict]
             frame = frame.loc[~repeated].copy()
             if frame.empty or frame.GMTIntervalEnding.map(lambda value: isinstance(value, (Real, bool, np.bool_))).any():
                 raise ValueError("VER annual rollup requires nonempty, nonnumeric GMT interval ends.")
-            ends = pd.to_datetime(frame.GMTIntervalEnding, utc=True, format="mixed")
+            ends = _archive_gmt_times(frame.GMTIntervalEnding)
             operating_starts = (ends - pd.Timedelta(5, unit="min")).dt.tz_convert("America/Chicago")
             if ends.isna().any() or not ends.eq(ends.dt.floor("5min")).all() or not operating_starts.dt.year.eq(year).all():
                 raise ValueError("VER annual rollup interval starts must lie within its Central operating year.")
@@ -298,7 +327,7 @@ def read_cached_wind_curtailment_month(year: int = 2025, month: int = 12) -> tup
     row = cached.iloc[0]
     member = "VER-Curtailments-MONTHLY-202512.csv"
     url = f"https://portal.spp.org/file-browser-api/download/ver-curtailments?path=/2025/12/{member}"
-    manifest = json.loads(row.source_json)
+    manifest = _strict_wind_json(row.source_json)
     if not isinstance(manifest, dict) or row.request_url != url or manifest.get("requested_url") != url or manifest.get("ref") != url:
         raise ValueError("Monthly VER cache must identify its exact month and SPP source URL.")
     origin = source({key: manifest.get(key) for key in ("source_type", "ref")})
@@ -316,7 +345,7 @@ def read_cached_wind_curtailment_month(year: int = 2025, month: int = 12) -> tup
         raise ValueError("Monthly VER requires the reviewed eight-column schema and observations.")
     if frame.GMTIntervalEnding.map(lambda value: isinstance(value, (Real, bool, np.bool_))).any():
         raise ValueError("Monthly VER GMT interval-end timestamps cannot be numeric or boolean.")
-    ends = pd.to_datetime(frame.GMTIntervalEnding, utc=True, format="mixed")
+    ends = _archive_gmt_times(frame.GMTIntervalEnding)
     starts = (ends - pd.Timedelta(5, unit="min")).dt.tz_convert("America/Chicago")
     if (ends.isna().any() or not ends.eq(ends.dt.floor("5min")).all()
             or not starts.dt.strftime("%Y-%m").eq("2025-12").all()):
@@ -361,7 +390,7 @@ def prepare_wind_curtailment_labels(
     frame = selected[["GMTIntervalEnding", *VER_WIND_COLUMNS]].copy()
     if frame.GMTIntervalEnding.map(lambda value: isinstance(value, (Real, bool, np.bool_))).any():
         raise ValueError("GMT interval-end timestamps cannot be numeric or boolean.")
-    ends = pd.to_datetime(frame.GMTIntervalEnding, utc=True, format="mixed")
+    ends = _archive_gmt_times(frame.GMTIntervalEnding)
     if ends.isna().any() or not ends.eq(ends.dt.floor("5min")).all():
         raise ValueError("VER interval ends must identify valid five-minute GMT boundaries.")
     frame["timestamp_utc"] = ends - pd.Timedelta(5, unit="min")
@@ -424,7 +453,7 @@ def read_cached_day_ahead_prices(year: int, *, settlement_locations: list[str]) 
         raise ValueError("Invalid cached day-ahead price archive record.")
     row = cached.iloc[0]
     url = f"https://portal.spp.org/file-browser-api/download/da-lmp-by-settlement-location?path=/{year}/{year}.zip"
-    manifest = json.loads(row.source_json)
+    manifest = _strict_wind_json(row.source_json)
     if not isinstance(manifest, dict) or row.request_url != url or manifest.get("requested_url") != url or manifest.get("ref") != url:
         raise ValueError("Day-ahead price cache must identify its exact SPP archive URL.")
     origin = source({key: manifest.get(key) for key in ("source_type", "ref")})
@@ -461,7 +490,7 @@ def read_cached_day_ahead_prices(year: int, *, settlement_locations: list[str]) 
         raise ValueError(f"No cached observations for exact settlement locations: {sorted(absent)}.")
     if frame.GMTIntervalEnd.map(lambda value: isinstance(value, (Real, bool, np.bool_))).any():
         raise ValueError("GMT delivery interval-end timestamps cannot be numeric or boolean.")
-    ends = pd.to_datetime(frame.GMTIntervalEnd, utc=True, format="mixed")
+    ends = _archive_gmt_times(frame.GMTIntervalEnd)
     if ends.isna().any() or not ends.eq(ends.dt.floor("h")).all():
         raise ValueError("Day-ahead delivery interval ends require whole GMT hours.")
     if frame.Pnode.isna().any() or not frame.Pnode.map(lambda value: isinstance(value, str) and bool(value.strip())).all():
@@ -650,7 +679,7 @@ def read_cached_generation_archive(year: int) -> tuple[pd.DataFrame, dict]:
         raise ValueError("Invalid cached historical-generation document.")
     row = cached.iloc[0]
     url = f"https://portal.spp.org/file-browser-api/download/generation-mix-historical?path=/GenMix_{year}.csv"
-    manifest = json.loads(row.source_json)
+    manifest = _strict_wind_json(row.source_json)
     if not isinstance(manifest, dict) or row.request_url != url or manifest.get("requested_url") != url or manifest.get("ref") != url:
         raise ValueError("Historical generation cache must match its exact SPP archive URL.")
     origin = source({key: manifest.get(key) for key in ("source_type", "ref")})
@@ -694,7 +723,7 @@ def read_cached_monthly_load(year: int = 2025) -> tuple[pd.DataFrame, dict]:
             raise ValueError("Invalid cached monthly-load evidence record.")
         row = cached.iloc[0]
         url = f"https://portal.spp.org/file-browser-api/download/hourly-load?path=/{year}/HOURLY_LOAD-{year}{month:02d}.csv"
-        manifest = json.loads(row.source_json)
+        manifest = _strict_wind_json(row.source_json)
         if not isinstance(manifest, dict) or row.request_url != url or manifest.get("requested_url") != url or manifest.get("ref") != url:
             raise ValueError("Monthly load cache must identify its exact month and SPP archive URL.")
         origin = source({name: manifest.get(name) for name in ("source_type", "ref")})
@@ -711,7 +740,7 @@ def read_cached_monthly_load(year: int = 2025) -> tuple[pd.DataFrame, dict]:
             raise ValueError("Monthly load requires MarketHour and exactly the seventeen reviewed component areas.")
         if frame.MarketHour.map(lambda value: isinstance(value, (Real, bool, np.bool_))).any():
             raise ValueError("Monthly MarketHour values cannot be numeric or boolean.")
-        ends = pd.to_datetime(frame.MarketHour, utc=True, format="mixed")
+        ends = _archive_gmt_times(frame.MarketHour)
         starts = (ends - pd.Timedelta(1, unit="h")).dt.tz_convert("America/Chicago")
         if (ends.isna().any() or not ends.eq(ends.dt.floor("h")).all()
                 or not starts.dt.strftime("%Y-%m").eq(f"{year}-{month:02d}").all()):
@@ -1414,20 +1443,27 @@ def evaluate_wind_event_classifier(
     return json.loads(json.dumps((report, rows), sort_keys=True, allow_nan=False))
 
 
-def _wind_replay_json(content):
-    """Parse explicit JSON artifacts without silently accepting overwritten keys."""
+def _strict_wind_json(content):
+    """Parse artifact/metadata JSON without overwritten keys or nonfinite numbers."""
     def unique(pairs):
         result = {}
         for key, value in pairs:
             if key in result:
-                raise ValueError(f"Duplicate wind replay JSON key: {key}")
+                raise ValueError(f"Duplicate wind artifact JSON key: {key}")
             result[key] = value
         return result
 
     def nonfinite(value):
-        raise ValueError(f"Nonfinite wind replay JSON constant: {value}")
+        raise ValueError(f"Nonfinite wind artifact JSON constant: {value}")
 
-    return json.loads(content, object_pairs_hook=unique, parse_constant=nonfinite)
+    def finite_literal(value):
+        number = float(value)
+        if not np.isfinite(number):
+            raise ValueError(f"Nonfinite wind artifact JSON number: {value}")
+        return number
+
+    return json.loads(content, object_pairs_hook=unique, parse_constant=nonfinite,
+                      parse_float=finite_literal)
 
 
 def publish_wind_replay(*, bundle_path, hourly_path, labels_path, baseline_path,
@@ -1456,8 +1492,8 @@ def publish_wind_replay(*, bundle_path, hourly_path, labels_path, baseline_path,
     paths = {"bundle": Path(bundle_path), "hourly": Path(hourly_path),
              "labels": Path(labels_path), "baseline": Path(baseline_path)}
     content = {name: path.read_bytes() for name, path in paths.items()}
-    bundle = _wind_replay_json(content["bundle"])
-    baseline = _wind_replay_json(content["baseline"])
+    bundle = _strict_wind_json(content["bundle"])
+    baseline = _strict_wind_json(content["baseline"])
     hourly = pd.read_parquet(io.BytesIO(content["hourly"]), engine="pyarrow")
     labels = pd.read_parquet(io.BytesIO(content["labels"]), engine="pyarrow")
     if "sources" not in hourly.attrs:

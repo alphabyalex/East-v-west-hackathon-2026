@@ -140,6 +140,14 @@ def test_rollup_allows_utc_next_year_for_last_central_operating_hour(tmp_path, m
     assert len(frame) == 12
 
 
+def test_rollup_rejects_timezone_dropping_before_accepting_operating_year(tmp_path, monkeypatch):
+    rows = ver_rows()
+    rows["GMTIntervalEnding"] += " CST"
+    ver_cache(tmp_path, monkeypatch, rows=rows)
+    with pytest.raises(ValueError, match="unrecognized timezone"):
+        wind.read_cached_wind_curtailment_archive(2025)
+
+
 @pytest.mark.parametrize("change", ["hash", "url", "manifest_url", "oversize"])
 def test_rollup_cache_identity_and_size_are_checked(tmp_path, monkeypatch, change):
     kwargs = {"manifest_changes": {"sha256": "bad"}} if change == "hash" else {"changes": {"request_url": VER_URL.replace("2025", "2024")}} if change == "url" else {"manifest_changes": {"requested_url": "wrong"}} if change == "manifest_url" else {}
@@ -274,6 +282,24 @@ def test_monthly_bounds_use_central_interval_starts_including_dst(tmp_path, monk
     assert frame.MarketHour.iloc[-1] == "2026-01-01T06:00:00Z"
 
 
+def test_monthly_load_rejects_timezone_dropping_before_accepting_operating_month(tmp_path, monkeypatch):
+    rows = load_rows(1)
+    rows["MarketHour"] += " CST"
+    load_cache(tmp_path, monkeypatch, replace_month=1, replacement=rows)
+    with pytest.raises(ValueError, match="unrecognized timezone.*explicit UTC offset"):
+        wind.read_cached_monthly_load()
+
+
+def test_monthly_load_keeps_explicit_offset_source_text_and_interval_membership(tmp_path, monkeypatch):
+    rows = load_rows(1)
+    utc_ends = pd.to_datetime(rows.MarketHour, utc=True)
+    rows["MarketHour"] = utc_ends.dt.tz_convert("America/Chicago").map(lambda value: value.isoformat())
+    load_cache(tmp_path, monkeypatch, replace_month=1, replacement=rows)
+    result, _origin = wind.read_cached_monthly_load()
+    assert result.MarketHour.iloc[0] == "2025-01-01T01:00:00-06:00"
+    assert pd.to_datetime(result.MarketHour.iloc[0], utc=True) == utc_ends.iloc[0]
+
+
 @pytest.mark.parametrize("year", [True, 2024, 2026, "2025", 2025.0])
 def test_monthly_year_is_explicit_and_not_coerced(year):
     with pytest.raises(ValueError):
@@ -371,6 +397,14 @@ def test_monthly_ver_allows_january_utc_end_with_december_central_start(tmp_path
     assert len(frame) == 12
 
 
+def test_monthly_ver_rejects_timezone_dropping_before_accepting_operating_month(tmp_path, monkeypatch):
+    rows = ver_rows("2025-12-01T06:00:00Z")
+    rows["GMTIntervalEnding"] += " CST"
+    ver_month_cache(tmp_path, monkeypatch, rows)
+    with pytest.raises(ValueError, match="unrecognized timezone"):
+        wind.read_cached_wind_curtailment_month()
+
+
 @pytest.mark.parametrize("change", ["row_url", "manifest_url", "ref", "hash", "not_bytes", "oversize"])
 def test_monthly_ver_cache_source_and_content_are_verified(tmp_path, monkeypatch, change):
     kwargs = {"changes": {"request_url": "wrong"}} if change == "row_url" else {"manifest_changes": {"requested_url": "wrong"}} if change == "manifest_url" else {"manifest_changes": {"ref": "wrong"}} if change == "ref" else {"manifest_changes": {"sha256": "wrong"}} if change == "hash" else {"changes": {"content": "not bytes" if change == "not_bytes" else b"x" * 2_000_001}}
@@ -390,3 +424,83 @@ def test_missing_monthly_ver_cache_remains_missing_without_fetch(tmp_path, monke
     monkeypatch.setattr(wind, "ROOT", tmp_path)
     with pytest.raises(FileNotFoundError):
         wind.read_cached_wind_curtailment_month()
+
+
+@pytest.fixture(params=["ver_archive", "ver_month", "generation", "day_ahead", "monthly_load"])
+def metadata_reader(request, tmp_path, monkeypatch):
+    """Valid cached observations for each independent source_json read boundary."""
+    if request.param == "ver_archive":
+        return [ver_cache(tmp_path, monkeypatch)], lambda: wind.read_cached_wind_curtailment_archive(2025)
+    if request.param == "ver_month":
+        return [ver_month_cache(tmp_path, monkeypatch)], wind.read_cached_wind_curtailment_month
+    if request.param == "monthly_load":
+        return load_cache(tmp_path, monkeypatch), wind.read_cached_monthly_load
+    if request.param == "generation":
+        url = "https://portal.spp.org/file-browser-api/download/generation-mix-historical?path=/GenMix_2025.csv"
+        content = b"GMT MKT Interval,Coal Market,Wind Market\n2025-01-01T00:00:00Z,10,20\n"
+        path = evidence(tmp_path, monkeypatch, "genmix_2025", url, content)
+        return [path], lambda: wind.read_cached_generation_archive(2025)
+    url = "https://portal.spp.org/file-browser-api/download/da-lmp-by-settlement-location?path=/2024/2024.zip"
+    stream = io.BytesIO()
+    with zipfile.ZipFile(stream, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("2024/01/By_Day/DA-LMP-SL-202401010100.csv",
+                         "GMTIntervalEnd,Settlement Location,Pnode,LMP\n01/01/2024 07:00:00,EXACT_NODE,EXACT_PNODE,-1\n")
+    path = evidence(tmp_path, monkeypatch, "da_lmp_settlement_2024", url, stream.getvalue())
+    return [path], lambda: wind.read_cached_day_ahead_prices(2024, settlement_locations=["EXACT_NODE"])
+
+
+@pytest.mark.parametrize("key,earlier", [
+    ("source_type", "assumption"),
+    ("ref", "mock://earlier synthetic source"),
+    ("requested_url", "https://example.invalid/wrong-archive"),
+    ("sha256", "0" * 64),
+])
+def test_cache_metadata_duplicate_identity_keys_cannot_discard_earlier_evidence(metadata_reader, key, earlier):
+    paths, read = metadata_reader
+    assert read()[1]["source_type"] == "assumption"
+    cached = pd.read_parquet(paths[0])
+    manifest = json.loads(cached.loc[0, "source_json"])
+    # A last-key-wins parser would accept this complete data source, hiding the
+    # earlier assumption, conflicting URL or fingerprint before validation.
+    manifest["source_type"] = "data"
+    encoded = json.dumps(manifest)
+    member = json.dumps(key) + ": " + json.dumps(manifest[key])
+    cached.loc[0, "source_json"] = encoded.replace(member, json.dumps(key) + ": " + json.dumps(earlier) + ", " + member)
+    cached.to_parquet(paths[0], index=False)
+    before = {path: path.read_bytes() for path in paths}
+    with pytest.raises(ValueError, match="Duplicate wind artifact JSON key"):
+        read()
+    assert all(path.read_bytes() == content for path, content in before.items())
+
+
+@pytest.mark.parametrize("extra", [
+    '"audit":{"value":1,"value":2}',
+    *['"audit":{"value":' + literal + '}' for literal in ("NaN", "Infinity", "-Infinity", "1e400")],
+])
+def test_cache_metadata_rejects_nested_duplicates_and_nonfinite_literals(metadata_reader, extra):
+    paths, read = metadata_reader
+    assert read()[1]["source_type"] == "assumption"
+    cached = pd.read_parquet(paths[0])
+    cached.loc[0, "source_json"] = cached.loc[0, "source_json"][:-1] + "," + extra + "}"
+    cached.to_parquet(paths[0], index=False)
+    before = paths[0].read_bytes()
+    with pytest.raises(ValueError, match="Duplicate|Nonfinite"):
+        read()
+    assert paths[0].read_bytes() == before
+
+
+def test_valid_cache_metadata_whitespace_and_extra_finite_fields_preserve_results(metadata_reader):
+    paths, read = metadata_reader
+    expected_frame, expected_origin = read()
+    for path in paths:
+        cached = pd.read_parquet(path)
+        manifest = json.loads(cached.loc[0, "source_json"])
+        manifest["audit"] = {"finite_value": 1.25, "unrelated_ref": '{"external_format":"opaque citation"}'}
+        cached.loc[0, "source_json"] = json.dumps(manifest, indent=4) + "\n"
+        cached.to_parquet(path, index=False)
+    before = {path: path.read_bytes() for path in paths}
+    actual_frame, actual_origin = read()
+    pd.testing.assert_frame_equal(actual_frame, expected_frame)
+    assert actual_origin == expected_origin
+    assert actual_origin["source_type"] == "assumption"
+    assert all(path.read_bytes() == content for path, content in before.items())
