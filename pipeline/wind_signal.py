@@ -17,6 +17,17 @@ establish its footprint before matching it to historical SPP_SYSTEM load.
 Energy output is a declared flexible-load scenario, not measured excess supply.
 Annual values require one complete observed calendar year with no unknown flags;
 partial history is reported for its actual period without extrapolation.
+
+Frozen independent replay can be published offline with:
+  python -m pipeline.wind_signal replay --bundle bundle.json --hourly hourly.parquet --labels labels.parquet --baseline baseline.json --start-utc 2025-01-01T00:00:00Z --end-exclusive-utc 2026-01-01T00:00:00Z --output-dir new_replay
+Hourly parquet must retain attrs.sources; labels must retain their existing
+method/system_scope/source attributes. Baseline JSON is one explicit sourced
+probability, never a default or an automatically inferred training prevalence.
+The new directory copies the exact four consumed inputs and publishes report
+JSON, ZSTD predictions parquet and a completion manifest with file hashes and
+runtime versions. No fitting, fetching, model selection or API wiring occurs.
+Existing output directories are never reused. A failed write may leave an
+incomplete new directory; only the final valid manifest marks publication.
 """
 from __future__ import annotations
 
@@ -27,8 +38,10 @@ import hashlib
 import io
 import json
 from numbers import Real
+import os
 from pathlib import Path
 import re
+import tempfile
 from typing import Mapping
 import zipfile
 
@@ -1378,3 +1391,140 @@ def evaluate_wind_event_classifier(
         }
         row["evaluated"] = bool(eligible[index])
     return json.loads(json.dumps((report, rows), sort_keys=True, allow_nan=False))
+
+
+def _wind_replay_json(content):
+    """Parse explicit JSON artifacts without silently accepting overwritten keys."""
+    def unique(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError(f"Duplicate wind replay JSON key: {key}")
+            result[key] = value
+        return result
+
+    def nonfinite(value):
+        raise ValueError(f"Nonfinite wind replay JSON constant: {value}")
+
+    return json.loads(content, object_pairs_hook=unique, parse_constant=nonfinite)
+
+
+def publish_wind_replay(*, bundle_path, hourly_path, labels_path, baseline_path,
+                        start_utc, end_exclusive_utc, output_dir):
+    """Publish a self-contained frozen replay from four explicit local artifacts.
+
+    Each source file is read once. Those same byte buffers are parsed, hashed and
+    copied into inputs/; a later change to an original path cannot misidentify the
+    consumed data. File checksums and semantic-frame hashes have distinct roles.
+    Baseline provenance is the caller's declaration, not authenticated here.
+
+    Evaluation and lossless parquet round-trip checks complete before creating
+    output_dir. Its exclusive creation protects existing/racing destinations.
+    Files are flushed before the final manifest is atomically hard-linked into
+    place. A disk failure may leave an incomplete new folder without a manifest;
+    it must not be treated as published or reused. No existing files are deleted.
+    Reproducibility of serialized bytes assumes the recorded runtime/settings;
+    the manifest does not certify observation authenticity or forecast timing.
+    """
+    from importlib.metadata import version
+    import sys
+
+    output_dir = Path(output_dir)
+    if output_dir.exists() or output_dir.is_symlink():
+        raise FileExistsError(f"Replay output already exists: {output_dir}")
+    paths = {"bundle": Path(bundle_path), "hourly": Path(hourly_path),
+             "labels": Path(labels_path), "baseline": Path(baseline_path)}
+    content = {name: path.read_bytes() for name, path in paths.items()}
+    bundle = _wind_replay_json(content["bundle"])
+    baseline = _wind_replay_json(content["baseline"])
+    hourly = pd.read_parquet(io.BytesIO(content["hourly"]), engine="pyarrow")
+    labels = pd.read_parquet(io.BytesIO(content["labels"]), engine="pyarrow")
+    if "sources" not in hourly.attrs:
+        raise ValueError("Hourly replay parquet must preserve attrs.sources; no source defaults are inferred.")
+    source_file = Path(__file__).read_bytes()
+    report, rows = evaluate_wind_event_classifier(
+        bundle, hourly, labels, sources=hourly.attrs["sources"], baseline_probability=baseline,
+        start_utc=start_utc, end_exclusive_utc=end_exclusive_utc,
+    )
+    predictions = pd.DataFrame(rows)
+    parquet = predictions.to_parquet(index=False, engine="pyarrow", compression="zstd")
+    restored = pd.read_parquet(io.BytesIO(parquet), engine="pyarrow")
+
+    def numpy_json(value):
+        if isinstance(value, np.ndarray):
+            return value.tolist()
+        if isinstance(value, np.generic):
+            return value.item()
+        raise TypeError(f"Unsupported replay parquet value: {type(value).__name__}")
+
+    restored_rows = json.loads(json.dumps(restored.to_dict("records"), default=numpy_json, allow_nan=False))
+    if restored_rows != rows:
+        raise ValueError("Replay prediction parquet changed a value or its provenance during serialization.")
+    if Path(__file__).read_bytes() != source_file:
+        raise ValueError("Replay source file changed during evaluation; publish from a stable code version.")
+    inputs = {"bundle": "inputs/bundle.json", "hourly": "inputs/hourly.parquet",
+              "labels": "inputs/labels.parquet", "baseline": "inputs/baseline.json"}
+    payloads = {inputs[name]: value for name, value in content.items()}
+    payloads["report.json"] = json.dumps(report, sort_keys=True, indent=2, allow_nan=False).encode("utf-8")
+    payloads["predictions.parquet"] = parquet
+    manifest = {
+        "schema_version": "spp-wind-replay-publication-v1", "status": report["status"],
+        "model_id": report["model_id"], "start_utc": report["start_utc"],
+        "end_exclusive_utc": report["end_exclusive_utc"],
+        "source_file_sha256": hashlib.sha256(source_file).hexdigest(),
+        "runtime": {"python": sys.version.split()[0], "numpy": np.__version__, "pandas": pd.__version__,
+                    "scikit_learn": version("scikit-learn"), "pyarrow": version("pyarrow")},
+        "parquet": {"engine": "pyarrow", "compression": "zstd", "columns": list(predictions.columns)},
+        "inputs": inputs, "outputs": {"report": "report.json", "predictions": "predictions.parquet"},
+        "files": {name: {"sha256": hashlib.sha256(value).hexdigest(), "bytes": len(value)}
+                  for name, value in sorted(payloads.items())},
+    }
+    manifest_bytes = json.dumps(manifest, sort_keys=True, indent=2, allow_nan=False).encode("utf-8")
+    output_dir.parent.mkdir(parents=True, exist_ok=True)
+    output_dir.mkdir()
+    (output_dir / "inputs").mkdir()
+    for name, value in payloads.items():
+        with (output_dir / name).open("xb") as stream:
+            stream.write(value)
+            stream.flush()
+            os.fsync(stream.fileno())
+    fd, temporary = tempfile.mkstemp(prefix=".manifest-", suffix=".tmp", dir=output_dir)
+    try:
+        with os.fdopen(fd, "wb") as stream:
+            stream.write(manifest_bytes)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.link(temporary, output_dir / "manifest.json")
+    finally:
+        Path(temporary).unlink(missing_ok=True)
+    return manifest
+
+
+def main(argv=None):
+    """Run an explicitly requested offline frozen-model replay."""
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Offline frozen wind-event replay; no fitting, fetching or production promotion.")
+    actions = parser.add_subparsers(dest="action", required=True)
+    replay = actions.add_parser("replay", help="Publish a self-contained research replay from explicit local inputs")
+    for name in ("bundle", "hourly", "labels", "baseline"):
+        replay.add_argument(f"--{name}", type=Path, required=True)
+    replay.add_argument("--start-utc", required=True)
+    replay.add_argument("--end-exclusive-utc", required=True)
+    replay.add_argument("--output-dir", type=Path, required=True)
+    args = parser.parse_args(argv)
+    try:
+        manifest = publish_wind_replay(
+            bundle_path=args.bundle, hourly_path=args.hourly, labels_path=args.labels, baseline_path=args.baseline,
+            start_utc=args.start_utc, end_exclusive_utc=args.end_exclusive_utc, output_dir=args.output_dir,
+        )
+    except (OSError, ValueError, TypeError, KeyError, OverflowError, RecursionError) as error:
+        parser.error(str(error))
+    print(json.dumps({"status": manifest["status"], "model_id": manifest["model_id"],
+                      "schema_version": manifest["schema_version"], "manifest": str(args.output_dir / "manifest.json")},
+                     sort_keys=True, allow_nan=False))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
