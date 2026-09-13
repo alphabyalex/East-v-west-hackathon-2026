@@ -60,7 +60,7 @@ export function Landing() {
     </header>
 
     <section className="hero">
-      <span className="eyebrow land-eyebrow">SPP · CHILLS — LIVE JULY 1, 2026</span>
+      <span className="eyebrow land-eyebrow land-eyebrow-accent">SPP · CHILLS — LIVE JULY 1, 2026</span>
       <h1>The contract won&rsquo;t tell you<br />when they&rsquo;ll cut your power.</h1>
       <p className="hero-lede">So we learned it from what they actually do.</p>
       <p className="hero-sub">Enter a location, a load size, and how much of your compute can pause. Get a modeled exposure range, a cost, and a break-even point &mdash; every number traced to a dataset, a filed tariff clause, or an assumption you set yourself.</p>
@@ -100,7 +100,8 @@ export function Landing() {
       <section className="land-section land-why">
         <span className="eyebrow land-eyebrow">WHY IT MATTERS</span>
         <p className="land-why-lede">There are two ways to connect the new demand from AI data centers: build a new power plant, usually gas &mdash; or make the load flexible enough to back off when the grid is strained. Flexibility is the option that avoids the plant. Almost nobody takes it, because the risk of it has never been priced.</p>
-        <p className="land-why-punch">The thing blocking the cleaner path is an unpriced risk. We price it.</p>
+        <p className="land-why-punch">The thing blocking the cleaner path is an unpriced risk.</p>
+        <p className="land-why-punch land-why-payoff">We price it.</p>
       </section>
     </main>
 
