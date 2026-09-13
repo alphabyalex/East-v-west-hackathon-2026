@@ -1,0 +1,9 @@
+# Minimal environment for Kristian's offline pipeline. Tested versions are in
+# docs/ML_WALKTHROUGH.md; the web/API dependencies are intentionally separate.
+gridstatus==0.36.0
+pandas>=2.2,<3
+pyarrow>=16
+numpy>=1.26,<3
+scikit-learn>=1.5,<2
+lightgbm>=4.3,<5
+matplotlib>=3.9,<4

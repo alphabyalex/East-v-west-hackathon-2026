@@ -1,0 +1,7 @@
+{
+  "operator": "SPP",
+  "label_method": "observed_event",
+  "data_ref": "https://portal.spp.org/file-browser-api/download/hourly-load?path=/2024/2024.zip",
+  "label_ref": "",
+  "review_notes": "Fill label_ref with the actual event dataset and precise event definition after review. An empty reference intentionally fails validation. Load alone cannot establish the target."
+}

@@ -1,0 +1,18 @@
+{
+  "operator": "SPP",
+  "source_type": "assumption",
+  "ref": "Prototype selection of approximate regional weather points with equal weights; not official SPP boundaries, load weights, or site transmission headroom.",
+  "locations": {
+    "SPP_SYSTEM": {
+      "description": "Regional temperature proxy for the current aggregate SPP load dataset. Change these points and weights when using a validated location.",
+      "points": [
+        {"name": "Oklahoma City, OK", "latitude": 35.47, "longitude": -97.52, "weight": 1.0},
+        {"name": "Wichita, KS", "latitude": 37.69, "longitude": -97.34, "weight": 1.0},
+        {"name": "Amarillo, TX", "latitude": 35.22, "longitude": -101.83, "weight": 1.0},
+        {"name": "Omaha, NE", "latitude": 41.26, "longitude": -95.94, "weight": 1.0},
+        {"name": "Sioux Falls, SD", "latitude": 43.55, "longitude": -96.73, "weight": 1.0},
+        {"name": "Bismarck, ND", "latitude": 46.81, "longitude": -100.78, "weight": 1.0}
+      ]
+    }
+  }
+}
