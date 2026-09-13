@@ -306,7 +306,7 @@ def main():
     parser.add_argument("--port", type=int, default=8765)
     args = parser.parse_args()
     server = ThreadingHTTPServer(("127.0.0.1", args.port), handler_for(Workspace()))
-    print(f"Headroom ML workspace: http://127.0.0.1:{args.port}", flush=True)
+    print(f"Fluxline ML workspace: http://127.0.0.1:{args.port}", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

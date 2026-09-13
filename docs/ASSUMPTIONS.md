@@ -1,4 +1,4 @@
-# Assumptions — Headroom Economics Model
+# Assumptions — Fluxline Economics Model
 
 The marked JSON block at the end of this file is the source of truth for the API's
 economics inputs. `api/economics.py` reads it on each request; there are no hardcoded

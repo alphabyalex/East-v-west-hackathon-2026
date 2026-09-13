@@ -55,7 +55,7 @@ export function Landing() {
   return <div className="landing">
     <a href="#main" className="skip-link">Skip to the problem</a>
     <header className="app-header land-header">
-      <a href="/" className="brand" aria-label="Headroom home"><BrandMark />Headroom<span className="brand-divider" /><span className="brand-subtitle">INTERCONNECTION RISK</span></a>
+      <a href="/" className="brand" aria-label="Fluxline home"><BrandMark />Fluxline<span className="brand-divider" /><span className="brand-subtitle">INTERCONNECTION RISK</span></a>
       <a className="button" href="/app">Run your scenario<ArrowRight size={14} /></a>
     </header>
 

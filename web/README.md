@@ -1,4 +1,4 @@
-# Headroom frontend
+# Fluxline frontend
 
 A local SPP flexible-interconnection scenario workspace built with Vite, React,
 TypeScript, Tailwind CSS, Three.js, and Recharts. Tharun's landing page and workspace

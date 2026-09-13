@@ -15,7 +15,7 @@ from .schemas import EstimateRequest, EstimateResponse
 
 
 app = FastAPI(
-    title="Headroom estimate API",
+    title="Fluxline estimate API",
     description="Precomputed pipeline estimates with explicit placeholder fallback. Site exposure is a user assumption.",
     version="0.2.0",
 )

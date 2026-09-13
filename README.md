@@ -1,4 +1,4 @@
-# Flexible Interconnection Underwriting Tool
+# Fluxline
 
 **East v West Hackathon — Energy, Grid & Sustainability**
 

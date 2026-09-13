@@ -5,7 +5,7 @@ import { Landing } from './Landing';
 import './styles.css';
 
 const isApp = window.location.pathname.replace(/\/+$/, '') === '/app';
-if (!isApp) document.title = 'Headroom — Price the flexible interconnection risk';
+if (!isApp) document.title = 'Fluxline — Price the flexible interconnection risk';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>{isApp ? <App /> : <Landing />}</StrictMode>,
