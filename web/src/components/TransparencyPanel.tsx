@@ -76,6 +76,7 @@ export function TransparencyPanel({ confidence, tariff, siteExposure, onClose }:
         <p>Public grid data can establish when the system was under stress. It cannot establish whether a specific site would have been cut off: that depends on local transmission headroom we do not have.</p>
         <div className="transparency-assumption"><span>Your site exposure factor</span><DiagnosticValue datum={siteExposure} label="Site exposure factor assumption" /></div>
         <p>The site exposure factor is your assumption about how system stress maps to this site. It is not a fitted coefficient or a measured site risk. Adjust it with the visible slider to see what would change the decision.</p>
+        <p>SPP&apos;s CHILLS tariff also names a &ldquo;local reliability issue&rdquo; as an independent curtailment trigger, separate from system-wide emergency conditions (FERC order 195 FERC &para;61,196 at &para;31). A purely local event at one interconnection point could trigger curtailment with no system-wide stress signal at all. This factor can only scale the modeled system-wide figure up or down; it cannot represent that local-only risk.</p>
         <ConfidenceBadge confidence={confidence} />
         <p>Confidence describes support for the estimate, not the probability that the future will match it. The model's ensemble agreement and historical precedent can support an estimate without establishing a site's actual interruptions.</p>
       </section>
