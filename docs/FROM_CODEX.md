@@ -137,3 +137,9 @@
 - Validation: 178 frontend tests, 49 backend tests, and 8 separate live HTTP contract checks passed, as did TypeScript/production build. Verified both local server URLs still respond. No additional runtime changes since those checks.
 - New/changed interface: none. Exact estimate and local diagnostic shapes are documented in docs/frontend-api-contract.md and the source types.
 - Needs review: actual rendered desktop/mobile appearance and Chrome GPU capture still need human review; no browser is connected to this environment. Use http://127.0.0.1:5174/ for the UI and http://127.0.0.1:8000/openapi.json for the API schema.
+
+## Numeric motion checkpoint — 2026-09-12 17:25 PDT
+- Changed: repaired fast-slider stalls in useAnimatedNumber: elapsed time now starts when each target arrives, retargeting from the displayed value with bounded cubic easing. Numbers settle exactly; hidden tabs, reduced motion, superseded targets and unmount cancel pending frames.
+- New/changed interface: no API changes; presentation duration defaults to 320ms. Provenance still exposes the exact supplied target, never an animated intermediate.
+- Validation: 12 focused motion tests pass, including rapid drag, reversal, exact settlement, stale callbacks, reduced motion, visibility and cleanup.
+- Needs review: browser motion review remains unavailable because no browser is connected. Full visual polish follows in the next checkpoint.
