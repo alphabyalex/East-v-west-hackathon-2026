@@ -583,6 +583,23 @@ def _validate_carbon_snapshot_derivations(result):
             disagreement()
         return inputs
 
+    def known_shift_total(inputs):
+        totals = [item for item in inputs if item.get("ref", "").startswith(EVIDENCE_PREFIX)
+                  and node(item)["method"] == "signed sum across all explicit shift pairs; not a causal emissions reduction estimate"]
+        if not totals:
+            return False, None
+        if len(totals) != 1 or "value" not in totals[0]:
+            disagreement()
+        # This exact producer aggregate distinguishes published pair kilograms
+        # from nonnumeric policy sources. Opaque citations establish no roles.
+        pairs = [item for item in sourced_inputs(node(totals[0])) if "value" in item]
+        if not pairs:
+            disagreement()
+        values = [item["value"] for item in pairs]
+        kilograms = None if None in values else _sum_quantities(values)
+        check_value(totals[0]["value"], kilograms)
+        return True, kilograms
+
     for stem, coverage_name in (("carbon_absorbed_tonnes", "wind"), ("carbon_shifted_tonnes", "shift")):
         observed, annual = (result[stem + suffix] for suffix in ("_in_observed_hours", "_per_year"))
         derivation = node(observed)
@@ -604,21 +621,13 @@ def _validate_carbon_snapshot_derivations(result):
                         or node(inputs[0])["method"] != "validated signed sum of explicit pair kilograms CO2"):
                     disagreement()
                 kilograms = inputs[0]["value"]
+                known, pair_total = known_shift_total(sourced_inputs(node(inputs[0])))
+                if known:
+                    check_value(kilograms, pair_total)
                 check_value(observed["value"], None if kilograms is None else kilograms / 1000)
             else:
-                totals = [item for item in inputs if item.get("ref", "").startswith(EVIDENCE_PREFIX)
-                          and node(item)["method"] == "signed sum across all explicit shift pairs; not a causal emissions reduction estimate"]
-                if totals:
-                    if len(totals) != 1 or "value" not in totals[0]:
-                        disagreement()
-                    # The aggregate also carries nonnumeric selection-policy
-                    # sources; its numeric inputs are the submitted pair totals.
-                    pairs = [item for item in sourced_inputs(node(totals[0])) if "value" in item]
-                    if not pairs:
-                        disagreement()
-                    values = [item["value"] for item in pairs]
-                    kilograms = None if None in values else _sum_quantities(values)
-                    check_value(totals[0]["value"], kilograms)
+                known, kilograms = known_shift_total(inputs)
+                if known:
                     check_value(observed["value"], None if kilograms is None else kilograms / 1000)
                 # Opaque legacy refs do not identify kg versus MWh. Preserve
                 # readability without pretending that numeric matching proves units.
