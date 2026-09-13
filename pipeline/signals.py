@@ -16,7 +16,7 @@ from scipy.special import expit
 from sklearn.neighbors import NearestNeighbors
 
 from pipeline.common import fingerprint, write_json
-from pipeline.train import chronological_split, predict_members
+from pipeline.train import chronological_split, predict_members, predict_raw
 
 SIMILARITY_COLUMNS = ("temperature_c_lag_1h", "load_mw_lag_1h", "load_change_1h", "net_load_lag_1h", "wind_mw_lag_1h")
 EXPLANATION_CODE_SHA256 = fingerprint(Path(__file__))
@@ -51,12 +51,17 @@ def calibrated_contributions(bundle, query):
     values = query[names].to_numpy(dtype=float)
     contributions, probabilities = [], []
     for model, calibrator in bundle["members"]:
-        raw = np.asarray(model.booster_.predict(values, pred_contrib=True))
+        if type(model).__name__ == "XGBClassifier":
+            import xgboost as xgb
+            dmat = xgb.DMatrix(values, feature_names=names)
+            raw = np.asarray(model.get_booster().predict(dmat, pred_contribs=True))
+        else:
+            raw = np.asarray(model.booster_.predict(values, pred_contrib=True))
         if raw.shape != (len(query), len(names) + 1) or list(calibrator.classes_) != [0, 1]:
             raise ValueError("Explanations require the fitted binary tree/sigmoid model.")
         adjusted = raw * float(calibrator.coef_[0, 0])
         adjusted[:, -1] += float(calibrator.intercept_[0])
-        probability = calibrator.predict_proba(model.predict(values, raw_score=True).reshape(-1, 1))[:, 1]
+        probability = calibrator.predict_proba(predict_raw(model, values).reshape(-1, 1))[:, 1]
         if not np.allclose(expit(adjusted.sum(axis=1)), probability, atol=1e-8):
             raise ValueError("Feature contributions do not reconstruct the calibrated prediction.")
         contributions.append(adjusted)

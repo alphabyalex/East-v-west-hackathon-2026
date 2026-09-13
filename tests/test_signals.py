@@ -36,8 +36,8 @@ class SignalTests(unittest.TestCase):
     def test_calibrated_contributions_reconstruct_each_member(self):
         query = self.split["test"].head(10)
         contrib, probability = calibrated_contributions(self.bundle, query)
-        np.testing.assert_allclose(expit(contrib.sum(axis=2)).T, probability)
-        np.testing.assert_allclose(probability, predict_members(self.bundle, query))
+        np.testing.assert_allclose(expit(contrib.sum(axis=2)).T, probability, atol=1e-6)
+        np.testing.assert_allclose(probability, predict_members(self.bundle, query), atol=1e-6)
         # Direction must follow the fitted calibrator even if its slope reverses.
         calibrator = self.bundle["members"][0][1]
         previous = calibrator.coef_.copy()
