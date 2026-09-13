@@ -967,12 +967,12 @@ def wind_oversupply_hours(
     frame["timestamp_utc"] = pd.to_datetime(times, utc=True)
     if not frame.timestamp_utc.eq(frame.timestamp_utc.dt.floor("h")).all():
         raise ValueError("Input must contain hourly interval-start timestamps.")
-    if not frame.location_id.map(lambda value: isinstance(value, str) and bool(value.strip())).all():
+    if not all(isinstance(value, str) and bool(value.strip()) for value in frame.location_id):
         raise ValueError("Every location_id must be a nonempty string.")
     if frame.duplicated(["location_id", "timestamp_utc"]).any():
         raise ValueError("Duplicate location/hour observations must be reconciled first.")
     for name in INPUT_COLUMNS:
-        if frame[name].map(lambda value: isinstance(value, (bool, np.bool_))).any():
+        if any(isinstance(value, (bool, np.bool_)) for value in frame[name]):
             raise ValueError(f"{name} cannot contain boolean observations.")
         frame[name] = _numeric_observations(frame[name], name).astype(float)
         if np.isinf(frame[name]).any():
@@ -1028,7 +1028,7 @@ def summarize_wind(
                "one-hour intervals; scenario capacity times proxy hours, not measured recoverable wind",
     }
     output = []
-    for location, group in frame.groupby("location_id", sort=True):
+    for location, group in frame.groupby("location_id", sort=True, observed=True):
         flags = group.wind_oversupply_proxy
         start, end = group.timestamp_utc.min(), group.timestamp_utc.max() + pd.Timedelta(1, unit="h")
         expected_start = pd.Timestamp(year=start.year, month=1, day=1, tz="UTC")
