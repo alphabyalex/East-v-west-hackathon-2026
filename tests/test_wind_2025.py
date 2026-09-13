@@ -416,7 +416,7 @@ def test_monthly_ver_cache_source_and_content_are_verified(tmp_path, monkeypatch
 @pytest.mark.parametrize("year,month", [(True, 12), (2025.0, 12), ("2025", 12), (2024, 12),
                                         (2025, True), (2025, 12.0), (2025, "12"), (2025, 11)])
 def test_monthly_ver_reviewed_period_is_narrow_and_never_coerced(year, month):
-    with pytest.raises(ValueError, match="exactly December 2025"):
+    with pytest.raises(ValueError, match="only reviewed December 2025 and January/February 2026"):
         wind.read_cached_wind_curtailment_month(year, month)
 
 

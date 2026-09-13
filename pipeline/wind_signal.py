@@ -321,24 +321,27 @@ def read_cached_wind_curtailment_archive(year: int) -> tuple[pd.DataFrame, dict]
 
 
 def read_cached_wind_curtailment_month(year: int = 2025, month: int = 12) -> tuple[pd.DataFrame, dict]:
-    """Read the reviewed December 2025 VER monthly supplement without fetching.
+    """Read reviewed December 2025 or January/February 2026 VER without fetching.
 
     This separate cached source does not replace the partial annual rollup or
     any prior dataset/evaluation. Returns original category values and rows;
     prepare_wind_curtailment_labels owns completeness, duplicate/conflicting
     interval handling and numeric validation. No missing category becomes zero,
     no category quantities are added, and the filename does not prove coverage.
-    Only the observed eight-column December format is currently accepted.
+    Only those three reviewed months and their exact eight-column format are
+    accepted. None has a BAA field: the downstream label preparer still requires
+    an explicit sourced footprint declaration. No scope is inferred here from
+    the filename. Later 2026 months require a separate schema/footprint review.
     """
-    if type(year) is not int or type(month) is not int or (year, month) != (2025, 12):
-        raise ValueError("Monthly VER reader is reviewed for exactly December 2025.")
-    path = ROOT / "data/raw/spp/evidence/ver_curtailments_2025_12.parquet"
+    if type(year) is not int or type(month) is not int or (year, month) not in {(2025, 12), (2026, 1), (2026, 2)}:
+        raise ValueError("Monthly VER reader supports only reviewed December 2025 and January/February 2026.")
+    path = ROOT / f"data/raw/spp/evidence/ver_curtailments_{year}_{month:02d}.parquet"
     cached = pd.read_parquet(path)
     if len(cached) != 1 or not cached.columns.is_unique or not {"request_url", "content", "source_json"}.issubset(cached.columns):
         raise ValueError("Invalid cached monthly VER evidence record.")
     row = cached.iloc[0]
-    member = "VER-Curtailments-MONTHLY-202512.csv"
-    url = f"https://portal.spp.org/file-browser-api/download/ver-curtailments?path=/2025/12/{member}"
+    member = f"VER-Curtailments-MONTHLY-{year}{month:02d}.csv"
+    url = f"https://portal.spp.org/file-browser-api/download/ver-curtailments?path=/{year}/{month:02d}/{member}"
     manifest = _strict_wind_json(row.source_json)
     if not isinstance(manifest, dict) or row.request_url != url or manifest.get("requested_url") != url or manifest.get("ref") != url:
         raise ValueError("Monthly VER cache must identify its exact month and SPP source URL.")
@@ -360,11 +363,13 @@ def read_cached_wind_curtailment_month(year: int = 2025, month: int = 12) -> tup
     ends = _archive_gmt_times(frame.GMTIntervalEnding)
     starts = (ends - pd.Timedelta(5, unit="min")).dt.tz_convert("America/Chicago")
     if (ends.isna().any() or not ends.eq(ends.dt.floor("5min")).all()
-            or not starts.dt.strftime("%Y-%m").eq("2025-12").all()):
+            or not starts.dt.strftime("%Y-%m").eq(f"{year}-{month:02d}").all()):
         raise ValueError("Monthly VER interval starts disagree with their Central operating month.")
     frame["archive_member"] = member
+    # Preserve the previously published December source text byte for byte.
+    supplement = "separate December monthly supplement" if (year, month) == (2025, 12) else f"separate reviewed {year}-{month:02d} monthly archive; BAA absent, sourced footprint declaration required"
     return frame, {**origin, "ref": f"{url}; cached_sha256={digest}; "
-        "separate December monthly supplement; GMT interval end minus five minutes checked against Central operating month; "
+        f"{supplement}; GMT interval end minus five minutes checked against Central operating month; "
         "original category values and duplicate/conflicting rows retained for shared label preparation; "
         "no category summation or gap filling; filename does not guarantee complete monthly coverage"}
 
