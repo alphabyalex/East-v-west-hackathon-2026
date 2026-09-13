@@ -164,6 +164,26 @@ def test_reproducible_order_and_no_avoided_claims_or_unsourced_numbers():
     assert "unobserved" in first[0]["basis"]
 
 
+def test_provenance_keeps_exact_scenario_and_threshold_values():
+    load, fraction, share, price = 100.000001, 0.500000001, 0.500000001, -0.123456789
+    report = summarize(
+        observations(), flexible_load_mw={**LOAD, "value": load},
+        available_fraction={**FRACTION, "value": fraction},
+        policy=WindPolicy(minimum_wind_share=share, maximum_lmp_usd_mwh=price),
+    )[0]
+    ref = report["wind_absorption_mwh_in_observed_hours"]["ref"]
+    # Display rounding must never make two distinct assumptions share a source ref.
+    for value in (load, fraction, share, price):
+        assert repr(value) in ref
+    assert report["wind_absorption_mwh_in_observed_hours"]["value"] == 4 * load * fraction
+
+
+def test_source_mapping_order_does_not_change_serialized_output():
+    first = summarize(observations())
+    second = summarize(observations().iloc[::-1], sources=dict(reversed(list(SOURCES.items()))))
+    assert json.dumps(first, sort_keys=True, allow_nan=False) == json.dumps(second, sort_keys=True, allow_nan=False)
+
+
 def cached_inputs():
     starts = pd.date_range("2024-01-01", periods=24, freq="5min", tz="UTC")
     generation = pd.DataFrame({"Interval Start": starts, "Interval End": starts + pd.Timedelta(5, unit="min"), "Wind": 60.})
@@ -190,6 +210,24 @@ def test_cache_adapter_incomplete_subhourly_coverage_stays_unknown():
     result = prepare(generation.drop(index=0), load, prices)
     assert pd.isna(result.system_wind_mw.iloc[0])
     assert pd.isna(wind_oversupply_hours(result, **ARGS).wind_oversupply_proxy.iloc[0])
+
+
+def test_negative_net_wind_cannot_be_hidden_in_a_positive_hourly_mean():
+    generation, load, prices = cached_inputs()
+    generation.loc[0, "Wind"] = -1.
+    with pytest.raises(ValueError, match="Negative net wind"):
+        prepare(generation, load, prices)
+
+
+@pytest.mark.parametrize("bad", [True, float("inf"), -21.])
+def test_historical_wind_validates_raw_components_before_averaging(bad):
+    generation, load, prices = cached_inputs()
+    historic = pd.DataFrame({"GMT MKT Interval": generation["Interval Start"], "Wind Market": 40.,
+                             "Wind Self": 20., "Solar Market": 1., "Solar Self": 1.})
+    historic["Wind Market"] = historic["Wind Market"].astype(object)
+    historic.loc[0, "Wind Market"] = bad
+    with pytest.raises(ValueError):
+        prepare(historic, load, prices, generation_format="historical")
 
 
 def test_cache_adapter_overlapping_identical_chunks_are_deduplicated():

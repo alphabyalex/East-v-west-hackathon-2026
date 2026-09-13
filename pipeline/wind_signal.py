@@ -79,7 +79,7 @@ class WindPolicy:
         return {
             "source_type": "assumption",
             "ref": "pipeline/wind_signal.py:WindPolicy; declared screening thresholds; "
-                   f"wind_share>={self.minimum_wind_share:g}, lmp_usd_mwh<={self.maximum_lmp_usd_mwh:g}; "
+                   f"wind_share>={float(self.minimum_wind_share)!r}, lmp_usd_mwh<={float(self.maximum_lmp_usd_mwh)!r}; "
                    "high-wind/low-price opportunity proxy, not measured wind curtailment",
         }
 
@@ -87,7 +87,7 @@ class WindPolicy:
 INPUT_COLUMNS = ("system_wind_mw", "system_load_mw", "lmp_usd_mwh")
 
 
-def _complete_hourly_power(raw: pd.DataFrame, value_column: str) -> pd.DataFrame:
+def _complete_hourly_power(raw: pd.DataFrame, value_column: str, *, nonnegative=False) -> pd.DataFrame:
     """Mean MW or mean price only when interval coverage fills the whole hour.
 
     gridstatus returns interval-start/end timestamps. Never sum MW as if it were
@@ -118,6 +118,8 @@ def _complete_hourly_power(raw: pd.DataFrame, value_column: str) -> pd.DataFrame
     frame[value_column] = pd.to_numeric(frame[value_column], errors="raise").astype(float)
     if np.isinf(frame[value_column]).any():
         raise ValueError("Cached numeric observations cannot be infinite.")
+    if nonnegative and frame[value_column].lt(0).any():
+        raise ValueError("Negative net wind observations must be reconciled before hourly averaging.")
     frame["duration"] = duration
     frame["timestamp_utc"] = hour
     rows = []
@@ -164,9 +166,26 @@ def prepare_wind_inputs(
     if load.timestamp_utc.duplicated().any() or not load.timestamp_utc.eq(load.timestamp_utc.dt.floor("h")).all():
         raise ValueError("System load must have unique hourly interval-start timestamps.")
     if generation_format == "historical":
+        # The shared normalizer handles missing/conflicting observations, but raw
+        # booleans or negative net wind must not disappear inside an hourly mean.
+        checked = generation.copy()
+        checked.columns = checked.columns.str.strip()
+        if checked.columns.duplicated().any():
+            raise ValueError("Historical generation has duplicate normalized column names.")
+        components = ["Wind Market", "Wind Self"]
+        if not set(components).issubset(checked.columns):
+            raise ValueError("Historical generation requires both wind components.")
+        for name in components:
+            if checked[name].map(lambda value: isinstance(value, (bool, np.bool_))).any():
+                raise ValueError("Historical wind observations cannot be booleans.")
+            checked[name] = pd.to_numeric(checked[name], errors="raise").astype(float)
+            if np.isinf(checked[name]).any():
+                raise ValueError("Historical wind observations cannot be infinite.")
+        if checked[components].sum(axis=1, min_count=2).lt(0).any():
+            raise ValueError("Negative net wind observations must be reconciled before hourly averaging.")
         wind = normalize_generation(generation)[["timestamp_utc", "wind_mw"]].rename(columns={"wind_mw": "system_wind_mw"})
     elif generation_format == "gridstatus":
-        wind = _complete_hourly_power(generation, "Wind").rename(columns={"Wind": "system_wind_mw"})
+        wind = _complete_hourly_power(generation, "Wind", nonnegative=True).rename(columns={"Wind": "system_wind_mw"})
     else:
         raise ValueError("generation_format must be gridstatus or historical.")
     price_columns = {"Interval Start", "Interval End", "Market", "Location", "LMP"}
@@ -357,8 +376,8 @@ def summarize_wind(
     proxy_source = {"source_type": "assumption", "ref": frame.attrs["policy_source"]["ref"] + "; " + observation_source["ref"]}
     energy_source = {
         "source_type": "assumption",
-        "ref": f"{proxy_source['ref']}; flexible_load_mw={load:g} ({load_origin['ref']}); "
-               f"available_fraction={fraction:g} ({fraction_origin['ref']}); "
+        "ref": f"{proxy_source['ref']}; flexible_load_mw={load!r} ({load_origin['ref']}); "
+               f"available_fraction={fraction!r} ({fraction_origin['ref']}); "
                "one-hour intervals; scenario capacity times proxy hours, not measured recoverable wind",
     }
     output = []
