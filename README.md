@@ -84,6 +84,17 @@ The runnable UI and API use explicitly labeled mock data. The pipeline, calibrat
 and tariff descriptions above are the intended full product; they are not a claim
 that those outputs are already connected to this checkpoint.
 
+For Kristian's implemented offline ML workflow, start with the
+[local browser workspace](docs/ML_WORKSPACE.md): double-click **Open ML Workspace.cmd**
+and open **http://127.0.0.1:8765** to explore real inputs, enter an area, and train
+once reviewed event labels are available. For command-line use, follow the
+[step-by-step walkthrough](docs/ML_WALKTHROUGH.md). It covers the local Python
+environment, real SPP load preparation, required event labels, training, evaluation,
+and the experimental simulation. Use `python -m pipeline.workflow --help` for its
+commands. The walkthrough explains the remaining ML data and review requirements;
+the commands below run the current mock UI and API. To enter a city/state and use
+its historical weather in training, see [temperature inputs](docs/TEMPERATURE_DATA.md).
+
 Install Node.js 22.12+ and Python 3.11+, then use two terminals:
 
 ```sh
@@ -107,3 +118,6 @@ fonts, and charts, with no external API/data/model calls during the demo.
 See [web/README.md](web/README.md) for interactions and frontend checks,
 [api/README.md](api/README.md) for backend checks and the future pipeline adapter,
 and [docs/BUILD_PLAN.md](docs/BUILD_PLAN.md) for the shared contract and deadlines.
+
+Historical SPP cases, the load/temperature event join, and CHILLS rule interpretation
+are in [docs/SPP_EVENT_AND_CHILLS_ANALYSIS.md](docs/SPP_EVENT_AND_CHILLS_ANALYSIS.md).
