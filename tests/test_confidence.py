@@ -53,6 +53,7 @@ def test_real_neighbor_counts_are_local_and_drive_different_scores():
                           for location in ("dense", "sparse", "unseen") for time in times])
     bundle = {"feature_names": ["x"], "density_medians": np.zeros(1), "density_scales": np.ones(1),
               "density_training": np.zeros((len(locations), 1)), "density_training_locations": locations,
+              "density_training_complete": np.ones(len(locations), dtype=bool),
               "report": {"test_by_location": {location: {"brier_skill_vs_train_prevalence": .2} for location in ("dense", "sparse")}}}
     with patch("pipeline.confidence.predict_members", side_effect=lambda _, rows: np.full((len(rows), 2), .01)):
         result = estimate_confidence(bundle, frame)
@@ -68,6 +69,7 @@ def confidence_fixture(times):
     frame = pd.DataFrame({"timestamp_utc": times, "location_id": "test-only", "x": 0., "target": 1})
     bundle = {"feature_names": ["x"], "density_medians": np.zeros(1), "density_scales": np.ones(1),
               "density_training": np.zeros((200, 1)), "density_training_locations": np.array(["test-only"] * 200),
+              "density_training_complete": np.ones(200, dtype=bool),
               "report": {"test_by_location": {"test-only": {"brier_skill_vs_train_prevalence": .2}}}}
     return bundle, frame
 
@@ -91,6 +93,73 @@ def test_exact_365_day_hourly_coverage_has_no_off_by_one_penalty():
     assert result["limitations"] == []
     assert confidence_coverage(frame)["test-only"] == {
         "scored_hours": 8760, "span_hours": 8760, "missing_hours_within_span": 0, "positive_hours": 8760}
+
+
+def test_missing_query_values_do_not_become_median_valued_precedent():
+    bundle, frame = confidence_fixture(pd.date_range("2023-01-01", periods=8760, freq="h", tz="UTC"))
+    frame["x"] = np.nan
+    with patch("pipeline.confidence.predict_members", side_effect=lambda _, rows: np.full((len(rows), 2), .01)):
+        result = estimate_confidence(bundle, frame)["test-only"]
+    assert result["score"] == 0
+    assert result["level"] == "Low"
+    assert result["n_similar_historical_hours"] == 0
+    assert "no_complete_query_feature_vectors" in result["limitations"]
+
+
+def test_imputed_reference_vectors_are_not_counted_as_observed_hours():
+    bundle, frame = confidence_fixture(pd.date_range("2023-01-01", periods=8760, freq="h", tz="UTC"))
+    bundle["density_training_complete"][5:] = False
+    with patch("pipeline.confidence.predict_members", side_effect=lambda _, rows: np.full((len(rows), 2), .01)):
+        result = estimate_confidence(bundle, frame)["test-only"]
+    assert result["n_similar_historical_hours"] == 5
+    assert result["score"] == .2
+    assert result["level"] == "Low"
+
+
+def test_missing_queries_remain_in_the_median_denominator():
+    bundle, frame = confidence_fixture(pd.date_range("2023-01-01", periods=8760, freq="h", tz="UTC"))
+    frame.loc[frame.index[:7000], "x"] = np.nan
+    with patch("pipeline.confidence.predict_members", side_effect=lambda _, rows: np.full((len(rows), 2), .01)):
+        result = estimate_confidence(bundle, frame)["test-only"]
+    assert result["n_similar_historical_hours"] == 0
+    assert result["score"] == 0
+
+
+def test_one_missing_feature_cannot_shrink_the_matching_space():
+    bundle, frame = confidence_fixture(pd.date_range("2023-01-01", periods=8760, freq="h", tz="UTC"))
+    bundle.update(feature_names=["x", "y"], density_medians=np.zeros(2), density_scales=np.ones(2),
+                  density_training=np.zeros((200, 2)))
+    frame["y"] = np.nan
+    with patch("pipeline.confidence.predict_members", side_effect=lambda _, rows: np.full((len(rows), 2), .01)):
+        assert estimate_confidence(bundle, frame)["test-only"]["n_similar_historical_hours"] == 0
+
+
+def test_legacy_imputed_references_have_unverified_completeness_not_fabricated_support():
+    bundle, frame = confidence_fixture(pd.date_range("2023-01-01", periods=8760, freq="h", tz="UTC"))
+    del bundle["density_training_complete"]
+    with patch("pipeline.confidence.predict_members", side_effect=lambda _, rows: np.full((len(rows), 2), .01)):
+        result = estimate_confidence(bundle, frame)["test-only"]
+    assert result["score"] == 0
+    assert "historical_feature_completeness_unavailable" in result["limitations"]
+
+
+@pytest.mark.parametrize("bad", ["mask_shape", "mask_numeric", "mask_unknown", "training_nonfinite", "training_shape",
+                                  "location_shape", "median_nonfinite", "scale_zero", "scale_negative", "query_infinite"])
+def test_invalid_density_evidence_fails_before_predicting(bad):
+    bundle, frame = confidence_fixture(pd.date_range("2023-01-01", periods=30, freq="h", tz="UTC"))
+    if bad == "mask_shape": bundle["density_training_complete"] = np.ones(199, dtype=bool)
+    elif bad == "mask_numeric": bundle["density_training_complete"] = np.ones(200)
+    elif bad == "mask_unknown": bundle["density_training_complete"] = np.full(200, np.nan)
+    elif bad == "training_nonfinite": bundle["density_training"][0, 0] = np.nan
+    elif bad == "training_shape": bundle["density_training"] = np.zeros((200, 2))
+    elif bad == "location_shape": bundle["density_training_locations"] = np.array(["test-only"])
+    elif bad == "median_nonfinite": bundle["density_medians"][0] = np.nan
+    elif bad == "scale_zero": bundle["density_scales"][0] = 0
+    elif bad == "scale_negative": bundle["density_scales"][0] = -1
+    elif bad == "query_infinite": frame["x"] = np.inf
+    with patch("pipeline.confidence.predict_members") as predict:
+        with pytest.raises(ValueError): estimate_confidence(bundle, frame)
+        predict.assert_not_called()
 
 
 def test_local_coverage_does_not_pool_other_locations_or_hide_gaps():

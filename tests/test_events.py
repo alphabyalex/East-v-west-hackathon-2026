@@ -99,6 +99,20 @@ class EvidenceTests(unittest.TestCase):
         self.assertTrue(result.observed_eea_minutes.iloc[1:9].isna().all())
         self.assertEqual(result.observed_eea_minutes.iloc[9], 35)
 
+    def test_2019_local_clock_record_is_not_mapped_to_utc_without_a_verified_timezone(self):
+        path = Path(__file__).resolve().parents[1] / "docs/spp-event-evidence.json"
+        evidence = json.loads(path.read_text(encoding="utf-8"))
+        candidate = next(row for row in evidence["events"] if row["id"] == "spp_20190806_eea1_local_clock")
+        self.assertEqual(candidate["reported_start_clock"], "14:45")
+        self.assertEqual(candidate["reported_end_clock"], "19:00")
+        self.assertEqual(candidate["timezone"], "unverified")
+        intervals = confirmed_eea_intervals(evidence, "SPP_BA_PRE_2026")
+        self.assertNotIn(candidate["id"], [identifier for _, _, identifier in intervals])
+        self.frame = pd.DataFrame({"timestamp_utc": pd.date_range("2019-08-06T00:00Z", periods=48, freq="h"),
+                                   "location_id": "SPP_SYSTEM", "load_mw": 1000.0})
+        joined = annotate_hours(self.frame, evidence, "SPP_SYSTEM", "SPP_BA_PRE_2026")
+        self.assertTrue(joined.observed_eea_minutes.isna().all())
+
     def test_cli_preparation_preserves_unknowns_and_does_not_create_labels(self):
         with tempfile.TemporaryDirectory() as tmp:
             folder = Path(tmp)

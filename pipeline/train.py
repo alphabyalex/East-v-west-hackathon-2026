@@ -118,6 +118,9 @@ def fit_ensemble(frame: pd.DataFrame, feature_names: list[str], *, seed: int = 2
         "density_medians": medians, "density_scales": scales,
         "density_training": np.nan_to_num((x_train - medians) / scales, nan=0.0),
         "density_training_locations": training.location_id.to_numpy(),
+        # Preserve which reference vectors were observed before imputation.
+        # Missing sensors must not become median-valued historical precedent.
+        "density_training_complete": np.isfinite(x_train).all(axis=1),
     }
     probabilities = predict_members(bundle, test)
     mean = probabilities.mean(axis=1)

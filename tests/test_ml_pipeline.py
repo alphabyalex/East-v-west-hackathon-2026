@@ -152,6 +152,14 @@ class TrainingTests(unittest.TestCase):
             self.assertGreater(report["brier_skill_vs_train_prevalence"], 0)
             self.assertEqual(report["confidence"]["TEST_ONLY_SPP_SYSTEM"]["level"], "Low")
             self.assertEqual(report["confidence_coverage_policy"]["minimum_scored_hours_for_above_low"], 8760)
+            self.assertIn("confidence_precedent_policy", report)
+            import joblib
+            saved = joblib.load(run / "model.joblib")
+            training = chronological_split(pd.read_parquet(run / "features.parquet"))["train"]
+            expected_complete = np.isfinite(training[saved["feature_names"]].to_numpy(dtype=float)).all(axis=1)
+            np.testing.assert_array_equal(saved["density_training_complete"], expected_complete)
+            self.assertTrue(expected_complete.any())
+            self.assertFalse(expected_complete.all())  # Initial 168-hour lag history is incomplete.
             coverage = report["confidence_coverage"]["TEST_ONLY_SPP_SYSTEM"]
             self.assertEqual(coverage["scored_hours"], report["test_by_location"]["TEST_ONLY_SPP_SYSTEM"]["n_hours"])
             predictions = pd.read_parquet(run / "test_predictions.parquet")

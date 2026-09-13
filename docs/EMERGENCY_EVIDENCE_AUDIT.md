@@ -63,6 +63,21 @@ source references, and malformed hourly timestamps. It correctly preserves
 distinct hours sharing a pandas index label. Cached document reuse verifies the
 document hash and source metadata and fails without replacing a damaged cache.
 
+## Additional 2019 record under timing review
+
+The [2019 SPP annual market report](https://www.spp.org/documents/62150/2019%20annual%20state%20of%20the%20market%20report.pdf),
+printed pages 126-127 (PDF pages 140-141), documents an August 6 EEA1 and a
+14:45-19:00 timeline. Its Figure 3-33 caption says August 1, inconsistent with
+the narrative and SPP's December 2024 stakeholder report. The timeline itself
+does not identify a timezone.
+
+The catalog now preserves that date and the reported clock times with source
+hashes and an explicit unverified-timezone status. It does not assign a UTC
+offset or add those observations to hourly labels. The confirmed counts above
+remain 5,908 minutes in 102 buckets. This preserves useful source evidence
+without silently resolving a timing ambiguity. A regression test verifies that
+the new candidate remains excluded from UTC hourly joins.
+
 Validation: **1,759 Python tests and 42 subtests passed**. Only two existing
 FastAPI/Starlette dependency warnings remain; the event-join timedelta warnings
 are resolved. The actual seven-year join and direct parquet inspection completed.

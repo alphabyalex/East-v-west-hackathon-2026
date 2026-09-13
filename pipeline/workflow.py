@@ -16,7 +16,7 @@ def train_run(hourly_path: Path, policy_path: Path, run_dir: Path, *, seed: int 
               members: int = 15, trees: int = 100) -> dict:
     import joblib
 
-    from pipeline.confidence import CONFIDENCE_POLICY, CONFIDENCE_COVERAGE_POLICY, confidence_coverage, estimate_confidence
+    from pipeline.confidence import CONFIDENCE_POLICY, CONFIDENCE_COVERAGE_POLICY, CONFIDENCE_PRECEDENT_POLICY, confidence_coverage, estimate_confidence
     from pipeline.features import TEMPERATURE_FEATURE_POLICY, build_features
     from pipeline.label import label_hours
     from pipeline.train import chronological_split, fit_ensemble
@@ -47,7 +47,8 @@ def train_run(hourly_path: Path, policy_path: Path, run_dir: Path, *, seed: int 
                    "unknown_label_rows": int(labeled.target.isna().sum()),
                    "confidence": confidence, "confidence_policy": CONFIDENCE_POLICY,
                    "confidence_coverage": confidence_coverage(test),
-                   "confidence_coverage_policy": CONFIDENCE_COVERAGE_POLICY})
+                   "confidence_coverage_policy": CONFIDENCE_COVERAGE_POLICY,
+                   "confidence_precedent_policy": CONFIDENCE_PRECEDENT_POLICY})
     from pipeline.common import OBSERVATIONS
     report["input_factors"] = {name: {"observed_hours": int(hourly[name].notna().sum()),
                                      "missing_hours": int(hourly[name].isna().sum())}

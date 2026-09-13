@@ -43,6 +43,12 @@
       "requested_url": "https://www.spp.org/documents/69218/review%20of%20spp%27s%20response%20to%20the%20dec.%202022%20winter%20storm.pdf",
       "retrieved_utc": "2026-09-13T22:34:50.724982+00:00",
       "sha256": "1349172a67167a61d2875d5f71d0eef9f2416405edbc1ab65c68d07f49fc7778"
+    },
+    "annual_state_of_market_2019": {
+      "ref": "https://www.spp.org/documents/62150/2019%20annual%20state%20of%20the%20market%20report.pdf",
+      "requested_url": "https://www.spp.org/documents/62150/2019%20annual%20state%20of%20the%20market%20report.pdf",
+      "retrieved_utc": "2026-09-13T23:26:38.049719+00:00",
+      "sha256": "1eb25ba14a50ab3e65c130662acea5b66841493e1c68f2deb40fae88c6f5e770"
     }
   },
   "events": [
@@ -419,6 +425,27 @@
         40
       ],
       "notes": "Winter Storm Elliott. Both intervals are confirmed in the operations narrative and Appendix A. SPP reports no system-directed load management and no progression to EEA2/EEA3."
+    },
+    {
+      "id": "spp_20190806_eea1_local_clock",
+      "kind": "EEA1",
+      "region_id": "SPP_BA_PRE_2026",
+      "time_precision": "date",
+      "date": "2019-08-06",
+      "reported_start_clock": "14:45",
+      "reported_end_clock": "19:00",
+      "timezone": "unverified",
+      "end_status": "local_clock_confirmed_utc_mapping_unverified",
+      "source_ids": [
+        "annual_state_of_market_2019",
+        "stakeholder_report_dec2024_snapshot_20260913"
+      ],
+      "source_pages": [
+        140,
+        141,
+        142
+      ],
+      "notes": "Annual report printed pages 126-127 identify August 6 and a 14:45-19:00 EEA1 timeline. Its Figure 3-33 caption says August 1, inconsistent with the narrative and the independent December 2024 stakeholder report. The inspected timeline does not identify a timezone; keep the date/local clock record out of UTC hourly labels pending verification. Non-firm external energy sales are not hypothetical site interruptions."
     }
   ]
 }

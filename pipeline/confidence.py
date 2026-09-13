@@ -23,6 +23,34 @@ CONFIDENCE_COVERAGE_POLICY = {
     "meaning": "Minimum classifier-validation coverage; not a test of annual-tail accuracy.",
 }
 
+CONFIDENCE_PRECEDENT_POLICY = {
+    "ref": "pipeline/confidence.py:CONFIDENCE_PRECEDENT_POLICY",
+    "query": "A sampled hour counts neighbors only when every recorded model feature is observed and finite.",
+    "reference": "Count only same-location training hours with all recorded features observed before imputation.",
+    "missing": "Incomplete sampled queries have zero demonstrated neighbors and remain in the median denominator.",
+    "legacy": "Without preserved training completeness, support is unverified and reported as zero with a limitation.",
+    "interpretation": "Conservative demonstrated support in the full feature space; missing sensor values are not evidence of normal conditions.",
+}
+
+
+def _density_reference(bundle: dict) -> tuple[np.ndarray, np.ndarray, np.ndarray, bool]:
+    """Validate saved neighbor evidence without inferring completeness from zeros."""
+    names = bundle["feature_names"]
+    reference = np.asarray(bundle["density_training"])
+    locations = np.asarray(bundle["density_training_locations"])
+    medians, scales = np.asarray(bundle["density_medians"]), np.asarray(bundle["density_scales"])
+    if (not isinstance(names, list) or not names or any(not isinstance(name, str) for name in names)
+            or len(set(names)) != len(names) or reference.ndim != 2 or reference.shape[1] != len(names)
+            or locations.shape != (len(reference),) or medians.shape != (len(names),)
+            or scales.shape != (len(names),) or not np.isfinite(reference).all()
+            or not np.isfinite(medians).all() or not np.isfinite(scales).all() or (scales <= 0).any()):
+        raise ValueError("Confidence requires aligned, finite density evidence and positive feature scales.")
+    known = "density_training_complete" in bundle
+    complete = np.asarray(bundle["density_training_complete"]) if known else np.zeros(len(reference), dtype=bool)
+    if complete.shape != (len(reference),) or complete.dtype != np.dtype(bool):
+        raise ValueError("Training completeness must be a boolean mask aligned with reference hours.")
+    return reference, locations, complete, known
+
 
 def confidence_coverage(frame: pd.DataFrame) -> dict:
     """Count actual local scored hours; elapsed calendar time is not evidence."""
@@ -51,20 +79,29 @@ def estimate_confidence(bundle: dict, frame: pd.DataFrame) -> dict:
     output = {}
     policy = CONFIDENCE_POLICY
     coverage = confidence_coverage(frame)
+    all_reference, reference_locations, reference_complete, completeness_known = _density_reference(bundle)
     for location, group in frame.groupby("location_id", sort=True):
         group = group.sort_values("timestamp_utc")
         sample = group.iloc[np.linspace(0, len(group) - 1, min(len(group), policy["query_sample_limit"]), dtype=int)]
         values = sample[bundle["feature_names"]].to_numpy(dtype=float)
-        standardized = np.nan_to_num((values - bundle["density_medians"]) / bundle["density_scales"], nan=0.0)
-        reference = bundle["density_training"][bundle["density_training_locations"] == location]
-        if len(reference):
+        if np.isinf(values).any():
+            raise ValueError("Infinite query features are invalid confidence evidence.")
+        observed = np.isfinite(values).all(axis=1)
+        standardized = (values[observed] - bundle["density_medians"]) / bundle["density_scales"]
+        if not np.isfinite(standardized).all():
+            raise ValueError("Standardized query features must remain finite.")
+        reference = all_reference[(reference_locations == location) & reference_complete]
+        counts = np.zeros(len(sample), dtype=int)
+        if len(reference) and observed.any():
             neighbors = NearestNeighbors(radius=policy["similarity_radius_rms_standard_deviations"] * np.sqrt(values.shape[1]), n_jobs=1).fit(reference)
-            counts = [len(indices) for indices in neighbors.radius_neighbors(standardized, return_distance=False)]
-            precedent = int(np.median(counts))
-        else:
-            precedent = 0
+            counts[observed] = [len(indices) for indices in neighbors.radius_neighbors(standardized, return_distance=False)]
+        precedent = int(np.median(counts))
         spread = float(predict_members(bundle, sample).std(axis=1).mean())
         reasons = []
+        if not completeness_known:
+            reasons.append("historical_feature_completeness_unavailable")
+        if not observed.any():
+            reasons.append("no_complete_query_feature_vectors")
         skill = bundle["report"]["test_by_location"].get(location, {}).get("brier_skill_vs_train_prevalence")
         if skill is None or not np.isfinite(skill) or skill <= 0:
             reasons.append("does_not_beat_baseline")

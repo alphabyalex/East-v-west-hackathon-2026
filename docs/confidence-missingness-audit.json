@@ -1,0 +1,282 @@
+{
+  "precedent_policy": {
+    "ref": "pipeline/confidence.py:CONFIDENCE_PRECEDENT_POLICY",
+    "query": "A sampled hour counts neighbors only when every recorded model feature is observed and finite.",
+    "reference": "Count only same-location training hours with all recorded features observed before imputation.",
+    "missing": "Incomplete sampled queries have zero demonstrated neighbors and remain in the median denominator.",
+    "legacy": "Without preserved training completeness, support is unverified and reported as zero with a limitation.",
+    "interpretation": "Conservative demonstrated support in the full feature space; missing sensor values are not evidence of normal conditions."
+  },
+  "runs": [
+    {
+      "run": "confidence_v2_20260913",
+      "model_version": "spp_lgbm_20260913T215248_30b0029de7",
+      "model_sha256": "ef84a0c885c7f912c13a2bfa94f926a8178f380e95e633166be6ece8d92cbe81",
+      "features_sha256": "713b2c313b09771bffe6b3c723a0d9f4784d70de157a1bdcb6fbb28917b45236",
+      "training_hours": 31350,
+      "complete_training_feature_vectors": 22959,
+      "sampled_test_hours": 256,
+      "complete_sampled_feature_vectors": 218,
+      "before": {
+        "SPP_SYSTEM": {
+          "level": "Low",
+          "score": 0.0,
+          "agreement_score": 0.9976631414546541,
+          "historical_support_score": 0.0,
+          "n_similar_historical_hours": 0,
+          "mean_ensemble_probability_std": 0.0011684292726729674,
+          "limitations": [
+            "insufficient_same_location_precedent"
+          ],
+          "policy_version": 2,
+          "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
+        }
+      },
+      "after": {
+        "SPP_SYSTEM": {
+          "level": "Low",
+          "score": 0.0,
+          "agreement_score": 0.9976631414546541,
+          "historical_support_score": 0.0,
+          "n_similar_historical_hours": 0,
+          "mean_ensemble_probability_std": 0.0011684292726729674,
+          "limitations": [
+            "insufficient_same_location_precedent"
+          ],
+          "policy_version": 2,
+          "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
+        }
+      },
+      "model_weights_refit": false,
+      "saved_run_modified": false
+    },
+    {
+      "run": "history_2025_20260913",
+      "model_version": "spp_lgbm_20260913T222517_37b750a063",
+      "model_sha256": "1c53ec7c7939ee902a437db06d715da9aa436620f01282025ca018dee03e76bc",
+      "features_sha256": "b6e46a91b4ba55fd3b0dd802155033248a22574cf7a993a2776958d5d60b8287",
+      "training_hours": 36587,
+      "complete_training_feature_vectors": 26122,
+      "sampled_test_hours": 256,
+      "complete_sampled_feature_vectors": 222,
+      "before": {
+        "SPP_SYSTEM": {
+          "level": "Low",
+          "score": 0.0,
+          "agreement_score": 0.9953742540862066,
+          "historical_support_score": 0.0,
+          "n_similar_historical_hours": 0,
+          "mean_ensemble_probability_std": 0.002312872956896689,
+          "limitations": [
+            "insufficient_same_location_precedent"
+          ],
+          "policy_version": 2,
+          "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
+        }
+      },
+      "after": {
+        "SPP_SYSTEM": {
+          "level": "Low",
+          "score": 0.0,
+          "agreement_score": 0.9953742540862066,
+          "historical_support_score": 0.0,
+          "n_similar_historical_hours": 0,
+          "mean_ensemble_probability_std": 0.002312872956896689,
+          "limitations": [
+            "insufficient_same_location_precedent"
+          ],
+          "policy_version": 2,
+          "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
+        }
+      },
+      "model_weights_refit": false,
+      "saved_run_modified": false
+    },
+    {
+      "run": "outage_outlook_20260913",
+      "model_version": "spp_lgbm_20260913T225319_c6aa726554",
+      "model_sha256": "5398ab9cab7db0949f80f67e47cd81425d248703fdcc054cfa36f8d43bd4c2b7",
+      "features_sha256": "8deb7661bf1384ef31d81880a4b8281fc7704d4c25ca0bc4bfdcd306c79a26a7",
+      "training_hours": 36587,
+      "complete_training_feature_vectors": 26032,
+      "sampled_test_hours": 256,
+      "complete_sampled_feature_vectors": 97,
+      "before": {
+        "SPP_SYSTEM": {
+          "level": "Low",
+          "score": 0.0,
+          "agreement_score": 0.9953304188641422,
+          "historical_support_score": 0.0,
+          "n_similar_historical_hours": 0,
+          "mean_ensemble_probability_std": 0.00233479056792892,
+          "limitations": [
+            "insufficient_same_location_precedent"
+          ],
+          "policy_version": 2,
+          "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
+        }
+      },
+      "after": {
+        "SPP_SYSTEM": {
+          "level": "Low",
+          "score": 0.0,
+          "agreement_score": 0.9953304188641422,
+          "historical_support_score": 0.0,
+          "n_similar_historical_hours": 0,
+          "mean_ensemble_probability_std": 0.00233479056792892,
+          "limitations": [
+            "insufficient_same_location_precedent"
+          ],
+          "policy_version": 2,
+          "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
+        }
+      },
+      "model_weights_refit": false,
+      "saved_run_modified": false
+    }
+  ],
+  "before_code_commit": "f76533089b27ba87ca9d4d79d46b62cc6f1355dc",
+  "reference_recovery": "Reconstructed training split, medians, scales, standardized values and location ordering from saved features; each exactly matched the saved model before recovering pre-imputation completeness. Original runs were not modified.",
+  "synthetic_cases": [
+    {
+      "name": "all_observed",
+      "before": {
+        "level": "High",
+        "score": 0.9090909090909091,
+        "agreement_score": 1.0,
+        "historical_support_score": 0.9090909090909091,
+        "n_similar_historical_hours": 200,
+        "mean_ensemble_probability_std": 0.0,
+        "limitations": [],
+        "policy_version": 2,
+        "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
+      },
+      "after": {
+        "level": "High",
+        "score": 0.9090909090909091,
+        "agreement_score": 1.0,
+        "historical_support_score": 0.9090909090909091,
+        "n_similar_historical_hours": 200,
+        "mean_ensemble_probability_std": 0.0,
+        "limitations": [],
+        "policy_version": 2,
+        "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
+      },
+      "product_data": false
+    },
+    {
+      "name": "missing_query",
+      "before": {
+        "level": "High",
+        "score": 0.9090909090909091,
+        "agreement_score": 1.0,
+        "historical_support_score": 0.9090909090909091,
+        "n_similar_historical_hours": 200,
+        "mean_ensemble_probability_std": 0.0,
+        "limitations": [],
+        "policy_version": 2,
+        "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
+      },
+      "after": {
+        "level": "Low",
+        "score": 0.0,
+        "agreement_score": 1.0,
+        "historical_support_score": 0.0,
+        "n_similar_historical_hours": 0,
+        "mean_ensemble_probability_std": 0.0,
+        "limitations": [
+          "no_complete_query_feature_vectors",
+          "insufficient_same_location_precedent"
+        ],
+        "policy_version": 2,
+        "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
+      },
+      "product_data": false
+    },
+    {
+      "name": "five_observed_references",
+      "before": {
+        "level": "High",
+        "score": 0.9090909090909091,
+        "agreement_score": 1.0,
+        "historical_support_score": 0.9090909090909091,
+        "n_similar_historical_hours": 200,
+        "mean_ensemble_probability_std": 0.0,
+        "limitations": [],
+        "policy_version": 2,
+        "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
+      },
+      "after": {
+        "level": "Low",
+        "score": 0.2,
+        "agreement_score": 1.0,
+        "historical_support_score": 0.2,
+        "n_similar_historical_hours": 5,
+        "mean_ensemble_probability_std": 0.0,
+        "limitations": [
+          "insufficient_same_location_precedent"
+        ],
+        "policy_version": 2,
+        "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
+      },
+      "product_data": false
+    },
+    {
+      "name": "mostly_missing_queries",
+      "before": {
+        "level": "High",
+        "score": 0.9090909090909091,
+        "agreement_score": 1.0,
+        "historical_support_score": 0.9090909090909091,
+        "n_similar_historical_hours": 200,
+        "mean_ensemble_probability_std": 0.0,
+        "limitations": [],
+        "policy_version": 2,
+        "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
+      },
+      "after": {
+        "level": "Low",
+        "score": 0.0,
+        "agreement_score": 1.0,
+        "historical_support_score": 0.0,
+        "n_similar_historical_hours": 0,
+        "mean_ensemble_probability_std": 0.0,
+        "limitations": [
+          "insufficient_same_location_precedent"
+        ],
+        "policy_version": 2,
+        "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
+      },
+      "product_data": false
+    },
+    {
+      "name": "legacy_mask_absent",
+      "before": {
+        "level": "High",
+        "score": 0.9090909090909091,
+        "agreement_score": 1.0,
+        "historical_support_score": 0.9090909090909091,
+        "n_similar_historical_hours": 200,
+        "mean_ensemble_probability_std": 0.0,
+        "limitations": [],
+        "policy_version": 2,
+        "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
+      },
+      "after": {
+        "level": "Low",
+        "score": 0.0,
+        "agreement_score": 1.0,
+        "historical_support_score": 0.0,
+        "n_similar_historical_hours": 0,
+        "mean_ensemble_probability_std": 0.0,
+        "limitations": [
+          "historical_feature_completeness_unavailable",
+          "insufficient_same_location_precedent"
+        ],
+        "policy_version": 2,
+        "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
+      },
+      "product_data": false
+    }
+  ]
+}
