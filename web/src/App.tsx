@@ -1,12 +1,12 @@
 import { Component, lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, Check, ChevronDown, CircleHelp, Download, Gauge, MapPin, RotateCcw, SlidersHorizontal, Unplug, Zap } from 'lucide-react';
+import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, Check, ChevronDown, CircleHelp, Download, MapPin, RotateCcw, SlidersHorizontal, Unplug, Zap } from 'lucide-react';
 import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { ScenarioProvider, useScenario } from './ScenarioContext';
 import { Sourced, SourceInfo, SourcedTick } from './components/Sourced';
 import { TransparencyPanel } from './components/TransparencyPanel';
 import { SensitivityPanel } from './components/SensitivityPanel';
 import { ConfidenceBadge, type ConfidenceEstimate } from './components/ConfidenceBadge';
-import { MockLabel, isMockSource } from './components/MockLabel';
+import { isMockSource } from './components/MockLabel';
 import { useChangeMotion } from './hooks/useChangeMotion';
 import { deriveScenario, mockResponse, toEstimateRequest, type ScenarioInputs, type Source, type SourcedValue } from './model';
 
@@ -60,12 +60,12 @@ function NumberField({ name, label, unit, min, max, step = 1, icon, compact = fa
     } else if (finish) setDraft(String(inputs[name]));
   };
   return <div className={`number-field ${compact ? 'compact-field' : ''}`}>
-    <div className="field-label"><label htmlFor={name}>{icon}{label}</label><span className="field-source">{compact && <MockLabel sources={[visibleSource]} />}<SourceInfo value={visibleValue} source={visibleSource} label={`${label} provenance`} /></span></div>
+    <div className="field-label"><label htmlFor={name}>{icon}{label}</label><span className="field-source"><SourceInfo value={visibleValue} source={visibleSource} label={`${label} provenance`} /></span></div>
     <div className="input-with-unit">
       <input id={name} type="number" inputMode="decimal" min={min} max={max} step={step} value={draft}
         onChange={event => commit(event.target.value)} onBlur={event => commit(event.target.value, true)}
         onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); }}
-        title={JSON.stringify({ value: visibleValue, source_type: visibleSource.source_type, ref: visibleSource.ref })} aria-describedby={`${name}-unit`} />
+        data-provenance={JSON.stringify({ value: visibleValue, source_type: visibleSource.source_type, ref: visibleSource.ref })} aria-describedby={`${name}-unit`} />
       <span id={`${name}-unit`} className="input-unit">{unit}</span>
     </div>
   </div>;
@@ -138,7 +138,6 @@ function ExposureControl() {
   const marker = crossover.value !== null && crossover.value >= 0 && crossover.value <= 1 ? crossover.value : null;
   return <section className="exposure-control" aria-labelledby="exposure-label">
     <div className="exposure-copy">
-      <div className="flex items-center gap-2"><span className="assumption-badge">USER ASSUMPTION</span><Gauge size={15} className="metric-emphasis" /></div>
       <h2 id="exposure-label">Site exposure factor</h2>
       <p>Public grid stress does not establish a specific site’s actual curtailment. <strong>You set the mapping.</strong></p>
     </div>
@@ -164,7 +163,7 @@ function FanTooltip({ active, row, confidence }: { active?: boolean; row?: Chart
     <div><span><Percentile value={99} /> modeled exposure · h/yr</span><ExposureValue datum={row.original.p99} confidence={confidence} /></div>
     <div><span><Percentile value={90} /> modeled exposure · h/yr</span><ExposureValue datum={row.original.p90} confidence={confidence} /></div>
     <div><span><Percentile value={50} /> modeled exposure · h/yr</span><ExposureValue datum={row.original.p50} confidence={confidence} /></div>
-    <small><MockLabel sources={[row.original.p50, row.original.p90, row.original.p99]} children="Assumed quantiles" /> Click or tap a value for its source</small>
+    <small>Click or tap a value for its source</small>
   </div>;
 }
 
@@ -196,13 +195,12 @@ function ExposurePanel() {
       {([['p50', 50, 'Median scenario'], ['p90', 90, 'Upper-tail scenario'], ['p99', 99, 'Extreme-tail scenario']] as const).map(([key, percentile, label]) => <div className={`metric metric-${key}${key === 'p50' ? ' metric-primary' : ''}`} key={key}>
         <div className="metric-label"><Percentile value={percentile} /><span>{label}</span></div>
         <div className="metric-number"><Value datum={result.annual_exposure[key]} format={numeric.format} /><span className="metric-unit">h/yr</span></div>
-        <MockLabel sources={[result.annual_exposure[key]]} children="Assumed exposure" />
         <ConfidenceBadge confidence={result.confidence} />
       </div>)}
     </div>
     {transparencyOpen && <TransparencyPanel confidence={result.confidence} tariff={result.tariff} siteExposure={result.inputs.site_exposure} onClose={closeTransparency} />}
     <div className="chart-section" ref={chartRef}>
-      <div className="chart-heading"><div><h3>Exposure over the contract term</h3><p><MockLabel sources={[result.canonical_response.modeled_exposure.source]} children="Assumed quantiles" /> Fixed inputs · precomputed values</p></div><div className="chart-view-controls segment-control" role="group" aria-label="Exposure visualization"><button aria-pressed={view === 'fan'} onClick={() => setView('fan')}>Fan chart</button><button aria-pressed={view === 'surface'} onClick={() => { setSurfaceUnavailable(false); setView('surface'); }}>Surface</button></div></div>
+      <div className="chart-heading"><div><h3>Exposure over the contract term</h3><p>{isMockSource(result.canonical_response.modeled_exposure.source) ? 'Scenario values · fitted model output unavailable' : 'Fixed inputs · precomputed values'}</p></div><div className="chart-view-controls segment-control" role="group" aria-label="Exposure visualization"><button aria-pressed={view === 'fan'} onClick={() => setView('fan')}>Fan chart</button><button aria-pressed={view === 'surface'} onClick={() => { setSurfaceUnavailable(false); setView('surface'); }}>Surface</button></div></div>
       {surfaceUnavailable && <p className="surface-fallback" role="status">Interactive surface unavailable on this device. Fan chart shown; exact sourced values remain below.</p>}
       {view === 'surface' ? <SurfaceBoundary onUnavailable={showFallback}><Suspense fallback={<div className="surface-loading" role="status">Preparing exposure surface…</div>}><ExposureSurface rows={result.annual_series} maximumHours={maximum} confidence={result.confidence} onUnavailable={showFallback} /></Suspense></SurfaceBoundary> : <>
       <div className="chart-legend fan-legend"><span><i className="legend-line" /><Percentile value={50} /></span><span><i className="legend-band" /><Percentile value={50} />–<Percentile value={90} /></span><span><i className="legend-line legend-upper" /><Percentile value={99} /></span></div>
@@ -225,7 +223,7 @@ function ExposurePanel() {
       {tableOpen && <div id="annual-values" className="annual-table-wrap"><table className="annual-table"><caption className="sr-only">Sourced annual modeled exposure in hours per year</caption><thead><tr><th>Year</th><th><Percentile value={50} /> h/yr</th><th><Percentile value={90} /> h/yr</th><th><Percentile value={99} /> h/yr</th></tr></thead><tbody>{result.annual_series.map(row => <tr key={row.year.value}><td><Value datum={row.year} /></td><td><ExposureValue datum={row.p50} confidence={result.confidence} /></td><td><ExposureValue datum={row.p90} confidence={result.confidence} /></td><td><ExposureValue datum={row.p99} confidence={result.confidence} /></td></tr>)}</tbody></table></div>}
     </div>
     <div className="panel-footnote"><CircleHelp size={13} /><span>Annual summaries average each percentile across the selected term. They do not describe the distribution of total contract exposure.</span></div>
-    <div className="panel-footnote confidence-footnote"><CircleHelp size={13} /><span>Confidence describes support for an estimate, not the chance that the future matches it.{isMockSource(result.confidence.source) && ' The assumed confidence signal has not been computed by an ensemble.'}</span></div>
+    <div className="panel-footnote confidence-footnote"><CircleHelp size={13} /><span>Confidence describes support for an estimate, not the chance that the future matches it.{(isMockSource(result.confidence.source) || isMockSource(result.confidence.score)) && ' The confidence signal has not been computed by an ensemble.'}</span></div>
   </section>;
 }
 
@@ -238,7 +236,7 @@ function EconomicsPanel() {
   const state = decision === 'worth it' ? 'positive' : decision === 'not worth it' ? 'negative' : 'neutral';
   return <section className={`panel economics-panel decision-${state}`} aria-labelledby="economics-title" aria-describedby={isMockSource(economicsSource) ? 'economics-mock-note' : undefined}>
     <div className="panel-heading"><div className="flex items-center gap-2"><span className="dollar-icon">$</span><h2 id="economics-title">Connection economics</h2></div></div>
-    {isMockSource(economicsSource) && <p className="economics-mock-note" id="economics-mock-note"><MockLabel sources={[economicsSource]} children="Assumed economics" /> GPU-hours, dollars and break-even use unverified scenario inputs.</p>}
+    {isMockSource(economicsSource) && <p className="economics-mock-note" id="economics-mock-note">GPU-hours, dollars and break-even use unverified scenario inputs.</p>}
     <div className="economics-flow">
       <div className="economics-row"><div><span className="economics-label">Interruptible capacity</span><span className="economics-detail">Load × flexibility split</span></div><span><Value datum={e.interruptible_mw} /> <small>MW</small></span></div>
       <div className="flow-connector"><ArrowDownRight size={14} /><span>Modeled exposure × compute density</span></div>
@@ -246,16 +244,16 @@ function EconomicsPanel() {
       <div className="flow-connector"><ArrowDownRight size={14} /><span>Lost GPU-hours × value per GPU-hour</span></div>
       <div className="economics-row loss-row"><div><span className="economics-label">Modeled interruption cost</span><span className="economics-detail">Annual equivalent</span></div><span className="metric-emphasis"><Value datum={e.annual_loss_usd} format={money} /> <small>/yr</small></span></div>
     </div>
-    <div className="economics-quantiles"><table><caption>ANNUAL COST SCENARIOS · USD / YEAR <MockLabel sources={[economicsSource]} /></caption><thead><tr>{([50, 90, 99] as const).map(percentile => <th key={percentile}><Percentile value={percentile} /></th>)}</tr></thead><tbody><tr>{(['p50', 'p90', 'p99'] as const).map(key => <td key={key}><Value datum={e.annual_loss_by_quantile[key]} format={money} /></td>)}</tr></tbody></table></div>
+    <div className="economics-quantiles"><table><caption>ANNUAL COST SCENARIOS · USD / YEAR</caption><thead><tr>{([50, 90, 99] as const).map(percentile => <th key={percentile}><Percentile value={percentile} /></th>)}</tr></thead><tbody><tr>{(['p50', 'p90', 'p99'] as const).map(key => <td key={key}><Value datum={e.annual_loss_by_quantile[key]} format={money} /></td>)}</tr></tbody></table></div>
     <div className="term-ledger">
       <div className="ledger-heading">OVER YOUR <Sourced value={inputs.contract_years} source={sourceFor('contract_years')} format={integer.format} />-YEAR TERM</div>
       <div><span>Earlier-access contribution</span><Value datum={e.early_access_value_usd} format={signedMoney} className="metric-emphasis" /></div>
       <div><span>Modeled interruption cost</span><Value datum={{ ...e.term_loss_usd, value: -e.term_loss_usd.value, ref: `${e.term_loss_usd.ref}; display_as_ledger_debit = -term_loss_usd` }} format={money} /></div>
-      <div className="ledger-net"><span>Net value vs. waiting <MockLabel sources={[e.net_value_usd]} /></span><Value datum={e.net_value_usd} format={signedMoney} /></div>
+      <div className="ledger-net"><span>Net value vs. waiting</span><Value datum={e.net_value_usd} format={signedMoney} /></div>
     </div>
     <div className="decision-readout" role="status" aria-live="polite" aria-atomic="true">
       <div className="decision-icon">{state === 'positive' ? <ArrowUpRight size={22} /> : state === 'negative' ? <ArrowDownRight size={22} /> : <ArrowRight size={22} />}</div>
-      <div><span className="eyebrow">DECISION <MockLabel sources={[economicsSource]} children="Assumed decision" /></span><h3 ref={decisionRef}>{decision}</h3><p>{state === 'positive' ? 'Earlier-access contribution exceeds the upper-tail term cost.' : state === 'negative' ? 'Median term cost exceeds earlier-access contribution.' : 'The quantiles straddle the trade-off or sit near break-even.'}</p></div>
+      <div><span className="eyebrow">DECISION</span><h3 ref={decisionRef}>{decision}</h3><p>{state === 'positive' ? 'Earlier-access contribution exceeds the upper-tail term cost.' : state === 'negative' ? 'Median term cost exceeds earlier-access contribution.' : 'The quantiles straddle the trade-off or sit near break-even.'}</p></div>
     </div>
     <div className="break-even-row"><span>Break-even modeled exposure</span><strong>{e.break_even_exposure_hours.value === null ? 'No modeled cost' : <><Value datum={e.break_even_exposure_hours as SourcedValue} /> <small>h/yr</small></>}</strong></div>
   </section>;
@@ -279,7 +277,7 @@ function Assumptions() {
 
 function Workspace() {
   const { sensitivity } = useScenario();
-  return <div className="app-shell"><a className="skip-link" href="#main">Skip to analysis</a><Header /><main id="main"><Inputs /><ExposureControl /><div className="results-grid"><ExposurePanel /><EconomicsPanel /></div><SensitivityPanel sensitivity={sensitivity} /><Assumptions /></main><footer><span className="flex items-center gap-2"><Unplug size={12} />NO LIVE GRID FETCHES</span><span>Every number has a source. Hover, focus, or click a value or source tag.</span></footer></div>;
+  return <div className="app-shell"><a className="skip-link" href="#main">Skip to analysis</a><Header /><main id="main"><Inputs /><ExposureControl /><div className="results-grid"><ExposurePanel /><EconomicsPanel /></div><SensitivityPanel sensitivity={sensitivity} /><Assumptions /></main><footer><span className="flex items-center gap-2"><Unplug size={12} />NO LIVE GRID FETCHES</span><span>Every number has a source. Click a value or its info control.</span></footer></div>;
 }
 
 export default function App() { return <ScenarioProvider><Workspace /></ScenarioProvider>; }

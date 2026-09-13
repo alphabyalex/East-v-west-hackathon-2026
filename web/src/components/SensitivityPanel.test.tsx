@@ -57,7 +57,15 @@ describe('break-even sensitivity panel', () => {
       expect(within(range).getByRole('button', { name: new RegExp(`^${row.label} low decision: ${row.low.snapshot.decision.replaceAll('_', ' ')}`) })).toBeTruthy()
       expect(within(range).getByRole('button', { name: new RegExp(`^${row.label} high decision: ${row.high.snapshot.decision.replaceAll('_', ' ')}`) })).toBeTruthy()
     }
-    expect(screen.getByText('Assumed sensitivity')).toBeTruthy()
+    expect(screen.queryByText('Assumed sensitivity')).toBeNull()
+    expect(screen.getByText('Sensitivity uses unverified scenario inputs.')).toBeTruthy()
+    expect(document.querySelector('.mock-label, .source-wrap .source-mark')).toBeNull()
+    for (const row of sensitivity.rows) {
+      if (row.status !== 'modeled') continue
+      const bar = chart.querySelector(`[data-sensitivity-bar="${row.key}"]`)!
+      expect(JSON.parse(bar.getAttribute('data-provenance')!)).toEqual({ low: row.low, high: row.high, source: row.source })
+      expect(bar.querySelector('title')?.textContent).toBe(row.label)
+    }
     expect(screen.getByText(/not quantiles of total contract loss/)).toBeTruthy()
   })
 

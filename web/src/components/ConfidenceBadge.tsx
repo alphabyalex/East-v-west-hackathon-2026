@@ -48,7 +48,6 @@ export function ConfidenceBadge({ confidence, compact = false }: ConfidenceBadge
       animate={false}
     >
       <span ref={levelRef}>{compact ? confidence.level : `Confidence: ${confidence.level}`}</span>
-      {mocked && <span className="confidence-mock mock-label">Assumed</span>}
     </Sourced>
   )
 }

@@ -54,14 +54,19 @@ describe('scenario workspace interactions', () => {
     } finally { click.mockRestore(); }
   });
 
-  it('keeps mock status near results and preserves the permanent site caveats', () => {
+  it('removes repeated source badges while keeping section status and the site caveats', () => {
     render(<App />);
     expect(screen.queryByText('ILLUSTRATIVE DATA')).toBeNull();
     expect(screen.queryByText('MOCK ECONOMICS')).toBeNull();
-    expect(screen.getAllByText('Assumed exposure')).toHaveLength(3);
-    expect(screen.getByText('Assumed economics')).toBeTruthy();
-    expect(screen.getByText('Assumed decision')).toBeTruthy();
-    expect(screen.getByText('USER ASSUMPTION')).toBeTruthy();
+    expect(screen.queryByText('Assumed exposure')).toBeNull();
+    expect(screen.queryByText('Assumed economics')).toBeNull();
+    expect(screen.queryByText('Assumed decision')).toBeNull();
+    expect(screen.queryByText('USER ASSUMPTION')).toBeNull();
+    expect(document.querySelector('.mock-label, .assumption-badge, .source-wrap .source-mark')).toBeNull();
+    expect(screen.getByText('Scenario values · fitted model output unavailable')).toBeTruthy();
+    expect(screen.getByText('GPU-hours, dollars and break-even use unverified scenario inputs.')).toBeTruthy();
+    expect(screen.getByText(/The confidence signal has not been computed by an ensemble/)).toBeTruthy();
+    expect(screen.getByRole('slider', { name: 'Site exposure factor' }).getAttribute('aria-valuetext')).toContain('user-set assumption');
     expect(screen.getByText('System aggregate · no site-specific grid data')).toBeTruthy();
     expect(screen.getByText('You set the mapping.')).toBeTruthy();
     const locations = screen.getByRole('combobox', { name: 'SPP LOCATION' });
@@ -69,7 +74,7 @@ describe('scenario workspace interactions', () => {
     expect(within(locations).getByRole('option', { name: 'Wichita, KS · scenario' }).getAttribute('value')).toBe('spp-wichita-demo');
   });
 
-  it('removes only earned mock labels when a mixed-source HTTP result arrives', async () => {
+  it('keeps each section status aligned with mixed-source HTTP evidence without badges', async () => {
     vi.stubEnv('VITE_ESTIMATE_MODE', 'api');
     vi.stubGlobal('fetch', withEconomics(vi.fn().mockImplementation((_url, options) => {
       const response = createMockEstimate(JSON.parse(options.body));
@@ -83,9 +88,11 @@ describe('scenario workspace interactions', () => {
     expect(screen.queryByText('Assumed exposure')).toBeNull();
     expect(screen.queryByText('Assumed quantiles')).toBeNull();
     expect(screen.queryByRole('button', { name: /Assumed estimate confidence/ })).toBeNull();
-    expect(screen.getByText('Assumed economics')).toBeTruthy();
-    expect(screen.getByText('Assumed decision')).toBeTruthy();
-    expect(screen.getByText('USER ASSUMPTION')).toBeTruthy();
+    expect(screen.queryByText('Scenario values · fitted model output unavailable')).toBeNull();
+    expect(screen.queryByText(/The confidence signal has not been computed by an ensemble/)).toBeNull();
+    expect(screen.getByText('GPU-hours, dollars and break-even use unverified scenario inputs.')).toBeTruthy();
+    expect(document.querySelector('.mock-label, .assumption-badge, .source-wrap .source-mark')).toBeNull();
+    expect(screen.getByText('You set the mapping.')).toBeTruthy();
     expect(screen.getByText('System aggregate · no site-specific grid data')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Model & evidence' }));
     expect(screen.getByText('Evaluation unavailable.')).toBeTruthy();
@@ -105,11 +112,12 @@ describe('scenario workspace interactions', () => {
     await screen.findByText(/Estimate service connected · current inputs synchronized/);
     expect(screen.queryByText('Assumed economics')).toBeNull();
     expect(screen.queryByText('Assumed decision')).toBeNull();
-    expect(screen.getAllByText('Assumed exposure')).toHaveLength(3);
+    expect(screen.queryByText('GPU-hours, dollars and break-even use unverified scenario inputs.')).toBeNull();
+    expect(screen.getByText('Scenario values · fitted model output unavailable')).toBeTruthy();
     const crossover = document.getElementById('exposure-explanation')!;
     expect(within(crossover).queryByText('Assumed')).toBeNull();
     expect(crossover.textContent).not.toContain('under these assumptions');
-    expect(screen.getByText('USER ASSUMPTION')).toBeTruthy();
+    expect(screen.getByText('You set the mapping.')).toBeTruthy();
     fireEvent.click(within(crossover).getByRole('button'));
     const source = JSON.parse(screen.getByRole('tooltip').getAttribute('data-provenance')!);
     expect(source.ref).toContain('test-fixture://sourced-economics');
@@ -205,7 +213,8 @@ describe('scenario workspace interactions', () => {
     fireEvent.blur(load);
     expect(load.value).toBe('100');
     fireEvent.change(load, { target: { value: '99999' } });
-    expect(JSON.parse(load.title).ref).toContain('unapplied-draft');
+    expect(JSON.parse(load.getAttribute('data-provenance')!).ref).toContain('unapplied-draft');
+    expect(load.title).toBe('');
     fireEvent.blur(load);
     expect(load.value).toBe('2000');
     const split = screen.getByRole('spinbutton', { name: 'FLEXIBILITY SPLIT' });
@@ -220,6 +229,8 @@ describe('scenario workspace interactions', () => {
     const input = screen.getByRole('spinbutton', { name: 'LOAD SIZE' });
     fireEvent.change(input, { target: { value: '120' } });
     const source = screen.getByRole('button', { name: /LOAD SIZE provenance/ });
+    expect(source.textContent).toBe('');
+    expect(source.querySelector('svg')).toBeTruthy();
     fireEvent.mouseEnter(source);
     fireEvent.focus(source);
     expect(screen.queryByRole('tooltip')).toBeNull();
@@ -228,7 +239,8 @@ describe('scenario workspace interactions', () => {
     const tooltip = screen.getByRole('tooltip');
     const provenance = JSON.parse(tooltip.getAttribute('data-provenance')!);
     expect(provenance).toEqual({ value: 120, source_type: 'assumption', ref: 'user://scenario/load_mw' });
-    expect(tooltip.textContent).toBe('assumption');
+    expect(tooltip.querySelector('.provenance-heading')?.textContent).toBe('Source details');
+    expect(tooltip.textContent).toContain('assumption');
     expect(tooltip.querySelector('pre')).toBeNull();
     expect(screen.queryByText(/Activate the value or its source tag to pin/)).toBeNull();
     expect(source.getAttribute('aria-pressed')).toBe('true');

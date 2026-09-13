@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
+import { Info } from 'lucide-react'
 import type { Source } from '../model'
 import { useAnimatedNumber } from '../hooks/useAnimatedNumber'
 
@@ -143,8 +144,9 @@ function useProvenance({ value, source, label, description, summary, displayText
           style={{ ...position, position: 'fixed', zIndex: 1000 }}
         >
           <div className="provenance-heading">
-            <span>{source.source_type}</span>
+            <span>Source details</span>
           </div>
+          <span>{source.source_type}</span>
           {visibleDescription && <p className="provenance-description">{visibleDescription}</p>}
         </div>,
         document.body,
@@ -186,7 +188,6 @@ export function Sourced({ value, source, format = defaultFormat, className = '',
         <span className="sourced-value" style={{ fontVariantNumeric: 'tabular-nums' }}>
           {children ?? (typeof value === 'number' ? format(animated) : value)}
         </span>
-        <span className={`source-mark source-${source.source_type}`} aria-hidden="true">{source.source_type[0]}</span>
       </button>
       {provenance.layer}
     </>
@@ -201,10 +202,10 @@ export function SourceInfo({ value, source, label, description, summary }: Sourc
       <button
         type="button"
         ref={provenance.attachAnchor}
-        className={`source-mark source-${source.source_type}`}
+        className="source-mark"
         {...provenance.triggerProps}
       >
-        <span aria-hidden="true">{source.source_type[0]}</span>
+        <Info size={11} aria-hidden="true" />
       </button>
       {provenance.layer}
     </>
@@ -228,7 +229,7 @@ export function SourcedTick({ x = 0, y = 0, payload, source, prefix = '', suffix
         {...provenance.triggerProps}
         onKeyDown={provenance.keyboard}
       >
-        <title>{`${label} · ${source.source_type}`}</title>
+        <title>{label}</title>
         <text x={axis === 'y' ? -4 : 0} y={axis === 'x' ? 16 : 4} textAnchor={axis === 'x' ? 'middle' : 'end'} fill="currentColor">
           {label}
         </text>

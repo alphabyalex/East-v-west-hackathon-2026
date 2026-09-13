@@ -61,6 +61,7 @@ describe('transparency panel', () => {
     expect(screen.getByText('Mean predicted grid-stress probability (fraction)')).toBeTruthy()
     expect(screen.getByText('Observed grid-stress frequency (fraction)')).toBeTruthy()
     expect(screen.queryByRole('dialog')).toBeNull()
+    expect(document.querySelector('.mock-label, .source-wrap .source-mark')).toBeNull()
   })
 
   it('exposes exact provenance for every diagnostic score, bin, and axis tick', () => {
@@ -113,6 +114,7 @@ describe('transparency panel', () => {
     const config = props()
     render(<TransparencyPanel {...config} />)
     expect(screen.getByText('Tariff evidence not supplied')).toBeTruthy()
+    expect(screen.getByText('Tariff evidence not supplied').classList.contains('mock-label')).toBe(false)
     expect(screen.queryByText(config.tariff.curtailment_triggers[0].text)).toBeNull()
     expect(screen.getByText('SPP · Service terms not verified')).toBeTruthy()
     expect(screen.getByText('No verified citation available.')).toBeTruthy()

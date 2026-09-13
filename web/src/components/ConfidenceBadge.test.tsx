@@ -37,10 +37,11 @@ function readProvenance() {
 }
 
 describe('confidence provenance', () => {
-  it('keeps the assumption visible and opens concise confidence details only on activation', () => {
+  it('retains the confidence level and opens its qualification only on activation, without extra badges', () => {
     render(<ConfidenceBadge confidence={mockConfidence} />)
     expect(screen.getByText('Confidence: Medium')).toBeTruthy()
-    expect(screen.getByText('Assumed')).toBeTruthy()
+    expect(screen.queryByText('Assumed')).toBeNull()
+    expect(document.querySelector('.mock-label, .source-wrap .source-mark')).toBeNull()
     const badge = screen.getByRole('button', { name: /Assumed estimate confidence: Medium. Signal score: 0.5/ })
     fireEvent.focus(badge)
     expect(screen.queryByRole('tooltip')).toBeNull()
@@ -63,7 +64,7 @@ describe('confidence provenance', () => {
     expect(screen.queryByText('Assumed')).toBeNull()
     expect(document.body.textContent).not.toContain('%')
     const badge = screen.getByRole('button', { name: /Estimate confidence: High. Signal score: 0.623456. model provenance/ })
-    expect(badge.querySelector('.source-model')?.textContent).toBe('m')
+    expect(badge.querySelector('.source-mark')).toBeNull()
     fireEvent.mouseEnter(badge)
     expect(screen.queryByRole('tooltip')).toBeNull()
     fireEvent.click(badge)
@@ -74,13 +75,16 @@ describe('confidence provenance', () => {
     expect(screen.getByRole('tooltip').textContent).toContain('support for the estimate, not the probability of a future outcome')
   })
 
-  it.each(['score', 'source'] as const)('keeps the mock warning when only the %s ref is illustrative', (field) => {
+  it.each(['score', 'source'] as const)('retains the confidence qualification when only the %s ref is illustrative', (field) => {
     const confidence: ConfidenceEstimate = {
       ...modelConfidence,
       [field]: { ...modelConfidence[field], ref: 'mock://mixed-response' },
     }
     render(<ConfidenceBadge confidence={confidence} />)
-    expect(screen.getByText('Assumed')).toBeTruthy()
+    expect(screen.queryByText('Assumed')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /Assumed estimate confidence/ }))
+    expect(screen.getByRole('tooltip').textContent).toContain('no ensemble evaluation is available for this value')
+    expect(readProvenance()).toEqual(confidence.score)
   })
 
   it('updates inspected source metadata and level when a different model result arrives', () => {
@@ -92,10 +96,11 @@ describe('confidence provenance', () => {
     expect(readProvenance()).toEqual(modelConfidence.score)
   })
 
-  it('keeps the level and mock warning visible in compact annual-value rows', () => {
+  it('keeps the supplied level in compact rows and exact source details accessible without an Assumed pill', () => {
     render(<ConfidenceBadge confidence={mockConfidence} compact />)
     expect(screen.getByText('Medium')).toBeTruthy()
-    expect(screen.getByText('Assumed')).toBeTruthy()
+    expect(screen.queryByText('Assumed')).toBeNull()
+    expect(document.querySelector('.mock-label, .source-wrap .source-mark')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: /Assumed estimate confidence/ }))
     expect(readProvenance()).toEqual(mockConfidence.score)
   })
@@ -112,7 +117,7 @@ describe('confidence provenance', () => {
     fireEvent.keyDown(tick, { key: 'Enter' })
     expect(readProvenance()).toEqual({ value: 123, ...modelConfidence.source })
     expect(JSON.parse(tick.getAttribute('data-provenance')!)).toEqual({ value: 123, ...modelConfidence.source })
-    expect(tick.querySelector('title')?.textContent).toBe('123 · model')
+    expect(tick.querySelector('title')?.textContent).toBe('123')
     fireEvent.keyDown(tick, { key: ' ' })
     expect(screen.queryByRole('tooltip')).toBeNull()
     fireEvent.keyDown(tick, { key: ' ' })

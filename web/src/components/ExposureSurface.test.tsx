@@ -46,6 +46,10 @@ describe('exposure surface inspection', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Inspect next year' }));
     expect(controller.select).toHaveBeenLastCalledWith(5);
     expect(screen.getByRole('button', { name: 'Inspect p99' }).getAttribute('aria-pressed')).toBe('true');
+    const percentileControl = screen.getByRole('button', { name: 'Inspect p99' });
+    expect(percentileControl.getAttribute('title')).toBeNull();
+    expect(JSON.parse(percentileControl.getAttribute('data-provenance')!)).toEqual({ value: 99, source_type: 'assumption', ref: 'mock://display/surface/percentile/99; cumulative percentile, not probability density' });
+    expect(document.querySelector('.mock-label, .source-wrap .source-mark')).toBeNull();
     expect((screen.getByRole('button', { name: 'Inspect next year' }) as HTMLButtonElement).disabled).toBe(true);
 
     const value = screen.getByRole('button', { name: '246.9. assumption provenance. Activate for source details.' });
