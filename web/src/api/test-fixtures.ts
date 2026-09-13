@@ -1,4 +1,5 @@
 import snapshot from '../model/economics-assumptions.json'
+import { offlineLocations } from './locations'
 
 const dummyRankings = {
   operator: "SPP",
@@ -16,6 +17,12 @@ export function withEconomics(post: typeof fetch, assumptions: unknown = snapsho
     }
     if (urlStr.endsWith('/api/zone-rankings')) {
       return Promise.resolve(new Response(JSON.stringify(dummyRankings), { status: 200 }))
+    }
+    if (urlStr.endsWith('/api/locations')) {
+      return Promise.resolve(new Response(JSON.stringify({ locations: offlineLocations }), { status: 200 }))
+    }
+    if (urlStr.includes('/api/grid-impact/')) {
+      return Promise.resolve(new Response('{}', { status: 404 }))
     }
     return post(url, options)
   }

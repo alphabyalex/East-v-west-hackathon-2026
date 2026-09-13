@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { adaptEstimateResponse, createMockEstimate, defaultInputs, deriveScenario, mockResponse, toEstimateRequest, type ScenarioInputs, type Source, type SourcedInputs } from './model';
+import { adaptEstimateResponse, defaultInputs, mockResponse, toEstimateRequest, type ScenarioInputs, type Source, type SourcedInputs } from './model';
+import { createLocationPreview } from './model/location-preview';
 import { useEstimateTransport, type EstimateMode } from './hooks/useEstimateTransport';
 import { validateEconomicsAssumptions, type EconomicsAssumptions } from './api/assumptions';
 import economicSnapshot from './model/economics-assumptions.json';
@@ -23,7 +24,7 @@ export interface SavedScenario {
   name: string
   timestamp: number
   inputs: ScenarioInputs
-  result: ReturnType<typeof deriveScenario>
+  result: ReturnType<typeof adaptEstimateResponse>
 }
 
 function useScenarioState(initialMode: EstimateMode) {
@@ -81,7 +82,7 @@ function useScenarioState(initialMode: EstimateMode) {
     // Never leave an older server response beneath newly edited controls.
     const derived = transport.response
       ? adaptEstimateResponse(transport.response, inputs, decisionPolicy)
-      : deriveScenario(inputs, decisionPolicy);
+      : adaptEstimateResponse(createLocationPreview(toEstimateRequest(inputs), inputs, decisionPolicy), inputs, decisionPolicy);
     // Keep exported input provenance identical to the controls on screen.
     derived.inputs = Object.fromEntries(Object.entries(inputs).map(([key, value]) => [key, {
       value,
@@ -91,7 +92,7 @@ function useScenarioState(initialMode: EstimateMode) {
   }, [inputs, edited, transport.response, economicDefaults, decisionPolicy]);
   const sensitivity = useMemo(() => transport.sensitivity ?? buildSensitivity(
     result.canonical_response,
-    createMockEstimate({ ...toEstimateRequest(inputs), site_exposure: 1 }, inputs, decisionPolicy),
+    createLocationPreview({ ...toEstimateRequest(inputs), site_exposure: 1 }, inputs, decisionPolicy),
     inputs,
     economicDefaults ?? offlineAssumptions,
   ), [transport.sensitivity, result, inputs, decisionPolicy, economicDefaults]);
@@ -136,7 +137,7 @@ function useScenarioState(initialMode: EstimateMode) {
     if (inputs[key] === value) return;
     if ((economicKeys as readonly (keyof ScenarioInputs)[]).includes(key)) {
       setMode('local');
-      setModeNote('Economic input changed. Local mock mode applies your overrides; the API request does not include them.');
+      setModeNote('Economic input changed. Assumed scenario values now apply your overrides; connected estimates use the supplied defaults.');
     }
     setInputs(previous => ({ ...previous, [key]: value }));
     setEdited(previous => new Set(previous).add(key));
@@ -145,10 +146,10 @@ function useScenarioState(initialMode: EstimateMode) {
     if (next === 'api') {
       setInputs(previous => ({ ...previous, ...Object.fromEntries(economicKeys.map(key => [key, defaultInputs[key]])) }));
       setEdited(previous => new Set([...previous].filter(key => !(economicKeys as readonly (keyof ScenarioInputs)[]).includes(key))));
-      setModeNote('API mode reads economic assumptions from the backend, including any unverified placeholders. Local overrides have been reset.');
+      setModeNote('Connected estimates use supplied economic assumptions, including any unverified inputs. Your economic overrides have been reset.');
       transport.retry();
     } else {
-      setModeNote('Local mock mode works without the backend. No estimate requests are sent.');
+      setModeNote('Assumed scenario values work offline. No connected estimate is requested.');
     }
     setMode(next);
   }

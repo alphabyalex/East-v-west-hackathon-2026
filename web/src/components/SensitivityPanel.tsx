@@ -4,7 +4,7 @@ import { Bar, BarChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Toolt
 import type { SensitivityEndpoint, SensitivityResult, SensitivityRow } from '../model/sensitivity'
 import type { Source, SourcedValue } from '../model'
 import { useChangeMotion } from '../hooks/useChangeMotion'
-import { MockLabel } from './MockLabel'
+import { isMockSource } from './MockLabel'
 import { Sourced, SourcedTick } from './Sourced'
 import './SensitivityPanel.css'
 
@@ -38,8 +38,8 @@ function Decision({ endpoint, label }: { endpoint: SensitivityEndpoint; label: s
 
 function TornadoBar({ x = 0, y = 0, width = 0, height = 0, payload }: { x?: number; y?: number; width?: number; height?: number; payload?: ChartRow }) {
   if (!payload) return null
-  return <g className="sensitivity-bar" data-sensitivity-bar={payload.original.key}>
-    <title>{JSON.stringify({ low: payload.original.low, high: payload.original.high, source: payload.original.source })}</title>
+  return <g className="sensitivity-bar" data-sensitivity-bar={payload.original.key} data-provenance={JSON.stringify({ low: payload.original.low, high: payload.original.high, source: payload.original.source })}>
+    <title>{payload.label}</title>
     {width === 0
       ? <line x1={x} x2={x} y1={y} y2={y + height} stroke="var(--chart-primary)" strokeWidth={2} />
       : <rect x={x} y={y} width={width} height={height} fill="var(--chart-primary)" fillOpacity={0.22} stroke="var(--chart-secondary)" />}
@@ -58,7 +58,7 @@ function SensitivityTooltip({ active, row }: { active?: boolean; row?: ChartRow 
         <Decision endpoint={endpoint} label={`${row.label} ${bound} decision`} />
       </div>
     })}
-    <small><MockLabel sources={[row.original.source]} children="Assumed sensitivity" /> Exact values and sources are available below.</small>
+    <small>Exact values and sources are available below.</small>
   </div>
 }
 
@@ -109,7 +109,8 @@ export function SensitivityPanel({ sensitivity }: { sensitivity: SensitivityResu
     <div className="sensitivity-body">
       <div className="sensitivity-intro">
         <p>Which assumptions move the decision? Bars span the low and high input scenarios, ordered by the largest dollar swing. Earlier-access contribution stays fixed.</p>
-        <div className="sensitivity-baseline"><span>Current contract comparison · <Sourced value={50} source={percentileSource} animate={false}>p50</Sourced> path</span><strong><Datum datum={sensitivity.baseline.net_value_usd.p50} label="Current sensitivity contract comparison" format={compactDollars} /></strong><span><Sourced value={sensitivity.baseline.decision} source={sensitivity.baseline.source} label="Current sensitivity decision" className={`sensitivity-decision sensitivity-${sensitivity.baseline.decision}`}>{decisionText(sensitivity.baseline.decision)}</Sourced> <MockLabel sources={[sensitivity.source]} children="Assumed sensitivity" /></span></div>
+        {isMockSource(sensitivity.source) && <p>Sensitivity uses unverified scenario inputs.</p>}
+        <div className="sensitivity-baseline"><span>Current contract comparison · <Sourced value={50} source={percentileSource} animate={false}>p50</Sourced> path</span><strong><Datum datum={sensitivity.baseline.net_value_usd.p50} label="Current sensitivity contract comparison" format={compactDollars} /></strong><span><Sourced value={sensitivity.baseline.decision} source={sensitivity.baseline.source} label="Current sensitivity decision" className={`sensitivity-decision sensitivity-${sensitivity.baseline.decision}`}>{decisionText(sensitivity.baseline.decision)}</Sourced></span></div>
       </div>
       <div className="sensitivity-axis-caption">CHANGE IN CONTRACT COMPARISON · USD MILLIONS</div>
       <div ref={chartRef} className="sensitivity-chart" role="group" aria-label="Break-even sensitivity tornado chart, largest swing first. Inspect ranges and decision endpoints below for exact sourced values.">

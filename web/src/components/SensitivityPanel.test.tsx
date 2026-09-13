@@ -31,7 +31,7 @@ function scenario(overrides: Partial<ScenarioInputs> = {}) {
 }
 
 function provenance() {
-  return JSON.parse(screen.getByRole('tooltip').querySelector('pre')!.textContent!)
+  return JSON.parse(screen.getByRole('tooltip').getAttribute('data-provenance')!)
 }
 
 function showEndpoints() {
@@ -57,7 +57,15 @@ describe('break-even sensitivity panel', () => {
       expect(within(range).getByRole('button', { name: new RegExp(`^${row.label} low decision: ${row.low.snapshot.decision.replaceAll('_', ' ')}`) })).toBeTruthy()
       expect(within(range).getByRole('button', { name: new RegExp(`^${row.label} high decision: ${row.high.snapshot.decision.replaceAll('_', ' ')}`) })).toBeTruthy()
     }
-    expect(screen.getByText('Assumed sensitivity')).toBeTruthy()
+    expect(screen.queryByText('Assumed sensitivity')).toBeNull()
+    expect(screen.getByText('Sensitivity uses unverified scenario inputs.')).toBeTruthy()
+    expect(document.querySelector('.mock-label, .source-wrap .source-mark')).toBeNull()
+    for (const row of sensitivity.rows) {
+      if (row.status !== 'modeled') continue
+      const bar = chart.querySelector(`[data-sensitivity-bar="${row.key}"]`)!
+      expect(JSON.parse(bar.getAttribute('data-provenance')!)).toEqual({ low: row.low, high: row.high, source: row.source })
+      expect(bar.querySelector('title')?.textContent).toBe(row.label)
+    }
     expect(screen.getByText(/not quantiles of total contract loss/)).toBeTruthy()
   })
 
@@ -80,13 +88,16 @@ describe('break-even sensitivity panel', () => {
     expect(provenance()).toEqual(sensitivity.rows.find(item => item.key === 'utilization')!.high.input)
   })
 
-  it('makes every endpoint input, comparison, delta, decision and break-even source accessible on click', () => {
+  // Inspect each assumption independently so the exhaustive real-DOM checks keep
+  // the normal per-test time bound and identify the affected range on failure.
+  it.each(['gpu_rental_price', 'flexibility_split', 'site_exposure'] as const)('makes every %s endpoint input, comparison, delta, decision and break-even source accessible on click', (key) => {
     const sensitivity = scenario()
     render(<SensitivityPanel sensitivity={sensitivity} />)
     const table = showEndpoints()
     expect(within(table).getAllByRole('row')).toHaveLength(7)
-    for (const row of sensitivity.rows) {
-      if (row.status !== 'modeled') continue
+    const row = sensitivity.rows.find(item => item.key === key)!
+    expect(row.status).toBe('modeled')
+    if (row.status === 'modeled') {
       for (const bound of ['low', 'high'] as const) {
         const endpoint = row[bound]
         const fields = [
@@ -127,7 +138,7 @@ describe('break-even sensitivity panel', () => {
     expect(screen.getByText(/Displayed amounts are rounded/)).toBeTruthy()
   })
 
-  it('recomputes range geometry, decisions and pinned source values with the scenario, including zero exposure', () => {
+  it('recomputes range geometry, decisions and inspected source metadata with the scenario, including zero exposure', () => {
     const initial = scenario()
     const { rerender } = render(<SensitivityPanel sensitivity={initial} />)
     fireEvent.click(screen.getByRole('button', { name: /^Current sensitivity contract comparison:/ }))

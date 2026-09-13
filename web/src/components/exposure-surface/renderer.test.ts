@@ -110,6 +110,26 @@ function flushFrame(time: number) {
 }
 
 describe('exposure surface renderer', () => {
+  it('renders a month/hour grid with the same demand-driven camera, geometry reuse and finite transitions', () => {
+    const { controller, surface, camera } = mount()
+    const grid = { rows: Array.from({ length: 12 }, (_, i) => sourced(i + 1, 'test month')),
+      columns: Array.from({ length: 24 }, (_, i) => sourced(i, 'test UTC hour')),
+      values: Array.from({ length: 12 }, (_, r) => Array.from({ length: 24 }, (_, c) => sourced((r + c) % 7, 'test dollar value'))) }
+    controller.updateGrid(grid, 10); flushFrame(0)
+    expect(surface().geometry.getAttribute('position').count).toBe(288)
+    expect(surface().geometry.index!.count).toBe(11 * 23 * 6)
+    expect(pendingFrames.size).toBe(0)
+    const geometry = surface().geometry
+    reducedMotion = false
+    controller.updateGrid({ ...grid, values: grid.values.map(row => row.map(value => ({ ...value, value: value.value / 2 }))) }, 10)
+    flushFrame(1); expect(pendingFrames.size).toBe(1)
+    flushFrame(300); expect(pendingFrames.size).toBe(0)
+    expect(surface().geometry).toBe(geometry)
+    const original = camera.position.clone()
+    controller.rotate(.1); flushFrame(301)
+    expect(camera.position.distanceTo(original)).toBeGreaterThan(0)
+    expect(pendingFrames.size).toBe(0)
+  })
   it('draws supplied observations on a fixed scale and anchors selection to the same vertex', () => {
     const { controller, scene, surface } = mount()
     const fullExposure = rows()
