@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
+import { Info } from 'lucide-react'
 import type { Source } from '../model'
 import { useAnimatedNumber } from '../hooks/useAnimatedNumber'
 
@@ -18,6 +19,8 @@ type ProvenanceProps = {
   source: Source
   label?: string
   description?: string
+  /** Short display copy when the full description includes machine references. */
+  summary?: string
   /** The exact text rendered on screen; defaults to `value` when the caller
    * shows the raw value verbatim. Required whenever visible text differs from
    * `value` (e.g. "p50" for value 50, or a formatted "$8.81M" for a raw
@@ -48,51 +51,21 @@ export type SourcedTickProps = {
 const defaultFormat = (value: number) =>
   value.toLocaleString('en-US', { maximumFractionDigits: 2 })
 
-/** One popover behavior shared by inline values, input annotations, and SVG ticks. */
-function useProvenance({ value, source, label, description, displayText }: ProvenanceProps) {
+/** Intentional source inspection shared by values, input annotations, and SVG ticks. */
+function useProvenance({ value, source, label, description, summary, displayText }: ProvenanceProps) {
   const id = useId()
   const anchor = useRef<HTMLElement | SVGElement | null>(null)
   const popover = useRef<HTMLDivElement | null>(null)
-  const closeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  const [hovered, setHovered] = useState(false)
-  const [focused, setFocused] = useState(false)
-  const [pinned, setPinned] = useState(false)
-  const [dismissed, setDismissed] = useState(false)
+  const [open, setOpen] = useState(false)
   const [position, setPosition] = useState<CSSProperties>({ left: 12, top: 12, visibility: 'hidden' })
-  const open = !dismissed && (hovered || focused || pinned)
   const json = JSON.stringify({ value, source_type: source.source_type, ref: source.ref }, null, 2)
-  // Full references can be long scenario URLs; expose them in the described JSON,
-  // keeping the control's accessible name short enough to navigate efficiently.
+  // Full references remain in control metadata and the scenario export without
+  // opening a raw JSON panel over the workspace.
   // The name must contain the visible text (WCAG 2.5.3), which is `displayText`
   // when the caller renders something other than the raw value verbatim.
-  const accessibleLabel = `${label ? `${label}: ` : ''}${displayText ?? value}. ${source.source_type} provenance. Activate to pin.`
-
-  const clearCloseTimer = useCallback(() => {
-    if (closeTimer.current !== undefined) clearTimeout(closeTimer.current)
-    closeTimer.current = undefined
-  }, [])
-
-  useEffect(() => clearCloseTimer, [clearCloseTimer])
-
-  const enter = useCallback(() => {
-    clearCloseTimer()
-    setHovered(true)
-    setDismissed(false)
-  }, [clearCloseTimer])
-
-  const leave = useCallback(() => {
-    clearCloseTimer()
-    // Allow the pointer to cross the small gap into the portal without losing it.
-    closeTimer.current = setTimeout(() => setHovered(false), 120)
-  }, [clearCloseTimer])
-
-  const dismiss = useCallback(() => {
-    clearCloseTimer()
-    setHovered(false)
-    setFocused(false)
-    setPinned(false)
-    setDismissed(true)
-  }, [clearCloseTimer])
+  const accessibleLabel = `${label ? `${label}: ` : ''}${displayText ?? value}. ${source.source_type} provenance. Activate for source details.`
+  const visibleDescription = summary ?? description
+  const dismiss = useCallback(() => setOpen(false), [])
 
   useEffect(() => {
     if (!open) return
@@ -120,16 +93,15 @@ function useProvenance({ value, source, label, description, displayText }: Prove
       const margin = 12
       const gap = 8
       const bounds = anchor.current.getBoundingClientRect()
-      const width = Math.min(360, window.innerWidth - margin * 2)
-      // Measure at the final constrained width so wrapped references cannot clip.
+      const width = Math.min(visibleDescription ? 280 : 160, window.innerWidth - margin * 2)
+      // Size only the concise source description; raw references never render here.
       popover.current.style.width = `${width}px`
-      popover.current.style.maxHeight = `${window.innerHeight - margin * 2}px`
       const height = popover.current.getBoundingClientRect().height
       const left = Math.max(margin, Math.min(bounds.left + bounds.width / 2 - width / 2, window.innerWidth - width - margin))
       const availableBelow = window.innerHeight - bounds.bottom - gap - margin
       const preferredTop = availableBelow >= height ? bounds.bottom + gap : bounds.top - height - gap
       const top = Math.max(margin, Math.min(preferredTop, window.innerHeight - height - margin))
-      setPosition({ left, top, width, maxHeight: window.innerHeight - margin * 2, visibility: 'visible' })
+      setPosition({ left, top, width, visibility: 'visible' })
     }
     place()
     window.addEventListener('resize', place)
@@ -138,35 +110,26 @@ function useProvenance({ value, source, label, description, displayText }: Prove
       window.removeEventListener('resize', place)
       window.removeEventListener('scroll', place, true)
     }
-  }, [open, json, pinned, description])
+  }, [open, visibleDescription])
 
-  const togglePin = () => {
-    setDismissed(false)
-    setPinned((previous) => !previous)
-  }
-
-  const focus = () => {
-    setFocused(true)
-    setDismissed(false)
-  }
+  const toggle = () => setOpen((previous) => !previous)
 
   const keyboard = (event: KeyboardEvent<SVGGElement>) => {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault()
-      togglePin()
+      toggle()
     }
   }
 
   return {
     attachAnchor: (node: HTMLElement | SVGElement | null) => { anchor.current = node },
-    anchorEvents: { onMouseEnter: enter, onMouseLeave: leave },
     triggerProps: {
       'aria-label': accessibleLabel,
       'aria-describedby': open ? id : undefined,
-      'aria-pressed': pinned,
-      onFocus: focus,
-      onBlur: () => setFocused(false),
-      onClick: togglePin,
+      'aria-pressed': open,
+      'data-provenance': json,
+      'data-provenance-description': description,
+      onClick: toggle,
     },
     keyboard,
     json,
@@ -177,17 +140,14 @@ function useProvenance({ value, source, label, description, displayText }: Prove
           id={id}
           role="tooltip"
           className="provenance-popover"
-          style={{ ...position, position: 'fixed', zIndex: 1000, overflow: 'auto' }}
-          onMouseEnter={enter}
-          onMouseLeave={leave}
+          data-provenance={json}
+          style={{ ...position, position: 'fixed', zIndex: 1000 }}
         >
           <div className="provenance-heading">
-            <span>{source.source_type}</span>
-            <span>{pinned ? 'Pinned' : 'Provenance'}</span>
+            <span>Source details</span>
           </div>
-          <pre className="provenance-json" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{json}</pre>
-          {description && <p className="provenance-description">{description}</p>}
-          <span className="provenance-hint">{pinned ? 'Escape or click outside to dismiss' : 'Activate the value or its source tag to pin'}</span>
+          <span>{source.source_type}</span>
+          {visibleDescription && <p className="provenance-description">{visibleDescription}</p>}
         </div>,
         document.body,
       )
@@ -207,7 +167,7 @@ function plainText(node: ReactNode): string | null {
 }
 
 /** Numeric UI primitive. The original, unrounded value is retained in provenance. */
-export function Sourced({ value, source, format = defaultFormat, className = '', animate = true, children, label, description }: SourcedProps) {
+export function Sourced({ value, source, format = defaultFormat, className = '', animate = true, children, label, description, summary }: SourcedProps) {
   const animated = useAnimatedNumber(typeof value === 'number' ? value : 0, animate && typeof value === 'number')
   // Match the visible span exactly when it's plain text, using the settled
   // (not mid-animation) formatted value - never the raw value. Complex JSX
@@ -215,7 +175,7 @@ export function Sourced({ value, source, format = defaultFormat, className = '',
   const displayText = children != null
     ? plainText(children)
     : (typeof value === 'number' ? format(value) : value)
-  const provenance = useProvenance({ value, source, label, description, displayText: displayText ?? undefined })
+  const provenance = useProvenance({ value, source, label, description, summary, displayText: displayText ?? undefined })
   return (
     <>
       <button
@@ -223,13 +183,11 @@ export function Sourced({ value, source, format = defaultFormat, className = '',
         ref={provenance.attachAnchor}
         className={`source-wrap ${className}`}
         data-value-type={typeof value}
-        {...provenance.anchorEvents}
         {...provenance.triggerProps}
       >
         <span className="sourced-value" style={{ fontVariantNumeric: 'tabular-nums' }}>
           {children ?? (typeof value === 'number' ? format(animated) : value)}
         </span>
-        <span className={`source-mark source-${source.source_type}`} aria-hidden="true">{source.source_type[0]}</span>
       </button>
       {provenance.layer}
     </>
@@ -237,25 +195,24 @@ export function Sourced({ value, source, format = defaultFormat, className = '',
 }
 
 /** A compact provenance control placed beside a numeric input or range. */
-export function SourceInfo({ value, source, label, description }: SourceInfoProps) {
-  const provenance = useProvenance({ value, source, label, description })
+export function SourceInfo({ value, source, label, description, summary }: SourceInfoProps) {
+  const provenance = useProvenance({ value, source, label, description, summary })
   return (
     <>
       <button
         type="button"
         ref={provenance.attachAnchor}
-        className={`source-mark source-${source.source_type}`}
-        {...provenance.anchorEvents}
+        className="source-mark"
         {...provenance.triggerProps}
       >
-        <span aria-hidden="true">{source.source_type[0]}</span>
+        <Info size={11} aria-hidden="true" />
       </button>
       {provenance.layer}
     </>
   )
 }
 
-/** Recharts ticks stay valid SVG while their full provenance is rendered in a portal. */
+/** Recharts ticks retain exact source metadata and keyboard source inspection. */
 export function SourcedTick({ x = 0, y = 0, payload, source, prefix = '', suffix = '', axis = 'x' }: SourcedTickProps) {
   const value = payload?.value ?? ''
   const label = `${prefix}${typeof value === 'number' ? defaultFormat(value) : value}${suffix}`
@@ -269,11 +226,10 @@ export function SourcedTick({ x = 0, y = 0, payload, source, prefix = '', suffix
         role="button"
         tabIndex={0}
         style={{ cursor: 'help', fontVariantNumeric: 'tabular-nums' }}
-        {...provenance.anchorEvents}
         {...provenance.triggerProps}
         onKeyDown={provenance.keyboard}
       >
-        <title>{provenance.json}</title>
+        <title>{label}</title>
         <text x={axis === 'y' ? -4 : 0} y={axis === 'x' ? 16 : 4} textAnchor={axis === 'x' ? 'middle' : 'end'} fill="currentColor">
           {label}
         </text>

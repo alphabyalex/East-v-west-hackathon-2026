@@ -7,7 +7,7 @@ import type { EstimateResponse, Source, SourcedValue } from '../model'
 import { mockTransparencyDiagnostics } from '../model/transparency'
 import { ConfidenceBadge, type ConfidenceEstimate } from './ConfidenceBadge'
 import { SourceInfo, Sourced, SourcedTick } from './Sourced'
-import { MockLabel, isMockSource } from './MockLabel'
+import { isMockSource } from './MockLabel'
 
 export interface TransparencyPanelProps {
   confidence: ConfidenceEstimate
@@ -36,7 +36,6 @@ function DiagnosticValue({ datum, label }: { datum: SourcedValue; label: string 
 function ReliabilityTooltip({ active, row }: { active?: boolean; row?: ReliabilityRow }) {
   if (!active || !row) return null
   return <div className="transparency-chart-tooltip">
-    <span className="mock-label">Assumed bin · not measured</span>
     <div><span>Mean predicted probability</span><DiagnosticValue datum={row.point.mean_predicted} label="Assumed bin mean predicted probability" /></div>
     <div><span>Observed frequency</span><DiagnosticValue datum={row.point.observed_fraction} label="Assumed bin observed frequency" /></div>
     <span>Assumed grid-stress event fractions; no evaluation supplied.</span>
@@ -84,7 +83,7 @@ export function TransparencyPanel({ confidence, tariff, siteExposure, onClose }:
 
       <section className="transparency-section" aria-labelledby="transparency-diagnostics-title" aria-describedby="transparency-diagnostics-notice">
         <h4 id="transparency-diagnostics-title">Model reliability</h4>
-        <p id="transparency-diagnostics-notice" className="transparency-diagnostics-status"><MockLabel sources={[diagnostics.brier_score]} children="Evaluation unavailable." /> No held-out evaluation has been performed for these values. The scores and curve are assumed values, independent of the exposure slider.</p>
+        <p id="transparency-diagnostics-notice" className="transparency-diagnostics-status">{isMockSource(diagnostics.brier_score) && <span>Evaluation unavailable.</span>} No held-out evaluation has been performed for these values. The scores and curve are assumed values, independent of the exposure slider.</p>
         <p>The reliability curve compares predicted grid-stress probability with observed grid-stress frequency. The Brier score measures squared probability error; lower is better. Neither diagnostic measures whether this site would be curtailed.</p>
         <div className="transparency-metrics">
           <div className="transparency-metric"><span>Assumed Brier score</span><DiagnosticValue datum={diagnostics.brier_score} label="Assumed Brier score, not computed" /><small>Evaluation unavailable</small></div>
@@ -116,7 +115,7 @@ export function TransparencyPanel({ confidence, tariff, siteExposure, onClose }:
           const mocked = isMockSource(trigger.source)
           const url = clauseUrl(trigger.source)
           return <li key={`${trigger.source.ref}-${index}`} className="transparency-clause">
-            {mocked ? <MockLabel sources={[trigger.source]} children="Tariff evidence not supplied" /> : <strong>Supplied clause record</strong>}
+            {mocked ? <span>Tariff evidence not supplied</span> : <strong>Supplied clause record</strong>}
             <p>{mocked ? 'System reliability may affect service; no extracted contract language has been supplied.' : trigger.text}</p>
             <div className="transparency-citation"><SourceInfo value={trigger.text} source={trigger.source} label="Tariff clause provenance" />{url ? <a href={url} target="_blank" rel="noopener noreferrer">Open supplied clause citation<ExternalLink size={12} aria-hidden="true" /></a> : <span>{mocked ? 'No verified citation available.' : 'Supplied reference: '}{!mocked && trigger.source.ref}</span>}</div>
             <small>{trigger.observable ? 'Marked observable in the supplied record; site applicability still requires review.' : 'Not established from the public system data available here.'}</small>
