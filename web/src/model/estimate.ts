@@ -87,7 +87,6 @@ export function createMockEstimate(
   const economicsRef = new URLSearchParams({
     ...Object.fromEntries(Object.entries(request).map(([key, value]) => [key, String(value)])),
     ...Object.fromEntries(Object.entries(local).map(([key, value]) => [key, String(value)])),
-    pending: 'docs/ASSUMPTIONS.md',
   }).toString()
 
   return {
@@ -114,7 +113,7 @@ export function createMockEstimate(
       breakeven_exposure_hours_per_year: costPerExposureHour === 0
         ? null : benefit / (request.term_years * costPerExposureHour),
       decision,
-      source: { source_type: 'assumption', ref: `mock://illustrative/economics-placeholder/api/estimate?${economicsRef}` },
+      source: { source_type: 'assumption', ref: `docs/ASSUMPTIONS.md?${economicsRef}#4-what-changes-in-the-app` },
     },
     tariff: {
       operator: 'SPP',

@@ -105,7 +105,7 @@ describe('scenario workspace interactions', () => {
     expect(screen.getByRole('button', { name: 'Local mock' }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByText(/Economic input changed/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Use API defaults' }));
-    expect((gpuValue as HTMLInputElement).value).toBe('2');
+    expect((gpuValue as HTMLInputElement).value).toBe('3');
     expect(await screen.findByText(/API connected · current inputs synchronized/)).toBeTruthy();
   });
 

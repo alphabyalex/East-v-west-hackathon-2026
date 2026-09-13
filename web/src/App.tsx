@@ -86,7 +86,7 @@ function Header() {
   }
   return <>
     <header className="app-header">
-      <a href="#main" className="brand" aria-label="Headroom analysis workspace"><span className="brand-mark" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 2V16M15 2V16M3 9H15M7 5V13M11 5V13" stroke="currentColor" strokeWidth="1.3" /></svg></span>Headroom<span className="brand-divider" /><span className="brand-subtitle">INTERCONNECTION RISK</span></a>
+      <a href="/" className="brand" aria-label="Headroom home"><span className="brand-mark" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 2V16M15 2V16M3 9H15M7 5V13M11 5V13" stroke="currentColor" strokeWidth="1.3" /></svg></span>Headroom<span className="brand-divider" /><span className="brand-subtitle">INTERCONNECTION RISK</span></a>
       <div className="header-status"><span className="status-dot" />{status === 'api' ? 'API CONNECTED' : status === 'loading' ? 'API PENDING' : status === 'fallback' ? 'LOCAL FALLBACK' : 'LOCAL WORKSPACE'}</div>
     </header>
     <div className="workspace-heading">
