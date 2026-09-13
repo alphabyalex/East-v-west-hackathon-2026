@@ -2,8 +2,10 @@
 
 The canonical team contract is [BUILD_PLAN.md](BUILD_PLAN.md), section 2:
 **`POST /api/estimate`**. The frontend consumes this response through the local FastAPI endpoint by default.
-Both the endpoint and the optional local fallback use deterministic illustrative
-fixtures. Neither runs training, inference, Monte Carlo sampling, or external data pulls.
+The endpoint tries Kristian's precomputed reader and returns explicitly sourced
+placeholders when that reader or its parquet is absent. The optional frontend local
+fallback remains an illustrative fixture. Neither path runs training, inference,
+Monte Carlo sampling, or external data pulls.
 
 The complete current mock response is
 [`web/src/model/mock-response.json`](../web/src/model/mock-response.json).
@@ -118,11 +120,14 @@ All input values remain explicitly illustrative. Round economics defaults are:
 | `gpu_hour_value_usd` | 2 | USD per GPU-hour |
 | `early_margin_usd_per_mw_year` | 500000 | USD per MW-year |
 
-Economic default refs start with `mock://illustrative/economics-placeholder/` and
-identify `docs/ASSUMPTIONS.md` as pending sourcing, not an existing citation.
-Kristian/Tharun's sourcing arrives on main. Check at each integration checkpoint;
-replace applicable values, units, sources, dates, and ranges together when it lands.
-Retain visible mock labels for every remaining placeholder dependency.
+The frontend's local default refs start with `mock://illustrative/economics-placeholder/`.
+The API now reads its defaults from the marked JSON block in
+[`docs/ASSUMPTIONS.md`](ASSUMPTIONS.md), which currently contains only clearly fake
+placeholders. Its presence on main is not evidence that the values have been sourced.
+API economic refs start with `mock://economics-placeholder/` while any economic input
+or exposure dependency remains a placeholder. Replace applicable values, units,
+sources, retrieval dates, and ranges together when reviewed sourcing lands. Retain
+visible mock labels for every remaining placeholder dependency.
 
 For each annual quantile, the mock provider multiplies baseline exposure by the
 site assumption once. Summary p50/p90/p99 are arithmetic averages of their selected
@@ -164,6 +169,14 @@ The workspace calls `postEstimate(request, {signal})` through the same-origin
 `web/.env.example`) and restart Vite to make no HTTP requests. Visible controls can
 also select Local mock or return to API defaults without restarting.
 
+The backend also accepts direct browser calls to
+`http://127.0.0.1:8000/api/estimate` from exactly `http://127.0.0.1:5174` using
+`POST` and `Content-Type`, without credentials. CORS exposes the successful response
+header `X-Headroom-Exposure-Source: pipeline|placeholder`; this describes exposure
+only and does not certify economics or tariffs. No proxy is required for direct
+calls, although the current frontend still uses its existing proxy. See
+[api/README.md](../api/README.md) for a direct `fetch` example.
+
 While a request is pending, the outputs show a visibly labeled local mock preview
 for the current inputs. Failed, timed-out, or invalid responses leave the local
 fallback usable and visibly identified, with a Retry control. Superseded requests
@@ -178,14 +191,42 @@ This preserves the five-field shared request until the team agrees an additive
 interface. The API's returned economics are displayed directly, never overwritten
 with unsent local assumptions.
 
-`api/main.py` serves POST /api/estimate using a replaceable precomputed-location
-provider and cheap scenario arithmetic. Its mock provider reads the canonical
-`web/src/model/mock-response.json` fixture. Invalid requests return 422; unknown
-fixture locations return 404. Load must be positive and finite (the UI caps its control at 2000 MW); arithmetic
-overflow is rejected. Term is one through seven years, and both fractions are within
-zero to one.
-The nullable zero-cost threshold and complete yearly horizon remain as documented
-above. No new response fields or training hooks were added.
+`api/main.py` selects `api.pipeline_provider.get_pipeline_location`, which imports
+and calls `pipeline.simulate.get_location_estimate(location_id)` only when the
+callable and `data/processed/exposure_by_location.parquet` are available. Its exact
+reader return shape is in BUILD_PLAN.md section 1. It validates unscaled annual
+quantiles, ordered years, confidence level/score/precedent count, model version, and
+the requested location, then applies the site factor once in `api.estimate`.
+Exposure/confidence from a valid reader retain model provenance. Tariff extraction
+is still unwired and explicitly marked as placeholder.
+
+A missing module/callable/file, including a file becoming unavailable at import or
+read time, produces an explicit placeholder response in the same shape. Exposure
+and confidence refs include `mock://placeholder/...; placeholder, pipeline not wired
+yet; <reason>` with `source_type: "assumption"`. Numeric fallback values retain
+the frontend fixture's authored values. The placeholder set contains the three
+demo IDs plus `SPP_SPS_HUB`; none of this establishes actual node coverage.
+
+Invalid requests return 422; unknown locations return 404, including the reader's
+exported `LocationNotFoundError`. A broken dependency/import, failed reader,
+malformed/mismatched output, or insufficient requested horizon returns 503, without
+silently substituting invented exposure. Missing/invalid economics configuration
+also returns 503. Load must be positive and finite (the UI caps its control at
+2000 MW); arithmetic overflow returns 422. Term is one through seven years, and both
+fractions are within zero to one. The nullable zero-cost threshold and complete
+yearly horizon remain as documented above. No response-body fields or training
+hooks were added.
+
+`api/economics.py` reads the single `headroom:economics-assumptions:v1` marked JSON
+block on every request. Its six inputs are GPU rental price, industrial electricity
+price, GPUs/MW, earlier-connection years, net margin/MW-year, and close-call tolerance;
+each records `{value, source_type, ref, unit, source_url, retrieved_on, low, high}`.
+The exact keys and validation policy are in the assumptions file and API README.
+There are no silent numeric defaults. Electricity is informational in this version,
+not an avoided-cost credit or a second deduction from net margin. All current
+entries remain placeholders, so creating the file does not remove mock labels.
+The documented Uvicorn command has no automatic code reload: restart it after API
+or already-imported pipeline code changes; assumptions edits apply on the next request.
 
 Run instructions and the provider replacement boundary are in [api/README.md](../api/README.md).
 Export includes `{mode,status,response_origin,request,response,local_assumptions,result}`
