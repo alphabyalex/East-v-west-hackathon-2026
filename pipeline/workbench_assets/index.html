@@ -3,106 +3,73 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="workspace-token" content="__TOKEN__">
-  <title>Fluxline | Kristian's ML workspace</title>
+  <title>Fluxline | Location hours estimate</title>
   <link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script>
 </head>
 <body>
-  <header><div class="brand">FLUXLINE <span>/ ML WORKSPACE</span></div><span class="local"><i></i> ON THIS COMPUTER</span></header>
+  <header><a class="brand" href="/">FLUXLINE</a><span>SPP location estimator</span></header>
   <main>
-    <div class="heading"><div><p class="eyebrow">KRISTIAN / SPP RESEARCH</p><h1>Your model workspace</h1><p>Choose your location. Scan historical data. Explore modeled exposure hours.</p></div><button id="refresh" class="secondary">Refresh files</button></div>
+    <div class="heading"><div><h1>Estimate your site's grid-stress exposure</h1><p>Enter a location and facility assumptions. Get estimated hours and energy exposure.</p></div><button id="refresh" class="secondary" type="button">Refresh results</button></div>
     <div id="error" role="alert" hidden></div>
-    <section class="status-strip" aria-label="Pipeline status"><div><span class="label">DATA</span><strong id="data-status">Loading local files…</strong></div><div><span class="label">MODEL</span><strong id="model-status">Checking saved runs…</strong></div><div><span class="label">EXECUTION</span><strong id="job-status">Local research jobs</strong></div></section>
     <div class="workspace-grid">
-      <aside>
-        <section class="panel"><div class="section-title"><span class="step">START</span><h2>Explore your location</h2></div>
-          <form id="site-search-form">
-            <label for="site-query">Any US city and state, or latitude, longitude</label>
-            <input id="site-query" placeholder="Wichita, KS or 37.6872, -97.3301" required maxlength="120" autocomplete="off">
-            <p class="hint">Enter your own location. Coordinates work for parcels and places without a city name. SPP applicability is checked before modeling.</p>
-            <button id="site-search-submit" type="submit">Find location</button>
-          </form>
-          <form id="site-report-form">
-            <label for="site-scan-select">Saved location search</label><select id="site-scan-select"></select>
-            <label for="site-candidate">Choose the intended location</label><select id="site-candidate" required></select>
-            <label for="site-load">Data-center load (MW)</label><input id="site-load" type="number" min="0.001" max="10000" step="any" value="100" required>
-            <label for="site-conditional">Conditional / flexible share of load (%)</label><input id="site-conditional" type="number" min="0" max="100" value="100" required>
-            <label for="report-exposure">Assumed site exposure: <output id="report-exposure-value">100%</output></label>
-            <input id="report-exposure" type="range" min="0" max="1" step="0.01" value="1">
-            <p class="hint">The share of modeled SPP exposure assigned to your site. 100% is a full-exposure comparison, not measured cutoff probability. Facility MW changes estimated interrupted energy, not modeled stress hours.</p>
-            <label for="site-years">Scenario term (years)</label><input id="site-years" type="number" min="1" max="7" value="7" required>
-            <label class="check-label"><input id="site-confirm-spp" type="checkbox"> If the utility lookup is inconclusive, I confirm this point belongs to the historical SPP footprint (2019–2024).</label>
-            <p class="hint">This optional assertion is saved as your assumption. The model cannot yet assess newly joined SPP territories or other grids.</p>
-            <button id="site-report-submit" type="submit">Scan data &amp; generate report</button>
-            <p class="hint">Checks the utility map, collects local historical temperature, combines SPP load and wind/solar generation, fits the model and simulates exposure. First run may take several minutes; repeat runs reuse cached data and models.</p>
-          </form>
-        </section>
-        <section class="panel"><div class="section-title"><span class="step">01</span><h2>Prepare an area</h2></div>
-          <form id="weather-form">
-            <label for="area">City and state</label><input id="area" placeholder="Amarillo, TX" required maxlength="120" autocomplete="off">
-            <label for="weather-dataset">Grid observations</label><select id="weather-dataset" required></select>
-            <label for="weather-location">Grid location</label><select id="weather-location" required></select>
-            <p class="hint">Weather is associated with this grid dataset. A city selection does not establish site-level cutoff risk.</p>
-            <button id="weather-submit" type="submit">Prepare temperature data <span aria-hidden="true">→</span></button>
-            <p class="hint">Downloads historical weather when needed. Reuses local caches. Completed calendar years only.</p>
-          </form>
-        </section>
-        <section class="panel"><div class="section-title"><span class="step">02</span><h2>Train with event labels</h2></div>
-          <form id="train-form">
-            <label for="train-dataset">Training observations</label><select id="train-dataset" required></select>
-            <label for="evidence">Reviewed event CSV</label><input id="evidence" type="file" accept=".csv,text/csv" required>
-            <p class="hint">Columns: timestamp_utc, location_id, event_active. Use UTC hour starts; 1 = event, 0 = confirmed non-event, blank = unknown.</p>
-            <a class="text-link" href="/event-template.csv" download>Download CSV header template ↗</a>
-            <label for="label-ref">Label source and coverage reference</label><textarea id="label-ref" rows="3" maxlength="2000" placeholder="Source URL or document reference, covered dates, and how event hours were reviewed" required minlength="5"></textarea>
-            <button id="train-submit" type="submit">Train a research model <span aria-hidden="true">→</span></button>
-            <p class="hint">Runs the existing chronological training and evaluation pipeline. You need both event and non-event hours. Temperature alone cannot label events.</p>
-          </form>
-        </section>
-      </aside>
-      <div class="results">
-        <section class="panel" id="site-panel"><div class="section-title"><span class="step">SITE</span><h2>Location exposure report</h2><span class="tag">LOW CONFIDENCE · RESEARCH</span></div>
-          <p class="hint">Select a location to estimate possible exposure under historical SPP stress conditions. These are modeled scenarios, not a forecast of actual site cutoff dates.</p>
-          <label for="site-report-select">Saved location report</label><select id="site-report-select"></select>
-          <p id="site-report-summary" role="status">Find a location and generate its report to begin.</p>
-          <div id="site-annual-table" class="table-scroll"></div>
-          <nav id="site-downloads" aria-label="Download location report"></nav>
-          <details><summary>Analyzed report and assumptions</summary><pre id="site-report-text"></pre></details>
-          <details><summary>Highest historical hours with local conditions (UTC)</summary><p class="hint">Probabilities refer to the SPP high-demand proxy. Weather and grid conditions shown are from the preceding hour, as used by the model.</p><div id="site-hour-table" class="table-scroll"></div></details>
-          <details><summary>Data sources, coverage and model evaluation</summary><pre id="site-report-data"></pre></details>
-        </section>
-        <section class="panel data-panel"><div class="section-title"><span class="step">DATA</span><h2>Historical observations</h2><span class="tag">CACHED DATA</span></div>
-          <div class="selectors"><div><label for="view-dataset">Prepared dataset</label><select id="view-dataset"></select></div><div><label for="view-location">Grid location</label><select id="view-location"></select></div></div>
-          <p id="data-range" class="hint">Select a prepared dataset.</p>
-          <div class="measurements"><div><span class="label">GRID HOURS</span><strong id="hours">—</strong></div><div><span class="label">TEMPERATURE HOURS</span><strong id="temperature-hours">—</strong></div><div><span class="label">LABELED HOURS</span><strong id="event-hours">—</strong></div></div>
-          <div class="chart-heading"><h3>Daily mean temperature</h3><span>°C · UTC</span></div><div id="temperature-chart" class="chart" aria-label="Daily mean temperature chart"></div>
-          <div class="chart-heading"><h3>Daily mean grid load</h3><span>MW · UTC</span></div><div id="load-chart" class="chart compact" aria-label="Daily mean grid load chart"></div>
-          <p class="hint">Daily means summarize available hourly observations. The model uses prior-hour features. Historical reanalysis supports retrospective study; live publication timing is unverified.</p>
-          <details><summary>Data sources and preparation records</summary><p id="data-source" class="path"></p><pre id="data-provenance"></pre></details>
-        </section>
-        <section class="panel" id="models"><div class="section-title"><span class="step">03</span><h2>Saved model &amp; results</h2><span class="tag">RESEARCH</span></div>
-          <div id="no-model" class="empty"><h3>Awaiting reviewed event labels</h3><p>Your grid and temperature inputs are ready to explore. Training needs historical hours labeled as events or confirmed non-events.</p><p>A trained run will appear here with its model file, evaluation, confidence, and hourly test predictions.</p></div>
-          <div id="model-results" hidden><label for="run-select">Saved training run</label><select id="run-select"></select><p id="model-version" class="path"></p>
-            <div class="measurements"><div><span class="label">TEST BRIER SCORE</span><strong id="brier">—</strong></div><div><span class="label">BASELINE BRIER</span><strong id="baseline">—</strong></div><div><span class="label">TEST HOURS</span><strong id="test-hours">—</strong></div></div>
-            <p class="hint">Lower Brier score is better. Metrics come from the saved model card and held-out test period.</p>
-            <div id="confidence"></div><div id="model-warnings"></div><nav id="downloads" aria-label="Download saved model files"></nav>
-            <h3>Modeled exposure hours</h3><p id="hours-target" class="hint"></p>
-            <label for="hours-location">Model location</label><select id="hours-location"></select>
-            <label for="site-exposure">Assumed site exposure: <output id="site-exposure-value">100%</output></label>
-            <input id="site-exposure" type="range" min="0" max="1" step="0.01" value="1">
-            <p class="hint">User assumption: the share of modeled system exposure assigned to this site. 100% is full exposure for comparison. This is not measured cutoff likelihood or a reduction in load MW.</p>
-            <div class="measurements"><div><span class="label">EXPECTED SYSTEM HOURS</span><strong id="expected-hours">—</strong></div><div><span class="label">ASSUMED SITE HOURS</span><strong id="site-hours">—</strong></div><div><span class="label">UNSCORED HOURS</span><strong id="missing-hours">—</strong></div></div>
-            <p id="hours-period" class="hint"></p><p id="hours-spread" class="hint"></p>
-            <button id="hours-submit" class="secondary" type="button">Calculate scored-period hours</button>
-            <div class="selectors"><div><label for="contract-years">Annual scenario term</label><select id="contract-years"><option value="1">1 year</option><option value="3">3 years</option><option value="5">5 years</option><option value="7" selected>7 years</option></select></div><div><label for="annual-submit">Offline simulation</label><button id="annual-submit" type="button">Calculate annual hours</button></div></div>
-            <p id="annual-status" class="hint"></p><div id="annual-hours" class="table-scroll"></div><p id="contract-hours" class="hint"></p>
-            <details><summary>Highest scored historical hours and evidence</summary><p class="hint">These are historical scored hours, not dates of predicted future interruptions.</p><pre id="ranked-hours"></pre></details>
-            <details><summary>Training report</summary><pre id="model-report"></pre></details><details><summary>Model card and provenance</summary><pre id="model-card"></pre></details>
+      <section class="panel" aria-labelledby="input-title">
+        <h2 id="input-title">1. Your inputs</h2>
+        <form id="estimate-form">
+          <fieldset id="input-fields">
+            <label for="location-query">Location</label>
+            <input id="location-query" placeholder="Wichita, KS or 37.69224, -97.33754" maxlength="120" required aria-describedby="location-help">
+            <p class="hint" id="location-help">Enter a US city and state, or latitude and longitude for a specific site.</p>
+            <div id="candidate-block" hidden>
+              <label for="location-candidate">Which location did you mean?</label><select id="location-candidate"></select>
+            </div>
+            <div class="input-row">
+              <div><label for="facility-mw">Facility power demand (MW)</label><input id="facility-mw" type="number" min="0.001" max="10000" step="any" value="100" required aria-describedby="power-help"></div>
+              <div><label for="flexible-percent">Flexible share of power (%)</label><input id="flexible-percent" type="number" min="0" max="100" step="any" value="100" required aria-describedby="power-help"></div>
+            </div>
+            <p class="hint" id="power-help">The flexible share is the portion that may be interrupted. These inputs scale energy exposure; they do not change the model's stress hours.</p>
+            <label class="range-label" for="site-exposure">Site-exposure assumption <output id="exposure-value" for="site-exposure">100%</output></label>
+            <input id="site-exposure" type="range" min="0" max="1" step="0.01" value="1" aria-describedby="exposure-help">
+            <p class="hint" id="exposure-help">The share of regional stress hours assigned to your site. At 100%, all modeled hours apply; at 25%, one quarter applies. This is your assumption because actual site interruption records are unavailable.</p>
+            <label for="term-years">Years to estimate</label><input id="term-years" type="number" min="1" max="7" step="1" value="7" required>
+            <div id="coverage-confirmation" hidden>
+              <label class="check-label"><input id="confirm-spp" type="checkbox">I have verified that this location belongs to the SPP footprint covered by the 2019–2024 data.</label>
+              <p class="hint">Use this only if you have independently checked the location's grid membership. Your confirmation is saved as an assumption.</p>
+            </div>
+            <button id="estimate-submit" type="submit">Estimate hours</button>
+          </fieldset>
+        </form>
+        <p class="hint auto-data">Historical local temperature and SPP demand, wind and solar data are collected automatically. The first estimate may take several minutes.</p>
+        <div id="job-panel" hidden>
+          <p id="job-message" role="status" aria-live="polite"></p>
+          <details id="job-details"><summary>Processing details</summary><pre id="job-log"></pre></details>
+        </div>
+      </section>
+      <section class="panel result-panel" id="result-panel" aria-labelledby="result-title" aria-busy="false">
+        <div class="section-heading"><h2 id="result-title">2. Your estimate</h2><span class="confidence" id="confidence" hidden>Low confidence</span></div>
+        <div id="saved-control" hidden><label for="saved-report">View a saved estimate</label><select id="saved-report"></select></div>
+        <p id="stale-result" class="notice" role="status" hidden>Inputs changed. Select “Estimate hours” to update the result below.</p>
+        <div id="empty-result"><h3>Your estimated hours will appear here</h3><p>Enter your inputs and select <strong>Estimate hours</strong>.</p></div>
+        <div id="coverage-result" role="status" hidden></div>
+        <div id="estimate-result" hidden>
+          <h3 id="result-location"></h3><p id="result-date" class="hint"></p>
+          <div class="primary-result">
+            <div class="metric-heading"><h4 id="annual-label">Estimated site exposure per year</h4><button class="source-link" type="button" data-sources>Model + assumption</button></div>
+            <p class="hero-number"><strong id="annual-hours"></strong><span>hours / year</span></p>
+            <p class="hint" id="annual-note"></p>
           </div>
-          <p class="boundary">The model estimates system-level modeled exposure. A site's actual cutoff depends on local conditions and the separate site-exposure assumption. Research outputs require label and calibration review.</p>
-        </section>
-        <section id="job-panel" class="panel" hidden><div class="section-title"><span class="step">JOB</span><h2 id="job-title">Offline job</h2><span id="job-badge" class="tag"></span></div><p id="job-message" class="hint" role="status" aria-live="polite"></p><pre id="job-log"></pre></section>
-      </div>
+          <dl class="supporting-results">
+            <div><dt id="term-label">Estimated site exposure over the full term</dt><dd><strong id="term-hours"></strong><span>hours</span></dd><button class="source-link" type="button" data-sources>Model + assumptions · Low confidence</button></div>
+            <div><dt id="energy-label">Estimated energy exposure per year</dt><dd><strong id="annual-energy"></strong><span>MWh / year</span></dd><button class="source-link" type="button" data-sources>Model + assumptions · Low confidence</button></div>
+            <div><dt id="regional-label">Regional high-demand hours per year</dt><dd><strong id="regional-hours"></strong><span>hours / year</span></dd><button class="source-link" type="button" data-sources>Model · Low confidence</button></div>
+          </dl>
+          <p class="meaning">These are modeled exposure hours under high-demand conditions. Actual power cutoffs and their dates are not predicted. Confidence is low because local transmission constraints and site interruption records are missing.</p>
+          <h4>Inputs used for this estimate</h4><dl id="result-inputs" class="facts"></dl>
+          <div class="result-actions"><button id="save-estimate" class="secondary" type="button">Save estimate (.txt)</button><a id="download-data" download>Download full result (.json)</a></div>
+          <details id="sources"><summary>Data sources and calculation</summary><p id="calculation" class="hint"></p><dl id="source-facts" class="facts"></dl><ul id="source-links"></ul><p id="source-limits" class="hint"></p></details>
+        </div>
+      </section>
     </div>
-    <footer>SPP research workspace · Files stay in this repository · Opening this page does not start downloads or training</footer>
+    <footer>Uses historical SPP grid data from 2019–2024. Estimates are comparisons with historical conditions, not live grid forecasts. Values on screen are rounded to one decimal; the source download keeps full precision.</footer>
   </main>
 </body>
 </html>

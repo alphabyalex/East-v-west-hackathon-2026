@@ -235,6 +235,9 @@ def analyzed_report(point, coverage, scan, assumptions, run, reused, definition)
 
 
 def report_markdown(report):
+    if report["status"] == "research_transfer_exposure":
+        from pipeline.regional import transfer_markdown
+        return transfer_markdown(report)
     point = report["location"]
     lines = [f"# Location report: {point['name']}", "", f"Coordinates: {point['latitude']}, {point['longitude']}", "",
              f"Utility-area check: {report['coverage']['status']}", "", report["coverage"]["interpretation"], ""]
@@ -268,6 +271,9 @@ def report_markdown(report):
     lines += ["", f"Model and artifact provenance: {report['model_run']}", "", f"Utility-map source: {TERRITORY_URL}", "",
               "Weather: https://open-meteo.com/en/docs/historical-weather-api", "",
               "The companion site_report.json contains hourly examples, seasonal and temperature comparisons, source URLs, retrieval dates, hashes, input coverage and all assumptions.", ""]
+    if report.get("warning_signs"):
+        from pipeline.signals import signals_markdown
+        lines.append(signals_markdown(report["warning_signs"]))
     return "\n".join(lines)
 
 
@@ -293,6 +299,8 @@ def write_report(out, report):
                 rendered.append('<div class="table"><table><tbody>')
                 table_open = True
             rendered.append("<tr>" + "".join(f"<{tag}>{html.escape(cell)}</{tag}>" for cell in cells) + "</tr>")
+        elif line.startswith("## "):
+            rendered.append("<h2>" + html.escape(line[3:]) + "</h2>")
         elif line.startswith("# "):
             rendered.append("<h1>" + html.escape(line[2:]) + "</h1>")
         elif line.startswith("- "):
@@ -319,6 +327,14 @@ def run_site_job(request_path, out):
         print("Searching for matching locations (or accepting your coordinates).", flush=True)
         write_json(out / "scan.json", search_location(request["query"]))
         return
+    if request["kind"] == "site-signals":
+        from pipeline.signals import explain_saved_run
+        original = Path(request["source_dir"])
+        report = json.loads((original / "site_report.json").read_text(encoding="utf-8"))
+        report["warning_signs"] = explain_saved_run(ROOT / report["model_run"])
+        report["explanation_source_report"] = str(original)
+        write_report(out, report)
+        return
     from pipeline.ingest import fetch_utility_territories
     from requests import RequestException
     settings = validate_assumptions(request)
@@ -335,7 +351,13 @@ def run_site_job(request_path, out):
         write_report(out, {"status": "coverage_review_required", "location": point, "coverage": coverage,
             "message": "No hours calculated. " + ("The historical map associates this point with another grid; the current SPP model is not applicable." if coverage["status"] == "other_grid_match" else "SPP membership was not verified. Confirm the utility/point of interconnection; if it belongs to the historical SPP footprint, select the explicit SPP assumption and generate again.")})
         return
-    run, reused, definition = prepare_area_model(point)
-    report = analyzed_report(point, coverage, scan, settings, run, reused, definition)
+    if request["kind"] == "site-transfer":
+        from pipeline.regional import transfer_report
+        report = transfer_report(point, coverage, scan, settings, out)
+    else:
+        from pipeline.signals import explain_saved_run
+        run, reused, definition = prepare_area_model(point)
+        report = analyzed_report(point, coverage, scan, settings, run, reused, definition)
+        report["warning_signs"] = explain_saved_run(run)
     write_report(out, report)
     print(f"Report saved: {out / 'SITE_REPORT.html'}", flush=True)

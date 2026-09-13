@@ -10,8 +10,18 @@ from importlib.metadata import version
 import numpy as np
 import pandas as pd
 from lightgbm import LGBMClassifier
+try:
+    from xgboost import XGBClassifier
+except ImportError:
+    XGBClassifier = None
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import average_precision_score, brier_score_loss, log_loss, roc_auc_score
+
+
+def predict_raw(model, features) -> np.ndarray:
+    if type(model).__name__ == "XGBClassifier":
+        return model.predict(features, output_margin=True)
+    return model.predict(features, raw_score=True)
 
 
 def chronological_split(frame: pd.DataFrame, embargo_hours: int = 24) -> dict[str, pd.DataFrame]:
@@ -63,7 +73,7 @@ def evaluate(y: np.ndarray, probability: np.ndarray) -> dict:
 def predict_members(bundle: dict, frame: pd.DataFrame) -> np.ndarray:
     features = frame[bundle["feature_names"]].to_numpy(dtype=float)
     return np.column_stack([
-        calibrator.predict_proba(model.predict(features, raw_score=True).reshape(-1, 1))[:, 1]
+        calibrator.predict_proba(predict_raw(model, features).reshape(-1, 1))[:, 1]
         for model, calibrator in bundle["members"]
     ])
 
@@ -82,6 +92,8 @@ def fit_ensemble(frame: pd.DataFrame, feature_names: list[str], *, seed: int = 2
     settings = dict(n_estimators=trees, num_leaves=7, max_depth=3, learning_rate=.05,
                     min_child_samples=30, reg_lambda=1.0, verbosity=-1, n_jobs=1,
                     deterministic=True, force_col_wise=True)
+    xgb_settings = dict(n_estimators=trees, max_depth=3, learning_rate=.05,
+                        reg_lambda=1.0, verbosity=0, n_jobs=1, eval_metric="logloss")
     for member in range(members):
         rng = np.random.default_rng(seed + member)
         for _ in range(20):
@@ -90,11 +102,14 @@ def fit_ensemble(frame: pd.DataFrame, feature_names: list[str], *, seed: int = 2
                 break
         else:
             raise ValueError("Day-block bootstrap repeatedly produced a single class. More independent events are needed.")
-        model = LGBMClassifier(**settings, random_state=seed + member)
+        if member % 2 == 0 or XGBClassifier is None:
+            model = LGBMClassifier(**settings, random_state=seed + member)
+        else:
+            model = XGBClassifier(**xgb_settings, random_state=seed + member)
         model.fit(x_train[sample], y_train[sample])
         # Sigmoid calibration sees only the middle time window. No random CV.
         calibrator = LogisticRegression(C=1.0, solver="lbfgs", max_iter=1000, random_state=seed)
-        calibrator.fit(model.predict(x_cal, raw_score=True).reshape(-1, 1), y_cal)
+        calibrator.fit(predict_raw(model, x_cal).reshape(-1, 1), y_cal)
         ensemble.append((model, calibrator))
     medians = training[feature_names].median().fillna(0).to_numpy()
     scales = training[feature_names].std().fillna(1).replace(0, 1).to_numpy()
@@ -113,13 +128,16 @@ def fit_ensemble(frame: pd.DataFrame, feature_names: list[str], *, seed: int = 2
     metrics = evaluate(test.target.to_numpy(), mean)
     baseline_metrics = evaluate(test.target.to_numpy(), baseline)
     skill = 1 - metrics["brier_score"] / baseline_metrics["brier_score"]
+    versions = {name: version(name) for name in ("numpy", "pandas", "scikit-learn", "lightgbm", "pyarrow")}
+    if XGBClassifier is not None:
+        versions["xgboost"] = version("xgboost")
     report = {
         "status": "research_only_pending_label_and_calibration_review",
         "prediction_task": "Target-hour system event/proxy from previous observed hours; not site curtailment.",
         "settings": {**settings, "seed": seed, "ensemble_members": members,
                      "bootstrap_block_hours": 24, "embargo_hours": embargo_hours,
                      "split_fractions": [.6, .2, .2], "calibration": "sigmoid on separate middle time window"},
-        "versions": {name: version(name) for name in ("numpy", "pandas", "scikit-learn", "lightgbm", "pyarrow")},
+        "versions": versions,
         "splits": {name: {"start": str(part.timestamp_utc.min()), "end": str(part.timestamp_utc.max()),
                           "rows": len(part), "positive_hours": int(part.target.sum())}
                    for name, part in splits.items()},
