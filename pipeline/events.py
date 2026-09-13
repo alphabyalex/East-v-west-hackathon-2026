@@ -7,8 +7,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shutil
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import numpy as np
 import pandas as pd
@@ -16,7 +18,43 @@ import pandas as pd
 from pipeline.common import ROOT, fingerprint, read_hourly, write_json
 
 
+def validate_catalog(catalog: dict) -> None:
+    """Require traceable sources and unambiguous event identifiers before joining."""
+    if not isinstance(catalog, dict) or not isinstance(catalog.get("events"), list):
+        raise ValueError("Evidence catalog requires an events list.")
+    sources = catalog.get("sources")
+    if not isinstance(sources, dict) or not sources:
+        raise ValueError("Evidence catalog requires source provenance.")
+    for source in sources.values():
+        if not isinstance(source, dict):
+            raise ValueError("Each evidence source must be an object.")
+        ref, digest = source.get("ref"), source.get("sha256")
+        if (not isinstance(ref, str) or urlsplit(ref).scheme != "https" or not urlsplit(ref).hostname
+                or not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest)):
+            raise ValueError("Evidence sources require HTTPS references and SHA-256 fingerprints.")
+        retrieved = pd.Timestamp(source.get("retrieved_utc"))
+        if pd.isna(retrieved) or retrieved.tzinfo is None:
+            raise ValueError("Evidence retrieval times require explicit UTC offsets.")
+    identifiers = set()
+    for event in catalog["events"]:
+        if not isinstance(event, dict):
+            raise ValueError("Each event must be an object.")
+        identifier = event.get("id")
+        if (not isinstance(identifier, str) or not re.fullmatch(r"[a-z0-9_-]+", identifier)
+                or identifier in identifiers):
+            raise ValueError("Event IDs must be unique lowercase identifiers without separators.")
+        identifiers.add(identifier)
+        refs = event.get("source_ids")
+        if (not isinstance(refs, list) or not refs or any(not isinstance(ref, str) or ref not in sources for ref in refs)
+                or len(set(refs)) != len(refs)):
+            raise ValueError("Every event must reference declared, distinct evidence sources.")
+        for field in ("region_id", "kind", "time_precision", "end_status"):
+            if not isinstance(event.get(field), str) or not event[field].strip():
+                raise ValueError(f"Each event requires {field}.")
+
+
 def confirmed_eea_intervals(catalog: dict, region_id: str) -> list[tuple]:
+    validate_catalog(catalog)
     intervals = []
     for event in catalog["events"]:
         if (event["region_id"] != region_id or event["kind"] not in {"EEA1", "EEA2", "EEA3"}
@@ -40,15 +78,26 @@ def annotate_hours(frame: pd.DataFrame, catalog: dict, location_id: str, region_
     if location_id != "SPP_SYSTEM" or region_id != "SPP_BA_PRE_2026":
         raise ValueError("Only the reviewed pre-2026 SPP_SYSTEM mapping is supported.")
     selected = frame.location_id.eq(location_id)
+    times = frame.loc[selected, "timestamp_utc"]
+    if (not isinstance(times.dtype, pd.DatetimeTZDtype) or times.isna().any()
+            or not times.eq(times.dt.floor("h")).all() or times.duplicated().any()):
+        raise ValueError("Event observations require unique timezone-aware hourly interval starts.")
     if (frame.loc[selected, "timestamp_utc"] >= pd.Timestamp("2026-01-01", tz="UTC")).any():
         raise ValueError("Post-2025 data requires a separately reviewed East/West region mapping.")
     intervals = confirmed_eea_intervals(catalog, region_id)
     output = frame.copy()
     output["observed_eea_minutes"] = np.nan
     output["observed_eea_event_ids"] = ""
-    for index, row in output.loc[selected].iterrows():
-        start = pd.Timestamp(row.timestamp_utc)
-        end = start + pd.Timedelta(hours=1)
+    # Visit only hours touched by a confirmed interval. Positional writes also
+    # preserve valid frames with repeated pandas index labels.
+    candidates = np.zeros(len(output), dtype=bool)
+    for start, end, _ in intervals:
+        candidates |= (selected & (frame.timestamp_utc >= start.floor("h")) & (frame.timestamp_utc < end)).to_numpy()
+    minutes_col = output.columns.get_loc("observed_eea_minutes")
+    ids_col = output.columns.get_loc("observed_eea_event_ids")
+    for index in np.flatnonzero(candidates):
+        start = pd.Timestamp(output.timestamp_utc.iloc[index])
+        end = start + pd.Timedelta(1, unit="h")
         overlaps = sorted((max(start, a), min(end, b), identifier)
                           for a, b, identifier in intervals if a < end and b > start)
         if not overlaps:
@@ -62,8 +111,8 @@ def annotate_hours(frame: pd.DataFrame, catalog: dict, location_id: str, region_
                 total += right - left
                 left, right = a, b
         total += right - left
-        output.at[index, "observed_eea_minutes"] = total.total_seconds() / 60
-        output.at[index, "observed_eea_event_ids"] = ";".join(sorted({item[2] for item in overlaps}))
+        output.iat[index, minutes_col] = total.total_seconds() / 60
+        output.iat[index, ids_col] = ";".join(sorted({item[2] for item in overlaps}))
     return output
 
 
