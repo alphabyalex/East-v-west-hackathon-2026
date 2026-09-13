@@ -16,6 +16,12 @@ from pipeline.workbench import Workspace
 
 class SiteTests(unittest.TestCase):
     def setUp(self):
+        # These legacy job tests isolate the utility gate; regional geography and
+        # the expanded gate are exercised separately in test_location_data.py.
+        coverage = patch("pipeline.location_data.regional_coverage", side_effect=lambda point, result: {
+            **result, "eligible": result["status"] == "historical_spp_match"})
+        coverage.start()
+        self.addCleanup(coverage.stop)
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)

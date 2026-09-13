@@ -18,7 +18,7 @@
           <fieldset id="input-fields">
             <label for="location-query">Location</label>
             <input id="location-query" placeholder="Wichita, KS or 37.69224, -97.33754" maxlength="120" required aria-describedby="location-help">
-            <p class="hint" id="location-help">Enter a US city and state, or latitude and longitude for a specific site.</p>
+            <p class="hint" id="location-help">Enter a city and state in an SPP region, or latitude and longitude. Nearby regional data is used when an exact local match is unavailable.</p>
             <div id="candidate-block" hidden>
               <label for="location-candidate">Which location did you mean?</label><select id="location-candidate"></select>
             </div>
@@ -32,13 +32,13 @@
             <p class="hint" id="exposure-help">The share of regional stress hours assigned to your site. At 100%, all modeled hours apply; at 25%, one quarter applies. This is your assumption because actual site interruption records are unavailable.</p>
             <label for="term-years">Years to estimate</label><input id="term-years" type="number" min="1" max="7" step="1" value="7" required>
             <div id="coverage-confirmation" hidden>
-              <label class="check-label"><input id="confirm-spp" type="checkbox">I have verified that this location belongs to the SPP footprint covered by the 2019–2024 data.</label>
+              <label class="check-label"><input id="confirm-spp" type="checkbox">I have independently verified that this location is served within SPP and accept a historical regional comparison.</label>
               <p class="hint">Use this only if you have independently checked the location's grid membership. Your confirmation is saved as an assumption.</p>
             </div>
             <button id="estimate-submit" type="submit">Estimate hours</button>
           </fieldset>
         </form>
-        <p class="hint auto-data">Historical local temperature and SPP demand, wind and solar data are collected automatically. The first estimate may take several minutes.</p>
+        <p class="hint auto-data">Local or nearby historical temperature and SPP demand, wind and solar data are collected automatically. The first estimate may take several minutes.</p>
         <div id="job-panel" hidden>
           <p id="job-message" role="status" aria-live="polite"></p>
           <details id="job-details"><summary>Processing details</summary><pre id="job-log"></pre></details>
@@ -51,7 +51,7 @@
         <div id="empty-result"><h3>Your estimated hours will appear here</h3><p>Enter your inputs and select <strong>Estimate hours</strong>.</p></div>
         <div id="coverage-result" role="status" hidden></div>
         <div id="estimate-result" hidden>
-          <h3 id="result-location"></h3><p id="result-date" class="hint"></p>
+          <h3 id="result-location"></h3><p id="result-date" class="hint"></p><p id="location-data-note" class="hint" hidden></p>
           <div class="primary-result">
             <div class="metric-heading"><h4 id="annual-label">Estimated site exposure per year</h4><button class="source-link" type="button" data-sources>Model + assumption</button></div>
             <p class="hero-number"><strong id="annual-hours"></strong><span>hours / year</span></p>

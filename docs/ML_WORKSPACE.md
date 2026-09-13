@@ -8,7 +8,7 @@ Open **http://127.0.0.1:8765** on this computer. To start the app later, double-
 2. Set **Facility power demand (MW)** and **Flexible share of power (%)**.
 3. Set the **Site-exposure assumption**: the share of regional high-demand hours you assume applies to the site.
 4. Choose **Years to estimate**, from 1 to 7.
-5. Select **Estimate hours**. The app finds the location, checks historical SPP coverage, retrieves historical weather and calculates the result. If several places match, choose one and select **Estimate hours** again.
+5. Select **Estimate hours**. The app finds the location, checks SPP regional coverage, retrieves local or nearby historical weather and calculates the result. If several places match, choose one and select **Estimate hours** again.
 
 The model approach is selected automatically. Temperature, load, wind and solar histories do not need manual entry. The first preparation can take several minutes; cached data and the shared fitted model are reused.
 
@@ -28,7 +28,9 @@ All hours are **modeled exposure to high-demand conditions**, with **Low confide
 
 Site hours multiply regional modeled hours by your site-exposure assumption. Energy exposure also multiplies by facility MW and flexible share, assuming that flexible portion is interrupted throughout the assumed site hours. Changing facility size affects energy, not grid-stress hours. The new model compares historical monthly conditions with a stationary 365-day year, without growth or climate projections.
 
-Historical SPP grid inputs cover 2019–2024. An apparent match to another grid produces no estimate. An inconclusive coverage lookup exposes an optional confirmation only if you independently know the point belongs to the historical SPP footprint; this is recorded as your assumption.
+Historical SPP grid inputs cover 2019–2024. Locations inside or within 100 km of the historical SPP outline, and areas near documented western expansion utilities, can now receive regional comparisons without manual confirmation. This also permits cities surrounded by SPP territory whose own utility is on another grid; these results are marked approximate. Western estimates use historical SPP East patterns as an analogy, not a model trained on the 2026 expansion. Distant locations such as Houston and Seattle remain outside the automatic comparison area.
+
+Search accepts `Colorado Springs CO`, `Colorado Springs, Colorado`, and coordinates. A cached national Census directory supplements the primary city search. Weather is requested at your coordinates first; if unavailable or incomplete, the app tries complete cached histories and nearby weather points within 100 km. The selected city stays unchanged, and the output/export records the weather match. See [coverage and nearby-data policy](SPP_LOCATION_COVERAGE.md).
 
 ## Local operation
 
@@ -44,4 +46,4 @@ The local service is separate from the team's demo at `/web` and `/api`. Its fil
 
 ## Checks
 
-The simplified flow has nine JavaScript behavior checks, covering input/output units, saved-input integrity, automatic and ambiguous location search, stale responses, explicit SPP confirmation, legacy medians, missing values and safe source URLs. Run `node tests/test_estimator_ui.js` where Node is installed. The existing seven workspace and nine site Python tests also pass. Live static assets and saved results were checked; a connected browser was unavailable for visual inspection.
+The simplified flow has ten JavaScript behavior checks, including nearby-data notes, exports, input/output units, saved-input integrity, automatic and ambiguous searches, stale responses, legacy medians and safe source URLs. Run `node tests/test_estimator_ui.js` where Node is installed. Run the 80 Python checks with `python -m unittest discover -s tests`. Geographic lookup, weather fallback and the automatic regional gate have dedicated regression checks. Live static assets and saved results were checked; a connected browser was unavailable for visual inspection.

@@ -46,8 +46,7 @@ def validate_assumptions(data):
 
 
 def search_location(query):
-    from pipeline.ingest import search_weather_areas
-    from pipeline.weather import STATE_NAMES
+    from pipeline.location_data import city_candidates, split_city_state
     query = validate_query(query)
     parts = [item.strip() for item in query.split(",")]
     coordinates = None
@@ -63,19 +62,8 @@ def search_location(query):
         points = [{"name": f"{lat:.5f}, {lon:.5f}", "latitude": lat, "longitude": lon, "weight": 1.0}]
         source = {"source_type": "assumption", "ref": "Coordinates entered by the user; latitude first."}
     else:
-        if len(parts) > 2 or not all(parts):
-            raise ValueError('Use "City, State" or "latitude, longitude". For a parcel, use coordinates.')
-        frame, source = search_weather_areas(parts[0], cache_dir=ROOT / "data/raw/weather/geocoding")
-        frame = frame[frame.country_code.eq("US")]
-        if len(parts) == 2:
-            state = STATE_NAMES.get(parts[1].upper(), parts[1])
-            frame = frame[frame.admin1.astype("string").str.casefold().eq(state.casefold())]
-        frame = frame.drop_duplicates(["latitude", "longitude"])
-        points = [{"name": f"{row['name']}, {row.admin1}", "latitude": float(row.latitude),
-                   "longitude": float(row.longitude), "weight": 1.0, "geonames_id": int(row.id)}
-                  for _, row in frame.head(20).iterrows()]
-        if not points:
-            raise ValueError("No matching US location found. Try a nearby city and state, or enter exact coordinates.")
+        city, state = split_city_state(query)
+        points, source = city_candidates(city, state)
     return {"query": query, "candidates": points, "source": source,
             "note": "Choose the intended result. City coordinates represent its center; use parcel coordinates for a more precise weather/territory lookup."}
 
@@ -237,7 +225,10 @@ def analyzed_report(point, coverage, scan, assumptions, run, reused, definition)
 def report_markdown(report):
     if report["status"] == "research_transfer_exposure":
         from pipeline.regional import transfer_markdown
-        return transfer_markdown(report)
+        text = transfer_markdown(report)
+        if report.get("location_data_note"):
+            text += "\n\n" + report["location_data_note"] + "\n"
+        return text
     point = report["location"]
     lines = [f"# Location report: {point['name']}", "", f"Coordinates: {point['latitude']}, {point['longitude']}", "",
              f"Utility-area check: {report['coverage']['status']}", "", report["coverage"]["interpretation"], ""]
@@ -336,6 +327,7 @@ def run_site_job(request_path, out):
         write_report(out, report)
         return
     from pipeline.ingest import fetch_utility_territories
+    from pipeline.location_data import regional_coverage
     from requests import RequestException
     settings = validate_assumptions(request)
     scan, point = request["scan"], request["point"]
@@ -346,14 +338,21 @@ def run_site_job(request_path, out):
     except (RequestException, ValueError) as error:
         coverage = {"status": "unverified", "territories": [], "error": str(error),
                     "source": {"ref": TERRITORY_URL}, "interpretation": "Utility lookup unavailable; no grid membership established."}
-    allowed = coverage["status"] == "historical_spp_match" or (coverage["status"] == "unverified" and settings["confirm_spp"])
+    coverage = regional_coverage(point, coverage)
+    allowed = coverage["eligible"] or (coverage["status"] == "unverified" and settings["confirm_spp"])
     if not allowed:
         write_report(out, {"status": "coverage_review_required", "location": point, "coverage": coverage,
-            "message": "No hours calculated. " + ("The historical map associates this point with another grid; the current SPP model is not applicable." if coverage["status"] == "other_grid_match" else "SPP membership was not verified. Confirm the utility/point of interconnection; if it belongs to the historical SPP footprint, select the explicit SPP assumption and generate again.")})
+            "message": "No hours calculated. This point could not be matched to an SPP region or a nearby comparison area within 100 km. Check the selected city/state or use site coordinates."})
         return
     if request["kind"] == "site-transfer":
         from pipeline.regional import transfer_report
+        from pipeline.location_weather import prepare_query_weather
+        weather_match = prepare_query_weather(point, out)
         report = transfer_report(point, coverage, scan, settings, out)
+        report["location_data_match"] = weather_match
+        report["location_data_note"] = weather_match["note"] + (" " + coverage["interpretation"] if coverage.get("approximate") else " Grid inputs use historical SPP regional data.")
+        if coverage.get("approximate"):
+            report["limitations"].append(coverage["interpretation"])
     else:
         from pipeline.signals import explain_saved_run
         run, reused, definition = prepare_area_model(point)
