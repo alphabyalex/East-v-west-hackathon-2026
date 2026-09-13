@@ -721,6 +721,8 @@ def prepare_wind_inputs(
     required = {"timestamp_utc", "location_id", "load_mw"}
     if not required.issubset(system_load.columns) or system_load.empty:
         raise ValueError("System load requires nonempty canonical hourly observations.")
+    if not system_load.location_id.map(lambda value: isinstance(value, str) and bool(value.strip())).all():
+        raise ValueError("Every system-load footprint must have a nonempty name.")
     if system_load.location_id.nunique(dropna=False) != 1:
         raise ValueError("Provide one system load footprint, not individual-zone load rows.")
     # A caller may use a different verified system label, but cannot mix footprints.
@@ -1119,7 +1121,8 @@ def _wind_observations(hourly, sources):
     needed = {"timestamp_utc", "location_id", *columns}
     if not isinstance(hourly, pd.DataFrame) or hourly.empty or not hourly.columns.is_unique or not needed.issubset(hourly.columns):
         raise ValueError("Wind classifier needs nonempty canonical hourly wind/load observations.")
-    if not hourly.location_id.eq("SPP_SYSTEM").all():
+    # Nullable-string equality leaves NA, and all() otherwise skips those rows.
+    if not hourly.location_id.notna().all() or not hourly.location_id.eq("SPP_SYSTEM").all():
         raise ValueError("Wind classifier supports only one declared SPP_SYSTEM observation per hour.")
     frame = hourly[["timestamp_utc", *columns]].copy()
     frame["timestamp_utc"] = _wind_hour_index(frame.timestamp_utc)
@@ -1167,7 +1170,7 @@ def _wind_classifier_labels(labels):
     origin = source(labels.attrs.get("source"))
     if origin["source_type"] == "model":
         raise ValueError("Independent VER targets cannot be another model's generated labels.")
-    if not labels.location_id.eq("SPP_SYSTEM").all():
+    if not labels.location_id.notna().all() or not labels.location_id.eq("SPP_SYSTEM").all():
         raise ValueError("Independent wind-event labels cannot be relabeled as individual sites or zones.")
     frame = labels[["timestamp_utc", "wind_curtailment_event", "observed_five_minute_samples",
                     "evaluable_five_minute_samples"]].copy()
