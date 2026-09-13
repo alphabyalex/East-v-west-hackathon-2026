@@ -357,6 +357,66 @@ def test_cache_adapter_reuses_historical_generation_normalizer():
     assert result.system_wind_mw.tolist() == [60., 60.]
 
 
+def historical_annual_boundary_inputs():
+    generation, load, prices = cached_inputs()
+    hours = pd.date_range("2025-01-01T05:00:00Z", periods=2, freq="h")
+    times = pd.date_range(hours[0], periods=len(generation), freq="5min")
+    historic = pd.DataFrame({"GMT MKT Interval": times, "Wind Market": 40., "Wind Self": 20.,
+                             "Solar Market": 1., "Solar Self": 1.})
+    # The boundary hour has one 120-MW sample followed by eleven 12-MW samples.
+    historic.loc[12:, ["Wind Market", "Wind Self"]] = [10., 2.]
+    historic.loc[12, "Wind Market"] = 118.
+    load["timestamp_utc"] = hours
+    prices["Interval Start"] = hours
+    prices["Interval End"] = hours + pd.Timedelta(1, unit="h")
+    return historic.iloc[:13].copy(), historic.iloc[13:].copy(), load, prices
+
+
+def test_raw_annual_boundary_recovery_requires_all_twelve_samples_and_preserves_prefix():
+    previous_year, next_year, load, prices = historical_annual_boundary_inputs()
+    boundary = pd.Timestamp("2025-01-01T06:00:00Z")
+    first_partition = previous_year.loc[previous_year["GMT MKT Interval"].dt.floor("h") == boundary]
+    assert first_partition["GMT MKT Interval"].tolist() == [boundary]
+    assert next_year["GMT MKT Interval"].tolist() == list(pd.date_range(boundary + pd.Timedelta(5, unit="min"), periods=11, freq="5min"))
+    previous = prepare(previous_year, load, prices, generation_format="historical")
+    following = prepare(next_year, load, prices, generation_format="historical")
+    assert pd.isna(previous.system_wind_mw.iloc[1])
+    assert pd.isna(following.system_wind_mw.iloc[1])
+    joined = prepare(pd.concat([previous_year, next_year], ignore_index=True), load, prices,
+                     generation_format="historical")
+    assert joined.system_wind_mw.iloc[1] == 21.
+    # Averaging the unequal partitions' means would wrongly produce 66 MW.
+    partition_means = [part[["Wind Market", "Wind Self"]].sum(axis=1).mean()
+                       for part in (first_partition, next_year)]
+    assert sum(partition_means) / 2 == 66.
+    assert joined.system_wind_mw.iloc[1] != sum(partition_means) / 2
+    pd.testing.assert_frame_equal(previous.iloc[:1], joined.iloc[:1], check_exact=True)
+    assert joined.system_wind_mw.iloc[0] == 60.
+
+
+@pytest.mark.parametrize("case", ["missing_market", "missing_self", "conflicting_revision",
+                                  "missing_interval", "duplicate_for_missing_interval"])
+def test_joined_annual_boundary_with_incomplete_or_conflicting_evidence_stays_unknown(case):
+    previous_year, next_year, load, prices = historical_annual_boundary_inputs()
+    prefix = prepare(previous_year, load, prices, generation_format="historical").iloc[:1]
+    if case == "missing_market":
+        previous_year.loc[previous_year.index[-1], "Wind Market"] = np.nan
+    elif case == "missing_self":
+        next_year.loc[next_year.index[0], "Wind Self"] = np.nan
+    elif case == "conflicting_revision":
+        changed = previous_year.iloc[[-1]].assign(**{"Wind Market": 119.})
+        next_year = pd.concat([changed, next_year], ignore_index=True)
+    else:
+        next_year = next_year.iloc[1:].copy()
+        if case == "duplicate_for_missing_interval":
+            next_year = pd.concat([next_year, next_year.iloc[[0]]], ignore_index=True)
+    joined = prepare(pd.concat([previous_year, next_year], ignore_index=True), load, prices,
+                     generation_format="historical")
+    assert pd.isna(joined.system_wind_mw.iloc[1])
+    assert pd.isna(wind_oversupply_hours(joined, **ARGS).wind_oversupply_proxy.iloc[1])
+    pd.testing.assert_frame_equal(prefix, joined.iloc[:1], check_exact=True)
+
+
 def test_read_only_cache_adapter_reuses_existing_reader_without_fetch(monkeypatch, tmp_path):
     generation, load, prices = cached_inputs()
     path = tmp_path / "system.parquet"

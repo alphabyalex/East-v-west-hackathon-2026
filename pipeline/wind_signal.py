@@ -521,6 +521,8 @@ def prepare_wind_inputs(
     Location. The caller must separately provide verified matching wind/load scope
     and provenance to wind_oversupply_hours. There is no guessed node-to-zone map.
     historical generation uses the existing generation.normalize_generation helper;
+    adjacent archives that split an hourly bin must be concatenated as raw samples
+    before normalization. Partial hourly means cannot recover missing raw samples.
     gridstatus uses Wind MW with declared interval starts/ends. Fuel-mix totals
     alone do not establish the geographic footprint (notably SPP versus SWPW).
     """
