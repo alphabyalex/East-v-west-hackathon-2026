@@ -339,13 +339,13 @@ def normalize_spp_generation_archive(raw: pd.DataFrame, *, generation_source: Ma
     if not frame["GMT MKT Interval"].eq(frame["GMT MKT Interval"].dt.floor("5min")).all():
         raise ValueError("Historical observations must align to the five-minute cadence")
     for name in components:
-        if frame[name].map(lambda value: isinstance(value, (bool, np.bool_))).any():
+        if any(isinstance(value, (bool, np.bool_)) for value in frame[name]):
             raise ValueError("Generation component MW cannot be boolean")
         # pandas otherwise casts temporal quantities to nanoseconds and drops
         # complex imaginary parts, turning malformed input into plausible MW.
-        if frame[name].dtype.kind in "cMm" or frame[name].map(lambda value: isinstance(
+        if frame[name].dtype.kind in "cMm" or any(isinstance(
             value, (complex, np.complexfloating, date, time, timedelta, np.datetime64, np.timedelta64)
-        )).any():
+        ) for value in frame[name]):
             raise ValueError("Generation components require real numeric MW, not complex or temporal quantities")
         frame[name] = pd.to_numeric(frame[name], errors="raise").astype(float)
         if np.isinf(frame[name]).any():
