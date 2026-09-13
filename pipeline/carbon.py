@@ -49,6 +49,26 @@ WIND_OPERATIONAL_CO2_FACTOR = {
 }
 
 
+def _strict_source_object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"Duplicate JSON provenance key: {key}")
+        result[key] = value
+    return result
+
+
+def _strict_source_float(text):
+    value = float(text)
+    if not math.isfinite(value):
+        raise ValueError("Nonfinite JSON provenance number")
+    return value
+
+
+def _reject_source_constant(text):
+    raise ValueError(f"Nonfinite JSON provenance number: {text}")
+
+
 def _source(source: Mapping) -> dict:
     if not isinstance(source, Mapping) or not isinstance(source.get("source_type"), str) or source["source_type"] not in {"data", "model", "assumption"}:
         raise ValueError("Every input requires data, model, or assumption provenance")
@@ -71,6 +91,11 @@ def _source(source: Mapping) -> dict:
                       and all(isinstance(item, dict) and {"source_type", "ref"}.issubset(item)
                               for item in nested["inputs"]))
         if recognized:
+            # Recognition preserves opaque citation formats. Once recognized,
+            # ambiguity or nonfinite numbers must fail rather than become opaque.
+            nested = json.loads(ref, object_pairs_hook=_strict_source_object,
+                                parse_float=_strict_source_float,
+                                parse_constant=_reject_source_constant)
             rank = {"data": 0, "model": 1, "assumption": 2}
             for item in nested["inputs"]:
                 if rank[_source(item)["source_type"]] > rank[source["source_type"]]:

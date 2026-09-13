@@ -378,6 +378,52 @@ def test_nested_assumption_cannot_be_upgraded_by_data_parent():
         compose_grid_impact("NODE", wind_summary=raw)
 
 
+@pytest.mark.parametrize("ref", [
+    '{"method":"submitted count","inputs":[{"value":4,"source_type":"assumption","source_type":"data","ref":"reviewed count"}]}',
+    '{"method":"submitted count","inputs":[{"value":999,"value":4,"source_type":"data","ref":"reviewed count"}]}',
+    '{"method":"submitted count","inputs":[{"value":4,"source_type":"data","ref":"original evidence","ref":"replacement evidence"}]}',
+    '{"method":"original derivation","method":"submitted count","inputs":[{"value":4,"source_type":"data","ref":"reviewed count"}]}',
+    '{"method":"submitted count","inputs":[{"source_type":"assumption","ref":"assumed count"}],"inputs":[{"value":4,"source_type":"data","ref":"reviewed count"}]}',
+    *['{"method":"submitted count","inputs":[{"value":' + value + ',"source_type":"data","ref":"reviewed count"}]}'
+      for value in ("NaN", "Infinity", "-Infinity", "1e400")],
+])
+def test_interpreted_provenance_rejects_ambiguous_or_nonfinite_json_at_each_boundary(tmp_path, ref):
+    import api.grid_impact as module
+
+    # Exercise the API's own parser as well as the shared source validator.
+    with pytest.raises(ValueError, match="[Dd]uplicate|[Nn]onfinite|finite"):
+        module._Evidence().compact_ref(ref)
+    raw = wind()
+    raw["observed_hours"] = datum(4, ref, "data")
+    with pytest.raises(ValueError, match="[Dd]uplicate|[Nn]onfinite|finite"):
+        compose_grid_impact("NODE", wind_summary=raw)
+    prepared = cache(tmp_path / "prepared.json", wind_summary=raw)
+    before = prepared.read_bytes()
+    with pytest.raises(ValueError, match="[Dd]uplicate|[Nn]onfinite|finite"):
+        get_location_grid_impact("NODE", prepared)
+    output = tmp_path / "rejected.snapshot.json"
+    with pytest.raises(ValueError, match="[Dd]uplicate|[Nn]onfinite|finite"):
+        snapshot(output, wind_summary=raw)
+    assert not output.exists()
+    assert prepared.read_bytes() == before
+
+
+@pytest.mark.parametrize("ref", [
+    '{"other_format":{"value":1,"value":2}}',
+    '{"other_format":{"measurement":NaN}}',
+    '{ordinary citation text; not structured producer JSON',
+])
+def test_unrelated_opaque_refs_remain_exact_through_snapshot_compilation(tmp_path, ref):
+    raw = wind()
+    raw["observed_hours"] = datum(4, ref)
+    path = snapshot(tmp_path / "opaque.snapshot.json", wind_summary=raw)
+    result = read_grid_impact_snapshot("NODE", path, required=True)
+    assert any(item.get("ref") == ref for node in result["evidence"].values()
+               for item in node.get("inputs", []))
+    assert result["coverage"]["wind"]["observed_hours"]["value"] == 4
+    assert result["wind_absorption_mwh_in_observed_hours"]["value"] == 200.
+
+
 def test_dag_json_is_identical_under_pair_permutation():
     raw = scheduled_pairs(3)
     reordered = deepcopy(raw)

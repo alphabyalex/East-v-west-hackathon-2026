@@ -820,6 +820,9 @@ def test_nested_source_guard_reaches_multiple_levels_and_preserves_valid_assumpt
     '{"method":"other schema","inputs":[1,2]}',
     '{"method":"other schema","inputs":[],"extra":"not the derived format"}',
     '{not valid JSON; original source citation}',
+    '{"different_format":{"source_type":"assumption","source_type":"data"}}',
+    '{"different_format":{"value":NaN}}',
+    '{"method":"other schema","inputs":[],"extra":1e400}',
 ])
 def test_other_json_citation_formats_stay_opaque_and_are_preserved(opaque):
     origin = datum(25., "data", opaque)
@@ -837,3 +840,42 @@ def test_legitimate_data_calculations_keep_data_provenance_with_verified_scope()
     assert result["intensity_kg_co2_per_mwh"]["source_type"] == "model"
     nested = datum(25., "data", json.dumps({"method": "authored derived metered energy", "inputs": [datum(25.)]}))
     assert wind_carbon(nested, selection_source=observed_scope)["wind_operational_co2_kg"]["source_type"] == "data"
+
+
+@pytest.mark.parametrize("kind", ["data", "assumption"])
+@pytest.mark.parametrize("ref", [
+    '{"method":"derived","inputs":[{"source_type":"assumption","source_type":"data","ref":"authored source"}]}',
+    '{"method":"derived","inputs":[{"source_type":"data","ref":"first","ref":"second"}]}',
+    '{"method":"derived","inputs":[{"value":10,"value":20,"source_type":"data","ref":"authored source"}]}',
+    '{"method":"first","method":"second","inputs":[]}',
+    '{"method":"derived","inputs":[{"source_type":"assumption","ref":"authored source"}],"inputs":[]}',
+])
+def test_recognized_provenance_rejects_duplicate_keys_instead_of_using_the_last_value(kind, ref):
+    with pytest.raises(ValueError, match="Duplicate JSON provenance key"):
+        wind_carbon(datum(25., kind, ref), selection_source=POLICY)
+
+
+@pytest.mark.parametrize("number", ["NaN", "Infinity", "-Infinity", "1e400", "-1e400"])
+@pytest.mark.parametrize("kind", ["data", "assumption"])
+def test_recognized_provenance_rejects_nonfinite_nested_values_and_exponent_overflow(number, kind):
+    ref = ('{"method":"derived","inputs":[{"value":' + number
+           + ',"source_type":"data","ref":"authored source"}]}')
+    with pytest.raises(ValueError, match="Nonfinite JSON provenance number"):
+        wind_carbon(datum(25., kind, ref), selection_source=POLICY)
+
+
+def test_duplicate_key_guard_checks_json_references_inside_nested_source_strings():
+    inner_ref = '{"method":"derived","inputs":[{"source_type":"assumption","source_type":"data","ref":"authored source"}]}'
+    outer_ref = json.dumps({"method": "outer derived quantity", "inputs": [datum(25., "data", inner_ref)]})
+    with pytest.raises(ValueError, match="Duplicate JSON provenance key"):
+        wind_carbon(datum(25., "data", outer_ref), selection_source=POLICY)
+
+
+def test_strict_recognized_reference_preserves_finite_numbers_and_original_text():
+    ref = '{ "method" : "authored measured quantity", "inputs" : [{"value":1e-200,"source_type":"data","ref":"authored source"}] }'
+    origin = datum(25., "data", ref)
+    result = wind_carbon(origin, selection_source={"source_type": "data", "ref": "authored measured selection"})
+    assert result["wind_energy_absorbed_mwh"]["value"] == 25.
+    assert result["wind_operational_co2_kg"]["value"] == 0.
+    assert result["wind_operational_co2_kg"]["source_type"] == "data"
+    assert origin in json.loads(result["wind_operational_co2_kg"]["ref"])["inputs"]

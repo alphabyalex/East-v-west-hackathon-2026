@@ -91,6 +91,25 @@ def source(value: object) -> dict:
                       and all(isinstance(item, dict) and {"source_type", "ref"}.issubset(item)
                               for item in nested["inputs"]))
         if recognized:
+            # Recognition preserves unrelated opaque citations. Once interpreted,
+            # a ref must have one unambiguous value per key and finite numbers;
+            # default JSON last-key-wins parsing can hide an assumption source.
+            def unique(pairs):
+                result = {}
+                for key, item in pairs:
+                    if key in result:
+                        raise ValueError(f"Duplicate derived provenance JSON key: {key}")
+                    result[key] = item
+                return result
+
+            def finite_literal(literal):
+                number = float(literal)
+                if not np.isfinite(number):
+                    raise ValueError("Nonfinite derived provenance JSON number")
+                return number
+
+            nested = json.loads(ref, object_pairs_hook=unique,
+                                parse_constant=finite_literal, parse_float=finite_literal)
             rank = {"data": 0, "model": 1, "assumption": 2}
             for item in nested["inputs"]:
                 # Inputs may be complete sourced datums with value/unit fields;

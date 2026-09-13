@@ -201,6 +201,12 @@ class _Evidence:
         if not known:
             self.refs[ref] = ref
             return ref
+        # Only the producer's recognized format is interpreted. Do not silently
+        # discard duplicate fields or accept nonfinite values while compacting
+        # its evidence; unrelated citation text remains opaque and unchanged.
+        decoded = json.loads(ref, object_pairs_hook=_unique_object,
+                             parse_constant=_nonfinite_constant,
+                             parse_float=_finite_json_float)
         pointer = self.register({"method": decoded["method"],
                                  "inputs": self.inputs(decoded["inputs"])})
         self.refs[ref] = pointer
@@ -475,6 +481,13 @@ def _unique_object(pairs):
 
 def _nonfinite_constant(value):
     raise ValueError(f"Nonfinite JSON constant: {value}")
+
+
+def _finite_json_float(value):
+    number = float(value)
+    if not math.isfinite(number):
+        raise ValueError(f"Nonfinite JSON number: {value}")
+    return number
 
 
 def _read_grid_impact_inputs(location_id, path):

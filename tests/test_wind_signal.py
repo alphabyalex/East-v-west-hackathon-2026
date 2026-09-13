@@ -206,7 +206,33 @@ def test_nested_provenance_checks_descendants_even_when_outermost_source_is_assu
 
 
 @pytest.mark.parametrize("ref", [
+    '{"method":"count","inputs":[{"source_type":"assumption","source_type":"data","ref":"reviewed input"}]}',
+    '{"method":"count","inputs":[{"value":1,"value":2,"source_type":"data","ref":"reviewed input"}]}',
+    '{"method":"count","inputs":[{"source_type":"data","ref":"first input","ref":"second input"}]}',
+    '{"method":"first method","method":"second method","inputs":[]}',
+    '{"method":"count","inputs":[{"source_type":"assumption","ref":"declared input"}],"inputs":[]}',
+])
+def test_interpreted_provenance_rejects_duplicate_keys_without_hiding_earlier_sources(ref):
+    origin = {"source_type": "data", "ref": ref}
+    with pytest.raises(ValueError, match="Duplicate.*JSON key"):
+        source(origin)
+    with pytest.raises(ValueError, match="Duplicate.*JSON key"):
+        summarize(observations(), available_fraction={"value": 0.5, **origin})
+    # A nested string must be checked too, even beneath an honest outer source.
+    with pytest.raises(ValueError, match="Duplicate.*JSON key"):
+        source(derived_source("assumption", [{"value": 0.5, **origin}]))
+
+
+@pytest.mark.parametrize("literal", ["NaN", "Infinity", "-Infinity", "1e400", "-1e400"])
+def test_interpreted_provenance_rejects_nonfinite_numeric_literals(literal):
+    ref = '{"method":"count","inputs":[{"value":' + literal + ',"source_type":"data","ref":"reviewed input"}]}'
+    with pytest.raises(ValueError, match="Nonfinite.*JSON number"):
+        source({"source_type": "data", "ref": ref})
+
+
+@pytest.mark.parametrize("ref", [
     '{"catalog": {"source_type": "assumption", "ref": "unrelated metadata"}}',
+    '{"catalog": "first citation", "catalog": "second citation", "uninterpreted": NaN}',
     '{"method": "unknown schema", "inputs": ["opaque"]}',
     '{"method": "unknown schema", "inputs": [], "version": 2}',
     '{"method": "unknown schema", "inputs": [{"value": 1}]}',
