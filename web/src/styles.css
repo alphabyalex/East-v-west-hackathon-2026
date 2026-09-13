@@ -374,6 +374,8 @@ button.confidence-badge { font: 11px var(--font-sans); color: var(--text-seconda
   .metric-unit { flex-basis: 100%; margin-top: 3px; }
   .metric-number .source-wrap { gap: 1px; }
   .metric-number .source-mark { width: 11px; min-width: 11px; height: 11px; font-size: 8px; }
+  .metric .confidence-badge.source-wrap, .metric .confidence-badge .source-wrap { white-space: normal; }
+  .metric .confidence-badge .sourced-value { flex-wrap: wrap; row-gap: 2px; }
   .chart-heading { gap: 10px; }
   .chart-heading h3 { font-size: 12px; }
   .chart-legend { gap: 8px; }
