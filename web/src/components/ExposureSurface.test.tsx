@@ -48,7 +48,7 @@ describe('exposure surface inspection', () => {
     expect(screen.getByRole('button', { name: 'Inspect p99' }).getAttribute('aria-pressed')).toBe('true');
     expect((screen.getByRole('button', { name: 'Inspect next year' }) as HTMLButtonElement).disabled).toBe(true);
 
-    const value = screen.getByRole('button', { name: '246.912. assumption provenance. Activate to pin.' });
+    const value = screen.getByRole('button', { name: '246.9. assumption provenance. Activate to pin.' });
     expect(value.querySelector('.sourced-value')!.textContent).toBe('246.9');
     fireEvent.click(value);
     expect(readProvenance()).toEqual(rows[1].p99);
@@ -74,7 +74,7 @@ describe('exposure surface inspection', () => {
     expect(readProvenance()).toEqual(rows[1].p50);
     fireEvent.keyDown(document, { key: 'Escape' });
     const stage = screen.getByRole('group', { name: 'Interactive modeled exposure quantile surface' });
-    fireEvent.click(within(stage).getByRole('button', { name: '300. assumption provenance. Activate to pin.' }));
+    fireEvent.click(within(stage).getByRole('button', { name: '300 h. assumption provenance. Activate to pin.' }));
     expect(readProvenance()).toEqual(sourced(300, 'mock://test/display/axis-hours'));
   });
 
@@ -89,7 +89,7 @@ describe('exposure surface inspection', () => {
     expect(controller.update).toHaveBeenLastCalledWith(changed, 300);
     expect(controller.select).toHaveBeenLastCalledWith(2);
     expect(screen.getByText(/single-year quantile cross-section/)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: '61.728. assumption provenance. Activate to pin.' }));
+    fireEvent.click(screen.getByRole('button', { name: '61.7. assumption provenance. Activate to pin.' }));
     expect(readProvenance()).toEqual(changed[0].p99);
     expect(onUnavailable).not.toHaveBeenCalled();
     unmount();

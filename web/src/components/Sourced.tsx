@@ -18,6 +18,12 @@ type ProvenanceProps = {
   source: Source
   label?: string
   description?: string
+  /** The exact text rendered on screen; defaults to `value` when the caller
+   * shows the raw value verbatim. Required whenever visible text differs from
+   * `value` (e.g. "p50" for value 50, or a formatted "$8.81M" for a raw
+   * dollar figure) so the accessible name contains the visible text per
+   * WCAG 2.5.3 (Label in Name). */
+  displayText?: string
 }
 
 export type SourcedProps = ProvenanceProps & {
@@ -43,7 +49,7 @@ const defaultFormat = (value: number) =>
   value.toLocaleString('en-US', { maximumFractionDigits: 2 })
 
 /** One popover behavior shared by inline values, input annotations, and SVG ticks. */
-function useProvenance({ value, source, label, description }: ProvenanceProps) {
+function useProvenance({ value, source, label, description, displayText }: ProvenanceProps) {
   const id = useId()
   const anchor = useRef<HTMLElement | SVGElement | null>(null)
   const popover = useRef<HTMLDivElement | null>(null)
@@ -57,7 +63,9 @@ function useProvenance({ value, source, label, description }: ProvenanceProps) {
   const json = JSON.stringify({ value, source_type: source.source_type, ref: source.ref }, null, 2)
   // Full references can be long scenario URLs; expose them in the described JSON,
   // keeping the control's accessible name short enough to navigate efficiently.
-  const accessibleLabel = `${label ? `${label}: ` : ''}${value}. ${source.source_type} provenance. Activate to pin.`
+  // The name must contain the visible text (WCAG 2.5.3), which is `displayText`
+  // when the caller renders something other than the raw value verbatim.
+  const accessibleLabel = `${label ? `${label}: ` : ''}${displayText ?? value}. ${source.source_type} provenance. Activate to pin.`
 
   const clearCloseTimer = useCallback(() => {
     if (closeTimer.current !== undefined) clearTimeout(closeTimer.current)
@@ -187,10 +195,27 @@ function useProvenance({ value, source, label, description }: ProvenanceProps) {
   }
 }
 
+/** Plain-text children only (e.g. 'p' + 50 -> 'p50'); null for JSX element
+ * children, which the caller's own `label` is trusted to describe instead. */
+function plainText(node: ReactNode): string | null {
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  if (Array.isArray(node)) {
+    const parts = node.map(plainText)
+    return parts.every((part) => part !== null) ? parts.join('') : null
+  }
+  return null
+}
+
 /** Numeric UI primitive. The original, unrounded value is retained in provenance. */
 export function Sourced({ value, source, format = defaultFormat, className = '', animate = true, children, label, description }: SourcedProps) {
   const animated = useAnimatedNumber(typeof value === 'number' ? value : 0, animate && typeof value === 'number')
-  const provenance = useProvenance({ value, source, label, description })
+  // Match the visible span exactly when it's plain text, using the settled
+  // (not mid-animation) formatted value - never the raw value. Complex JSX
+  // children (icons, conditional badges) fall back to the caller's `label`.
+  const displayText = children != null
+    ? plainText(children)
+    : (typeof value === 'number' ? format(value) : value)
+  const provenance = useProvenance({ value, source, label, description, displayText: displayText ?? undefined })
   return (
     <>
       <button
@@ -234,7 +259,7 @@ export function SourceInfo({ value, source, label, description }: SourceInfoProp
 export function SourcedTick({ x = 0, y = 0, payload, source, prefix = '', suffix = '', axis = 'x' }: SourcedTickProps) {
   const value = payload?.value ?? ''
   const label = `${prefix}${typeof value === 'number' ? defaultFormat(value) : value}${suffix}`
-  const provenance = useProvenance({ value, source, label })
+  const provenance = useProvenance({ value, source, displayText: label })
   return (
     <>
       <g
