@@ -534,7 +534,10 @@ def read_cached_day_ahead_prices(year: int, *, settlement_locations: list[str]) 
 def read_cached_day_ahead_price_month(
     year: int = 2025, month: int = 1, *, settlement_locations: list[str],
 ) -> tuple[pd.DataFrame, dict]:
-    """Prepare exact-location DA LMP from one already-cached 2025 monthly CSV.
+    """Prepare exact-location DA LMP from one reviewed cached monthly CSV.
+
+    Supports all twelve 2025 months and January/February 2026 only. Later 2026
+    archives require a separate raw-schema review before this guard is extended.
 
     Date at UTC midnight plus HE minus one hour is an INFERRED interval-start
     mapping. It matched all selected 2024 monthly/daily prices, including DST,
@@ -547,10 +550,12 @@ def read_cached_day_ahead_price_month(
     uses the annual reader's six columns. No fetching, annualization, time-zone
     shift of the HE grid, publication-vintage claim or API-time parsing occurs.
     """
-    if isinstance(year, bool) or not isinstance(year, int) or year != 2025:
-        raise ValueError("The reviewed monthly day-ahead price reader supports only 2025.")
+    if isinstance(year, bool) or not isinstance(year, int) or year not in (2025, 2026):
+        raise ValueError("The reviewed monthly day-ahead price reader supports only 2025 and January/February 2026.")
     if isinstance(month, bool) or not isinstance(month, int) or not 1 <= month <= 12:
         raise ValueError("Select an integer day-ahead operating month from 1 through 12.")
+    if year == 2026 and month not in (1, 2):
+        raise ValueError("The reviewed monthly day-ahead price reader supports only January/February for 2026.")
     if not isinstance(settlement_locations, list) or not settlement_locations or any(
         not isinstance(value, str) or not value.strip() or value != value.strip() for value in settlement_locations
     ) or len(set(settlement_locations)) != len(settlement_locations):

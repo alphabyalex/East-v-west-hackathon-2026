@@ -183,7 +183,7 @@ def test_inferred_time_mapping_never_inherits_raw_data_status(tmp_path, monkeypa
     assert "publication vintage unverified" in derived["method"]
 
 
-@pytest.mark.parametrize("year", [2024, 2026, "2025", 2025., True])
+@pytest.mark.parametrize("year", [2024, 2027, "2025", 2025., True])
 def test_unreviewed_year_is_rejected_before_read(tmp_path, monkeypatch, year):
     monkeypatch.setattr(wind, "ROOT", tmp_path)
     with pytest.raises(ValueError, match="only 2025"):
