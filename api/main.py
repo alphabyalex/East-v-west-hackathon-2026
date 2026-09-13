@@ -55,7 +55,9 @@ def grid_impact(location_id: Annotated[str, Path(pattern=LIVE_LOCATION_PATTERN)]
     basis, coverage and the local evidence graph accompany them. Null means
     unavailable, never zero. A 200 may contain partial or unavailable coverage.
     This scenario has its own declared capacity; /api/estimate inputs do not
-    change it. Missing snapshots are 404; invalid/unreadable snapshots are 503.
+    change it. Reviewed zone references add location_mapping identifying the
+    source point and scope; unavailable mapped evidence stays null. Unknown IDs
+    without snapshots are 404; invalid/unreadable snapshots are 503.
     """
     response.headers["Cache-Control"] = "no-store"
     try:

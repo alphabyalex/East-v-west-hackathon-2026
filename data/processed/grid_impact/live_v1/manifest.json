@@ -1,5 +1,5 @@
 {
-  "availability": "All 21 exposure catalog IDs lack exact-location wind inputs and a supported carbon-shift schedule in this bundle, so all six fields are sourced nulls. Eight settlement points retain observed-period wind scenarios and zero associated wind operational CO2; their annual and shifted-carbon fields remain null.",
+  "availability": "The 21 original catalog snapshots remain immutable sourced-null records. The live resolver now exposes six reviewed point scenarios for CSWS, LES, OKGE, OPPD, SPS and WFEC. Fifteen catalog choices remain unavailable. Annual and shifted-carbon values remain null in every served scenario.",
   "exposure_catalog": {
     "path": "data/processed/exposure_by_location.parquet",
     "sha256": "ffe0e5e3f633fd19065611cae868f6066bb77dfc1803a271d955f4213671ce35"
@@ -122,10 +122,14 @@
       "sha256": "a85ea5cc52de33090190db253469ac7b835d451f8e22e6a7be47271c3255c837"
     }
   },
-  "scenario_scope": "Fixed 2025 historical scenarios: 100 MW flexible load and 0.5 upward availability, both assumptions. No estimate request inputs are inferred. Exact settlement point IDs are not aliases for load zones.",
+  "scenario_scope": "Fixed 2025 historical scenarios: 100 MW flexible load and 0.5 upward availability, both assumptions. No estimate request inputs are inferred. Six documented within-zone network-load settlement references are exposed with explicit location_mapping metadata; not zone-wide totals or site deliverability.",
   "schema_version": "grid-impact-live-bundle-v1",
   "wind_source_bundle": {
     "manifest_sha256": "06d24b2fec992f574ada8d51c8b275208e8de93dff3b70a7f79ba64813fb13fe",
     "path": "data/processed/grid_impact/handoff_2025_review_v1"
+  },
+  "zone_mapping_evidence": {
+    "path": "zone_mapping_evidence.json",
+    "sha256": "daf3fc27f105421a0c992f1a45e02a67f2e4566be4d4514415b5a0042eea5bed"
   }
 }

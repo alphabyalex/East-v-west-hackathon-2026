@@ -31,9 +31,9 @@ def datum(value):
     return {"value": value, "source_type": "assumption", "ref": "authored HTTP software fixture, not real grid data"}
 
 
-def publish(bundle, *, hours=2, price=-1., with_shift=False, intensity=300.):
-    timestamps = pd.date_range("2025-01-01", periods=hours, freq="h", tz="UTC")
-    frame = pd.DataFrame({"timestamp_utc": timestamps, "location_id": "TEST_ZONE",
+def publish(bundle, *, hours=2, price=-1., with_shift=False, intensity=300., location_id="TEST_ZONE", year=2025):
+    timestamps = pd.date_range(f"{year}-01-01", periods=hours, freq="h", tz="UTC")
+    frame = pd.DataFrame({"timestamp_utc": timestamps, "location_id": location_id,
                           "system_wind_mw": 60., "system_load_mw": 100., "lmp_usd_mwh": price})
     origin = {key: datum(0)[key] for key in ("source_type", "ref")}
     summary = summarize_wind(frame,
@@ -51,7 +51,7 @@ def publish(bundle, *, hours=2, price=-1., with_shift=False, intensity=300.):
             hourly_limits={risk: {"removable_mwh": datum(10.)}, makeup: {"makeup_capacity_mwh": datum(10.)}})
         coverage = {key: summary[key] for key in (*impact.COUNT_KEYS, "period_start_utc", "period_end_exclusive_utc")}
         coverage["schedule_scope"] = "complete_period"
-    return impact.compile_grid_impact_snapshot("TEST_ZONE", bundle / "TEST_ZONE.snapshot.json",
+    return impact.compile_grid_impact_snapshot(location_id, bundle / f"{location_id}.snapshot.json",
         wind_summary=summary, carbon_shift=shifted, shift_coverage=coverage)
 
 
@@ -200,7 +200,7 @@ def test_published_real_point_scenario_preserves_its_assumptions(published_bundl
     assert "mock://" not in json.dumps(result)
 
 
-def test_published_catalog_ids_are_explicitly_unavailable_without_point_aliases(published_bundle, client):
+def test_published_catalog_only_uses_documented_zone_references(published_bundle, client):
     manifest = json.loads((published_bundle / "manifest.json").read_text(encoding="utf-8"))
     catalog = Path(__file__).resolve().parents[1] / manifest["exposure_catalog"]["path"]
     assert hashlib.sha256(catalog.read_bytes()).hexdigest() == manifest["exposure_catalog"]["sha256"]
@@ -209,11 +209,101 @@ def test_published_catalog_ids_are_explicitly_unavailable_without_point_aliases(
     assert len(manifest["files"]) == 29
     for name, entry in manifest["files"].items():
         assert hashlib.sha256((published_bundle / name).read_bytes()).hexdigest() == entry["sha256"]
+    available = set()
     for location in ids:
         response = client.get(f"/api/grid-impact/{location}")
         assert response.status_code == 200
         result = response.json()
         assert result["location_id"] == location
         assert_sources(result)
+        if location in impact.ZONE_SETTLEMENT_POINTS:
+            available.add(location)
+            point = impact.ZONE_SETTLEMENT_POINTS[location]
+            assert result["wind_absorption_mwh_in_observed_hours"]["value"] == PUBLISHED_POINTS[point]
+            assert result["location_mapping"]["source_location_id"] == point
+            assert result["carbon_shifted_tonnes_in_observed_hours"]["value"] is None
+        else:
+            assert all(result[field]["value"] is None for field in impact.UNITS)
+            assert all(part["status"] == "unavailable" for part in result["coverage"].values())
+    assert available == {"CSWS", "LES", "OKGE", "OPPD", "SPS", "WFEC"}
+    assert len(ids - available) == 15
+
+
+@pytest.mark.parametrize("zone,point", impact.ZONE_SETTLEMENT_POINTS.items())
+def test_zone_reference_preserves_point_values_and_provenance(published_bundle, client, zone, point):
+    original = client.get(f"/api/grid-impact/{point}").json()
+    path = published_bundle / f"{zone}.snapshot.json"
+    stored = path.read_bytes()
+    mapped = client.get(f"/api/grid-impact/{zone}").json()
+    mapping = mapped["location_mapping"]
+    assert mapping["requested_location_id"] == zone
+    assert mapping["source_location_id"] == point
+    assert mapping["pnode"] == f"{zone}_LA"
+    assert mapping["scope"] == "point_reference_scenario_not_zone_total_or_site_deliverability"
+    assert mapping["source"]["source_type"] == "data"
+    node = mapped["evidence"][mapping["source"]["ref"].removeprefix(impact.EVIDENCE_PREFIX)]
+    assert impact.ZONE_MAPPING_REF in json.dumps(node)
+    for field in impact.UNITS:
+        assert mapped[field]["value"] == original[field]["value"]
+        assert mapped[field]["source_type"] == original[field]["source_type"] == "assumption"
+        derivation = mapped["evidence"][mapped[field]["ref"].removeprefix(impact.EVIDENCE_PREFIX)]
+        assert original[field] in derivation["inputs"]
+        assert mapping["source"] in derivation["inputs"]
+    assert mapped["coverage"] == original["coverage"]
+    assert mapped["units"] == original["units"]
+    assert all(mapped["evidence"][key] == value for key, value in original["evidence"].items())
+    assert client.get(f"/api/grid-impact/{point}").json() == original
+    assert path.read_bytes() == stored
+
+
+def test_mapping_evidence_pins_observed_pairs_and_primary_sources(published_bundle):
+    path = published_bundle / "zone_mapping_evidence.json"
+    assert hashlib.sha256(path.read_bytes()).hexdigest() in impact.ZONE_MAPPING_REF
+    proof = json.loads(path.read_text(encoding="utf-8"))
+    assert {row["zone_id"]: row["settlement_location_id"] for row in proof["mappings"]} == impact.ZONE_SETTLEMENT_POINTS
+    assert len(proof["observed_monthly_sources"]) == 12
+    assert all(row["pnode"] == row["zone_id"] + "_LA" for row in proof["mappings"])
+    assert proof["protocol"]["url"].startswith("https://www.spp.org/")
+    assert proof["csws_support"]["url"].startswith("https://www.spp.org/")
+
+
+def test_direct_zone_data_takes_priority_over_a_reference(bundle, client):
+    publish(bundle, location_id="LES", price=1.)
+    publish(bundle, location_id="LES_LES")
+    result = client.get("/api/grid-impact/LES").json()
+    assert result["wind_absorption_mwh_in_observed_hours"]["value"] == 0.
+    assert "location_mapping" not in result
+
+
+@pytest.mark.parametrize("case", ["missing", "outside_reviewed_year", "unavailable"])
+def test_missing_or_unreviewed_point_stays_unavailable(bundle, client, case):
+    if case == "outside_reviewed_year":
+        publish(bundle, location_id="LES_LES", year=2026)
+    elif case == "unavailable":
+        impact.compile_grid_impact_snapshot("LES_LES", bundle / "LES_LES.snapshot.json")
+    response = client.get("/api/grid-impact/LES")
+    assert response.status_code == 200
+    assert all(response.json()[field]["value"] is None for field in impact.UNITS)
+    assert "location_mapping" not in response.json()
+
+
+def test_a_malformed_point_is_not_hidden_by_zone_unavailability(bundle, client):
+    (bundle / "LES_LES.snapshot.json").write_text("broken", encoding="utf-8")
+    assert client.get("/api/grid-impact/LES").status_code == 503
+
+
+def test_deleted_reference_is_not_returned_from_warm_cache(bundle, client):
+    path = publish(bundle, location_id="LES_LES")
+    assert client.get("/api/grid-impact/LES").json()["wind_absorption_mwh_in_observed_hours"]["value"] == 100.
+    path.unlink()
+    assert client.get("/api/grid-impact/LES").json()["wind_absorption_mwh_in_observed_hours"]["value"] is None
+
+
+def test_unlisted_area_and_system_never_use_matching_names_or_hubs(bundle, client):
+    for point in ("WR_WR", "SPPNORTH_HUB", "SPPSOUTH_HUB"):
+        publish(bundle, location_id=point)
+    for zone in ("WR", "SPP_SYSTEM", "spp-lincoln-demo"):
+        impact.compile_grid_impact_snapshot(zone, bundle / f"{zone}.snapshot.json")
+        result = client.get(f"/api/grid-impact/{zone}").json()
         assert all(result[field]["value"] is None for field in impact.UNITS)
-        assert all(part["status"] == "unavailable" for part in result["coverage"].values())
+        assert "location_mapping" not in result
