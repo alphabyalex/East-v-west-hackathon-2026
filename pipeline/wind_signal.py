@@ -22,6 +22,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import csv
+from fractions import Fraction
 import hashlib
 import io
 import json
@@ -98,6 +99,26 @@ def finite_number(value: object, name: str, *, minimum=None, maximum=None) -> fl
     if minimum is not None and number < minimum or maximum is not None and number > maximum:
         raise ValueError(f"{name} is outside its allowed range.")
     return number
+
+
+def wind_scenario_mwh(proxy_hours, flexible_load_mw, available_fraction):
+    """Round the three-factor energy product once, without intermediate loss.
+
+    Exact binary-float ratios preserve subnormal final results and avoid an
+    overflowing intermediate when the final energy is finite. This is the same
+    count times capacity times availability scenario, not a new physical model.
+    """
+    count = finite_number(proxy_hours, "proxy hours", minimum=0)
+    if not count.is_integer():
+        raise ValueError("Proxy hours must be an integer count of complete hourly flags.")
+    capacity = finite_number(flexible_load_mw, "flexible_load_mw", minimum=0)
+    fraction = finite_number(available_fraction, "available_fraction", minimum=0, maximum=1)
+    product = Fraction(count) * Fraction(capacity) * Fraction(fraction)
+    try:
+        result = float(product)
+    except OverflowError as exc:
+        raise ValueError("Scenario MWh must be finite; final energy is unrepresentable.") from exc
+    return finite_number(result, "scenario MWh", minimum=0)
 
 
 @dataclass(frozen=True)
@@ -224,6 +245,55 @@ def read_cached_wind_curtailment_archive(year: int) -> tuple[pd.DataFrame, dict]
     result = pd.concat(frames, ignore_index=True)
     return result, {**origin, "ref": f"{url}; cached_sha256={digest}; daily CSV members only; "
                                     "monthly archive duplicates excluded; category quantities not added"}
+
+
+def read_cached_wind_curtailment_month(year: int = 2025, month: int = 12) -> tuple[pd.DataFrame, dict]:
+    """Read the reviewed December 2025 VER monthly supplement without fetching.
+
+    This separate cached source does not replace the partial annual rollup or
+    any prior dataset/evaluation. Returns original category values and rows;
+    prepare_wind_curtailment_labels owns completeness, duplicate/conflicting
+    interval handling and numeric validation. No missing category becomes zero,
+    no category quantities are added, and the filename does not prove coverage.
+    Only the observed eight-column December format is currently accepted.
+    """
+    if type(year) is not int or type(month) is not int or (year, month) != (2025, 12):
+        raise ValueError("Monthly VER reader is reviewed for exactly December 2025.")
+    path = ROOT / "data/raw/spp/evidence/ver_curtailments_2025_12.parquet"
+    cached = pd.read_parquet(path)
+    if len(cached) != 1 or not cached.columns.is_unique or not {"request_url", "content", "source_json"}.issubset(cached.columns):
+        raise ValueError("Invalid cached monthly VER evidence record.")
+    row = cached.iloc[0]
+    member = "VER-Curtailments-MONTHLY-202512.csv"
+    url = f"https://portal.spp.org/file-browser-api/download/ver-curtailments?path=/2025/12/{member}"
+    manifest = json.loads(row.source_json)
+    if not isinstance(manifest, dict) or row.request_url != url or manifest.get("requested_url") != url or manifest.get("ref") != url:
+        raise ValueError("Monthly VER cache must identify its exact month and SPP source URL.")
+    origin = source({key: manifest.get(key) for key in ("source_type", "ref")})
+    if not isinstance(row.content, (bytes, bytearray)) or len(row.content) > 2_000_000:
+        raise ValueError("Cached monthly VER must contain bounded CSV bytes.")
+    digest = hashlib.sha256(row.content).hexdigest()
+    if manifest.get("sha256") != digest:
+        raise ValueError("Cached monthly VER bytes do not match their source fingerprint.")
+    stream = io.BytesIO(row.content)
+    _archive_csv_header(stream)
+    frame = pd.read_csv(stream)
+    expected = {"LocalIntervalEnding", "GMTIntervalEnding", *VER_WIND_COLUMNS,
+                "SolarRedispatchCurtailments", "SolarManualCurtailments", "SolarCurtailedForEnergy"}
+    if frame.empty or set(frame.columns) != expected:
+        raise ValueError("Monthly VER requires the reviewed eight-column schema and observations.")
+    if frame.GMTIntervalEnding.map(lambda value: isinstance(value, (Real, bool, np.bool_))).any():
+        raise ValueError("Monthly VER GMT interval-end timestamps cannot be numeric or boolean.")
+    ends = pd.to_datetime(frame.GMTIntervalEnding, utc=True, format="mixed")
+    starts = (ends - pd.Timedelta(5, unit="min")).dt.tz_convert("America/Chicago")
+    if (ends.isna().any() or not ends.eq(ends.dt.floor("5min")).all()
+            or not starts.dt.strftime("%Y-%m").eq("2025-12").all()):
+        raise ValueError("Monthly VER interval starts disagree with their Central operating month.")
+    frame["archive_member"] = member
+    return frame, {**origin, "ref": f"{url}; cached_sha256={digest}; "
+        "separate December monthly supplement; GMT interval end minus five minutes checked against Central operating month; "
+        "original category values and duplicate/conflicting rows retained for shared label preparation; "
+        "no category summation or gap filling; filename does not guarantee complete monthly coverage"}
 
 
 def prepare_wind_curtailment_labels(
@@ -639,9 +709,10 @@ def read_cached_historical_wind_inputs(
 ) -> pd.DataFrame:
     """Use historical full-mix archive plus existing load/LMP caches, without fetch.
 
-    Reuses generation.normalize_generation through prepare_wind_inputs. Its
-    observation-time binning convention is explicit in generation_source; it is
-    not an assertion about historical dispatch information availability.
+    Reuses generation.normalize_generation through prepare_wind_inputs. The
+    derived generation_source remains an assumption because of the unresolved
+    observation-time binning and dispatch-target interpretation. The original
+    document source is retained separately as raw_generation_source.
     """
     if Path.cwd().resolve() != ROOT.resolve():
         raise ValueError("Run the existing relative-path cache reader from the repository root.")
@@ -651,7 +722,12 @@ def read_cached_historical_wind_inputs(
         raise ValueError("Historical join needs matching-year SPP_SYSTEM load, not a zone load or another vintage.")
     frame = prepare_wind_inputs(raw, load, ingest.load_dataset("lmp"), price_locations=price_locations,
                                 market=market, generation_format="historical")
-    frame.attrs = {"generation_source": generation_source, "load_sha256": fingerprint(Path(system_load_path)),
+    normalized_origin = {"source_type": "assumption", "ref": generation_source["ref"]
+                         + "; derived historical wind input: declared observation-time hourly binning; "
+                           "reported generation/dispatch mix, not verified metered energy or live publication availability"}
+    frame.attrs = {"generation_source": normalized_origin, "raw_generation_source": generation_source,
+                   "source_qualification": GENMIX_SOURCE_QUALIFICATION,
+                   "load_sha256": fingerprint(Path(system_load_path)),
                    "price_market": market, "price_locations": dict(sorted(price_locations.items())),
                    "price_cache_hashes": {str(path): fingerprint(path) for path in sorted((ingest.RAW_DIR / "lmp").glob("*.parquet"))},
                    "scope_status": "historical SPP_SYSTEM wind/load; local deliverability still unobserved"}
@@ -756,7 +832,7 @@ def summarize_wind(
         complete = start == expected_start and end == expected_end and flags.notna().all()
         complete = bool(complete and len(group) == (expected_end - expected_start) / pd.Timedelta(1, unit="h"))
         count = int(flags.sum())
-        mwh = finite_number(count * (load * fraction), "scenario MWh", minimum=0) if flags.notna().any() else None
+        mwh = wind_scenario_mwh(count, load, fraction) if flags.notna().any() else None
         missing_hours = int((end - start) / pd.Timedelta(1, unit="h")) - len(group)
         annual_source = energy_source if complete else {
             "source_type": "assumption",

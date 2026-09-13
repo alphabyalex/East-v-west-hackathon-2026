@@ -153,6 +153,14 @@ def test_unrepresentable_scenario_energy_remains_rejected():
                   available_fraction={**FRACTION, "value": 1.0})
 
 
+def test_nonzero_subnormal_final_energy_does_not_disappear_in_partial_product():
+    smallest_mw = float.fromhex('0x0.0000000000001p-1022')
+    report = summarize(observations(), flexible_load_mw={**LOAD, "value": smallest_mw},
+                       available_fraction={**FRACTION, "value": 0.5})[0]
+    assert report["wind_absorption_mwh_in_observed_hours"]["value"] == 2 * smallest_mw
+    assert report["scenario_inputs"]["flexible_load_mw"]["value"] == smallest_mw
+
+
 def test_duplicate_and_naive_timestamps_are_rejected():
     frame = observations()
     with pytest.raises(ValueError, match="Duplicate"):
@@ -412,3 +420,28 @@ def test_historical_missing_cache_is_not_fetched(tmp_path, monkeypatch):
     monkeypatch.setattr("pipeline.wind_signal.ingest.fetch_public_evidence", lambda *args, **kwargs: pytest.fail("Must not fetch"))
     with pytest.raises(FileNotFoundError):
         read_cached_generation_archive(2024)
+
+
+def test_historical_adapter_does_not_inherit_raw_data_tag_for_assumed_hourly_binning(tmp_path, monkeypatch):
+    from pathlib import Path
+    from pipeline import wind_signal as module
+    generation, load, prices = cached_inputs()
+    raw = pd.DataFrame({"GMT MKT Interval": generation["Interval Start"],
+                        "Wind Market": generation.Wind, "Wind Self": 0.,
+                        "Solar Market": 0., "Solar Self": 0.})
+    origin = {"source_type": "data", "ref": "authored archive-source fixture for provenance-boundary testing"}
+    path = tmp_path / "load.parquet"
+    load.to_parquet(path, index=False)
+    monkeypatch.setattr(module, "ROOT", Path.cwd())
+    monkeypatch.setattr(module, "read_cached_generation_archive", lambda year: (raw, origin))
+    monkeypatch.setattr(module.ingest, "RAW_DIR", tmp_path)
+    monkeypatch.setattr(module.ingest, "load_dataset", lambda dataset: prices)
+    monkeypatch.setattr(module.ingest, "fetch_public_evidence", lambda *args, **kwargs: pytest.fail("Must not fetch"))
+    result = module.read_cached_historical_wind_inputs(path, year=2024,
+        price_locations={"CSWS": "EXPLICIT_NODE"}, market="DA")
+    assert result.attrs["raw_generation_source"] == origin
+    assert result.attrs["generation_source"]["source_type"] == "assumption"
+    assert origin["ref"] in result.attrs["generation_source"]["ref"]
+    assert "not verified metered" in result.attrs["generation_source"]["ref"]
+    assert result.attrs["source_qualification"] == module.GENMIX_SOURCE_QUALIFICATION
+    assert result.system_wind_mw.tolist() == [60., 60.]

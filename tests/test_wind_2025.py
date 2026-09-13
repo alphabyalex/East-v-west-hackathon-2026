@@ -261,3 +261,99 @@ def test_generation_2025_exact_vintage_and_duplicate_header_guard(tmp_path, monk
         assert "Coal Market" in frame
         assert origin["source_type"] == "assumption"
         assert "GenMix_2025.csv" in origin["ref"]
+
+
+MONTH_URL = "https://portal.spp.org/file-browser-api/download/ver-curtailments?path=/2025/12/VER-Curtailments-MONTHLY-202512.csv"
+
+
+def ver_month_cache(tmp_path, monkeypatch, rows=None, **kwargs):
+    rows = ver_rows("2025-12-01T06:00:00Z") if rows is None else rows
+    return evidence(tmp_path, monkeypatch, "ver_curtailments_2025_12", MONTH_URL,
+                    rows.to_csv(index=False).encode(), **kwargs)
+
+
+def test_monthly_ver_missing_values_and_duplicate_rows_reach_shared_label_preparer(tmp_path, monkeypatch):
+    rows = ver_rows("2025-12-01T06:00:00Z")
+    rows.loc[0, "WindRedispatchCurtailments"] = np.nan
+    rows = pd.concat([rows, rows.iloc[[1]]], ignore_index=True)
+    ver_month_cache(tmp_path, monkeypatch, rows)
+    raw, origin = wind.read_cached_wind_curtailment_month()
+    assert len(raw) == 13 and pd.isna(raw.WindRedispatchCurtailments.iloc[0])
+    assert origin["source_type"] == "assumption"
+    assert "cached_sha256=" in origin["ref"]
+    assert "separate December monthly supplement" in origin["ref"]
+    assert "does not guarantee complete monthly coverage" in origin["ref"]
+    result = wind.prepare_wind_curtailment_labels(raw, origin=origin, system_scope="SPP_SYSTEM",
+        scope_source={"source_type": "assumption", "ref": "test SPP footprint"})
+    assert result.observed_five_minute_samples.tolist() == [12]
+    assert result.evaluable_five_minute_samples.tolist() == [11]
+    assert result.wind_curtailment_event.isna().all()
+
+
+@pytest.mark.parametrize("bad", ["conflicting_revision", "corrupt_category", "negative_category"])
+def test_monthly_ver_does_not_silently_repair_category_values_or_conflicts(tmp_path, monkeypatch, bad):
+    rows = ver_rows("2025-12-01T06:00:00Z")
+    if bad == "conflicting_revision":
+        rows = pd.concat([rows, rows.iloc[[0]].assign(WindRedispatchCurtailments=2.)], ignore_index=True)
+    else:
+        rows["WindRedispatchCurtailments"] = rows.WindRedispatchCurtailments.astype(object)
+        rows.loc[0, "WindRedispatchCurtailments"] = "unknown-corrupt" if bad == "corrupt_category" else -1.
+    ver_month_cache(tmp_path, monkeypatch, rows)
+    raw, origin = wind.read_cached_wind_curtailment_month()
+    assert len(raw) == len(rows)
+    with pytest.raises(ValueError):
+        wind.prepare_wind_curtailment_labels(raw, origin=origin, system_scope="SPP_SYSTEM",
+            scope_source={"source_type": "assumption", "ref": "test SPP footprint"})
+
+
+@pytest.mark.parametrize("change", ["wrong_month", "wrong_year", "empty", "missing_column", "extra_baa", "duplicate_header", "numeric_time", "missing_time", "off_interval"])
+def test_monthly_ver_rejects_unreviewed_schema_or_invalid_timestamp_bounds(tmp_path, monkeypatch, change):
+    rows = ver_rows("2025-12-01T06:00:00Z")
+    if change == "wrong_month":
+        rows = ver_rows("2025-12-01T05:00:00Z")
+    elif change == "wrong_year":
+        rows = ver_rows("2024-12-01T06:00:00Z")
+    elif change == "empty":
+        rows = rows.iloc[:0]
+    elif change == "missing_column":
+        rows = rows.drop(columns="LocalIntervalEnding")
+    elif change == "extra_baa":
+        rows["BAA"] = "SPP"
+    elif change == "duplicate_header":
+        rows = rows.rename(columns={"LocalIntervalEnding": "GMTIntervalEnding"})
+    elif change == "numeric_time":
+        rows["GMTIntervalEnding"] = 1
+    elif change == "missing_time":
+        rows.loc[0, "GMTIntervalEnding"] = None
+    else:
+        rows.loc[0, "GMTIntervalEnding"] = "2025-12-01T06:06:00Z"
+    ver_month_cache(tmp_path, monkeypatch, rows)
+    with pytest.raises(ValueError):
+        wind.read_cached_wind_curtailment_month()
+
+
+def test_monthly_ver_allows_january_utc_end_with_december_central_start(tmp_path, monkeypatch):
+    ver_month_cache(tmp_path, monkeypatch, ver_rows("2026-01-01T05:00:00Z"))
+    frame, _ = wind.read_cached_wind_curtailment_month()
+    assert len(frame) == 12
+
+
+@pytest.mark.parametrize("change", ["row_url", "manifest_url", "ref", "hash", "not_bytes", "oversize"])
+def test_monthly_ver_cache_source_and_content_are_verified(tmp_path, monkeypatch, change):
+    kwargs = {"changes": {"request_url": "wrong"}} if change == "row_url" else {"manifest_changes": {"requested_url": "wrong"}} if change == "manifest_url" else {"manifest_changes": {"ref": "wrong"}} if change == "ref" else {"manifest_changes": {"sha256": "wrong"}} if change == "hash" else {"changes": {"content": "not bytes" if change == "not_bytes" else b"x" * 2_000_001}}
+    ver_month_cache(tmp_path, monkeypatch, **kwargs)
+    with pytest.raises(ValueError):
+        wind.read_cached_wind_curtailment_month()
+
+
+@pytest.mark.parametrize("year,month", [(True, 12), (2025.0, 12), ("2025", 12), (2024, 12),
+                                        (2025, True), (2025, 12.0), (2025, "12"), (2025, 11)])
+def test_monthly_ver_reviewed_period_is_narrow_and_never_coerced(year, month):
+    with pytest.raises(ValueError, match="exactly December 2025"):
+        wind.read_cached_wind_curtailment_month(year, month)
+
+
+def test_missing_monthly_ver_cache_remains_missing_without_fetch(tmp_path, monkeypatch):
+    monkeypatch.setattr(wind, "ROOT", tmp_path)
+    with pytest.raises(FileNotFoundError):
+        wind.read_cached_wind_curtailment_month()

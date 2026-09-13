@@ -872,18 +872,48 @@ def test_wind_structured_inputs_cannot_hide_tiny_nonzero_energy_as_zero():
         compose_grid_impact("NODE", wind_summary=raw)
 
 
-@pytest.mark.parametrize("fraction", [0., 1e-308])
-def test_wind_scenario_extreme_capacity_with_zero_or_tiny_availability_stays_finite(tmp_path, fraction):
+@pytest.mark.parametrize("fraction,expected", [(0., 0.), (1e-308, 3.9999999999999996)])
+def test_wind_scenario_extreme_capacity_with_zero_or_tiny_availability_stays_finite(tmp_path, fraction, expected):
     import api.grid_impact as module
     path = snapshot(tmp_path / "bound.json", wind_summary=wind())
     controls = {"flexible_load_mw": datum(1e308, "synthetic extreme capacity input"),
                 "available_fraction": datum(fraction, "synthetic extreme availability input")}
     result = read_wind_scenario("NODE", path, **controls)
-    assert result["wind_absorption_mwh_in_observed_hours"]["value"] == 4 * (1e308 * fraction)
+    assert result["wind_absorption_mwh_in_observed_hours"]["value"] == expected
     assert wind_scenario_context(result)["scenario_inputs"] == controls
     assert result["wind_absorption_mwh_in_observed_hours"]["source_type"] == "assumption"
     assert_complete_evidence_graph(result)
     module._validate_snapshot_result(result, "NODE")
+
+
+@pytest.mark.parametrize("hours,fraction,expected", [
+    (4, .5, 1e-323), (4, .25, 5e-324), (1, .5, 0.),
+])
+def test_wind_scenario_rounds_subnormal_energy_only_after_all_factors(tmp_path, hours, fraction, expected):
+    import api.grid_impact as module
+    path = snapshot(tmp_path / "bound.json", wind_summary=wind(hours=hours))
+    controls = {"flexible_load_mw": datum(math.ulp(0.), "synthetic smallest positive capacity"),
+                "available_fraction": datum(fraction, "synthetic available fraction")}
+    result = read_wind_scenario("NODE", path, **controls)
+    # Approximate comparison would incorrectly accept a lost nonzero result.
+    assert result["wind_absorption_mwh_in_observed_hours"]["value"] == expected
+    assert result["wind_absorption_mwh_in_observed_hours"]["source_type"] == "assumption"
+    assert wind_scenario_context(result)["scenario_inputs"] == controls
+    assert result["wind_absorption_mwh_per_year"]["value"] is None
+    assert_complete_evidence_graph(result)
+    module._validate_snapshot_result(result, "NODE")
+
+
+def test_old_subnormal_false_zero_is_rejected_in_summary_and_snapshot(tmp_path):
+    raw = wind(flexible_mw=math.ulp(0.), available_fraction=.5)
+    assert raw["wind_absorption_mwh_in_observed_hours"]["value"] == 1e-323
+    path = snapshot(tmp_path / "bound.json", wind_summary=raw)
+    raw["wind_absorption_mwh_in_observed_hours"]["value"] = 0.
+    with pytest.raises(ValueError, match="disagrees"):
+        compose_grid_impact("NODE", wind_summary=raw)
+    rewrite_snapshot(path, lambda result: result["wind_absorption_mwh_in_observed_hours"].update(value=0.))
+    with pytest.raises(ValueError, match="disagrees"):
+        read_grid_impact_snapshot("NODE", path)
 
 
 def test_wind_scenario_still_rejects_a_true_unrepresentable_energy_total(tmp_path):
@@ -892,11 +922,11 @@ def test_wind_scenario_still_rejects_a_true_unrepresentable_energy_total(tmp_pat
         read_wind_scenario("NODE", path, flexible_load_mw=datum(1e308), available_fraction=datum(1.))
 
 
-def test_wind_earlier_multiplication_order_is_accepted_within_one_float_step(tmp_path):
+@pytest.mark.parametrize("previous", [(3 * .3) * .3, 3 * (.3 * .3)])
+def test_wind_earlier_multiplication_order_is_accepted_within_one_float_step(tmp_path, previous):
     raw = wind(hours=3, flexible_mw=.3, available_fraction=.3)
-    previous = (3 * .3) * .3
-    current = 3 * (.3 * .3)
-    assert previous != current and math.nextafter(previous, current) == current
+    current = .26999999999999996
+    assert previous == current or math.nextafter(previous, current) == current
     raw["wind_absorption_mwh_in_observed_hours"]["value"] = previous
     path = snapshot(tmp_path / "earlier-order.json", wind_summary=raw)
     assert read_grid_impact_snapshot("NODE", path)["wind_absorption_mwh_in_observed_hours"]["value"] == previous

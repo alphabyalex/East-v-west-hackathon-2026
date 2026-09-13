@@ -84,7 +84,7 @@ import threading
 import pandas as pd
 
 from pipeline.carbon import BOUNDARY, wind_carbon
-from pipeline.wind_signal import finite_number, source
+from pipeline.wind_signal import finite_number, source, wind_scenario_mwh
 
 
 DEFAULT_PATH = Path(__file__).resolve().parents[1] / "data/processed/grid_impact_by_location.json"
@@ -360,10 +360,8 @@ def _wind_controls(flexible_load_mw, available_fraction):
 def _wind_energy(proxy, controls):
     if proxy["value"] is None:
         return None
-    # Availability is bounded by one. Apply it before multiplying by hours so
-    # finite capacity with zero/tiny availability cannot overflow prematurely.
-    return finite_number(proxy["value"] * (controls["flexible_load_mw"]["value"]
-                         * controls["available_fraction"]["value"]), "scenario wind MWh", minimum=0)
+    return wind_scenario_mwh(proxy["value"], controls["flexible_load_mw"]["value"],
+                             controls["available_fraction"]["value"])
 
 
 def _wind_scenario_metadata(record, proxy, energy):
