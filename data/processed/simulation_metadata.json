@@ -8,7 +8,7 @@
   "hours_per_year": 8760,
   "site_exposure_applied": false,
   "source_type": "model",
-  "ref": "pipeline/simulate.py model_version=spp_lgbm_20260913T055001_b63ee2577e",
+  "ref": "pipeline/simulate.py model_version=spp_lgbm_20260913T060709_b63ee2577e",
   "assumptions": [
     "Stationary month-specific grid conditions and label definition; no load-growth or climate forecast.",
     "Seven-day blocks preserve within-block episodes; resampling can split or join episodes at block boundaries.",
