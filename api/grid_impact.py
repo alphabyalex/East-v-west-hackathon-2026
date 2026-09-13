@@ -58,6 +58,15 @@ then reuses validation for the same path/content digest and returns a deep copy.
 Snapshot envelope: {snapshot_version:'grid-impact-snapshot-v1', location_id,
 result_sha256, result:<the unchanged grid-impact-v1 result including all evidence>}.
 Checksums establish integrity, not the authenticity of the underlying observations.
+
+For request-specific wind capacity, use read_wind_scenario(location_id, path,
+flexible_load_mw=<sourced datum>, available_fraction=<sourced datum>, cache=...).
+Both controls are required. It uses only the stored screening count and coverage,
+not hourly data, and accepts only wind-only snapshots with structured energy_model
+and scenario_inputs. It never scales or carries forward a stored carbon-shift
+schedule. Legacy snapshots remain readable as fixed scenarios, but cannot be used
+by this recomputation helper. Neither site_exposure nor interruptibility itself
+establishes available upward capacity; the caller must state that assumption.
 """
 from __future__ import annotations
 
@@ -96,6 +105,7 @@ BASIS = {
 }
 SCENARIO_SOURCE = {"source_type": "assumption", "ref": "submitted grid-impact energy schedule; counterfactual site dispatch and local deliverability are not established"}
 EVIDENCE_PREFIX = "grid-impact://evidence/"
+WIND_ENERGY_MODEL = "declared_available_capacity_times_proxy_hours_v1"
 
 
 def _location(value):
@@ -339,6 +349,44 @@ def _empty_result(location_id, evidence, reason=None):
             **{key: _unavailable(evidence, reason or "no precomputed observations or explicit energy schedule supplied") for key in UNITS}}
 
 
+def _wind_controls(flexible_load_mw, available_fraction):
+    controls = {"flexible_load_mw": _datum(flexible_load_mw, "flexible_load_mw"),
+                "available_fraction": _datum(available_fraction, "available_fraction")}
+    if controls["available_fraction"]["value"] > 1:
+        raise ValueError("available_fraction must be between zero and one")
+    return controls
+
+
+def _wind_energy(proxy, controls):
+    if proxy["value"] is None:
+        return None
+    # Availability is bounded by one. Apply it before multiplying by hours so
+    # finite capacity with zero/tiny availability cannot overflow prematurely.
+    return finite_number(proxy["value"] * (controls["flexible_load_mw"]["value"]
+                         * controls["available_fraction"]["value"]), "scenario wind MWh", minimum=0)
+
+
+def _wind_scenario_metadata(record, proxy, energy):
+    """Legacy fixed records remain readable; present controls must be complete."""
+    if not {"energy_model", "scenario_inputs"}.intersection(record):
+        return {}
+    controls = record.get("scenario_inputs")
+    if record.get("energy_model") != WIND_ENERGY_MODEL or not isinstance(controls, Mapping) or set(controls) != {"flexible_load_mw", "available_fraction"}:
+        raise ValueError("Wind scenario requires its supported energy_model and both structured controls")
+    controls = _wind_controls(**controls)
+    expected, supplied = _wind_energy(proxy, controls), energy["value"]
+    if (expected is None) != (supplied is None) or expected is not None and not _same_quantity(expected, supplied):
+        raise ValueError("Wind MWh disagrees with proxy_hours times flexible_load_mw times available_fraction")
+    return {"energy_model": WIND_ENERGY_MODEL, "scenario_inputs": controls}
+
+
+def _wind_operational_carbon(evidence, energy):
+    if energy["value"] is None:
+        return _unavailable(evidence, "wind energy is unknown; the operational zero factor does not establish an energy quantity", energy)
+    carbon = wind_carbon(energy, selection_source=SCENARIO_SOURCE)["wind_operational_co2_kg"]
+    return evidence.derive(carbon["value"] / 1000, [carbon], "associated wind direct operational kilograms CO2 / 1000 = tonnes CO2")
+
+
 def compose_grid_impact(location_id, *, wind_summary=None, carbon_shift=None, shift_coverage=None, unavailable_reason=None):
     """Validate already computed inputs and return the standalone sourced contract."""
     location_id = _location(location_id)
@@ -362,12 +410,16 @@ def compose_grid_impact(location_id, *, wind_summary=None, carbon_shift=None, sh
             raise ValueError("Proxy hours must represent evaluable hours; unknown history cannot claim zero opportunity")
         if (evaluable == 0) != (energy["value"] is None) or proxy["value"] == 0 and energy["value"] != 0:
             raise ValueError("Wind energy is inconsistent with observed proxy-hour coverage")
+        metadata = _wind_scenario_metadata(wind_summary, proxy, energy)
+        control_sources = list(metadata.get("scenario_inputs", {}).values())
+        if metadata:
+            metadata["scenario_inputs"] = {key: evidence.compact_source(value) for key, value in metadata["scenario_inputs"].items()}
         context = evidence.register({"method": "wind screening context", "screen_method": wind_summary["method"],
                                      "system_scope": wind_summary["system_scope"],
                                      "proxy_hours": evidence.compact_source(proxy),
-                                     "coverage": {key: evidence.compact_source(value) if key in COUNT_KEYS else value for key, value in coverage.items()}})
+                                     "coverage": {key: evidence.compact_source(value) if key in COUNT_KEYS else value for key, value in coverage.items()}, **metadata})
         result["evidence_context"]["wind"] = context
-        energy = evidence.derive(energy["value"], [energy, proxy, SCENARIO_SOURCE,
+        energy = evidence.derive(energy["value"], [energy, proxy, *control_sources, SCENARIO_SOURCE,
                                   {"source_type": "assumption", "ref": context}], "flexible-load scenario in evaluable observed high-wind/low-price hours")
         annual = _annual(evidence, energy, coverage)
         supplied_annual = _datum(wind_summary["wind_absorption_mwh_per_year"], "annual wind MWh", nullable=True)
@@ -376,11 +428,7 @@ def compose_grid_impact(location_id, *, wind_summary=None, carbon_shift=None, sh
         annual = evidence.derive(annual["value"], [annual, supplied_annual], "validated annual wind scenario")
         result["wind_absorption_mwh_in_observed_hours"] = energy
         result["wind_absorption_mwh_per_year"] = annual
-        if energy["value"] is None:
-            operational = _unavailable(evidence, "wind energy is unknown; the operational zero factor does not establish an energy quantity", energy)
-        else:
-            carbon = wind_carbon(energy, selection_source=SCENARIO_SOURCE)["wind_operational_co2_kg"]
-            operational = evidence.derive(carbon["value"] / 1000, [carbon], "associated wind direct operational kilograms CO2 / 1000 = tonnes CO2")
+        operational = _wind_operational_carbon(evidence, energy)
         result["carbon_absorbed_tonnes_in_observed_hours"] = operational
         result["carbon_absorbed_tonnes_per_year"] = _annual(evidence, operational, coverage)
     if carbon_shift is not None:
@@ -553,15 +601,16 @@ def _validate_snapshot_result(result, location_id):
             raise ValueError("Snapshot wind context lacks its method, footprint or count")
         proxy = _datum(context["proxy_hours"], "snapshot proxy_hours", nullable=True, integer=True)["value"]
         counts = result["coverage"]["wind"]
-        if not isinstance(context["coverage"], dict) or any(
+        if not isinstance(context["coverage"], dict) or set(context["coverage"]) != set(counts) or any(
             not isinstance(context["coverage"].get(key), dict)
             or context["coverage"][key].get("value") != counts[key]["value"] for key in COUNT_KEYS
-        ):
+        ) or any(context["coverage"].get(key) != value for key, value in counts.items() if key not in COUNT_KEYS):
             raise ValueError("Snapshot wind context disagrees with its published coverage")
         evaluable = counts["evaluable_hours"]["value"]
         if ((proxy is None) != (evaluable == 0) or (wind is None) != (evaluable == 0)
                 or proxy is not None and proxy > evaluable or proxy == 0 and wind != 0):
             raise ValueError("Snapshot wind proxy count disagrees with its energy or coverage")
+        _wind_scenario_metadata(context, context["proxy_hours"], scalars["wind_absorption_mwh_in_observed_hours"])
     walk({key: value for key, value in result.items() if key != "evidence"})
     if set(visited) != set(evidence):
         raise ValueError("Snapshot contains unreachable evidence nodes")
@@ -671,3 +720,64 @@ def read_grid_impact_snapshot(location_id, path, *, cache=None):
     if cache is not None:
         cache._put(key, result, len(content))
     return deepcopy(result)
+
+
+def read_wind_scenario(location_id, path, *, flexible_load_mw, available_fraction, cache=None):
+    """Recompute only declared wind capacity from a validated wind-only snapshot.
+
+    Both sourced caller controls are mandatory; neither uses a hidden default or
+    a site-exposure mapping. Observed MWh = proxy hours * flexible MW * available
+    fraction, not recoverable surplus or verified local headroom. Annual results
+    still require complete evaluable calendar-year coverage. Existing shift
+    schedules are rejected, including schedules with unknown/zero carbon totals;
+    their conserved pairs must be prepared independently for any new scenario.
+
+    Output remains grid-impact-v1. evidence_context.wind exposes energy_model and
+    scenario_inputs for the NEW controls; its baseline node preserves the original
+    snapshot's count, controls, source refs and MWh as audit lineage only. No
+    existing energy value is multiplied by a capacity ratio. The optional cache
+    belongs to the caller and avoids repeating original graph validation.
+    """
+    controls = _wind_controls(flexible_load_mw, available_fraction)
+    original = read_grid_impact_snapshot(location_id, path, cache=cache)
+    if original["coverage"]["shift"]["status"] != "unavailable" or any(
+        original[field]["value"] is not None for field in ("carbon_shifted_tonnes_in_observed_hours", "carbon_shifted_tonnes_per_year")
+    ):
+        raise ValueError("read_wind_scenario requires a wind-only snapshot; prepare explicit carbon-shift schedules separately")
+    if original["coverage"]["wind"]["status"] == "unavailable":
+        return original
+    old_pointer = original["evidence_context"]["wind"]
+    old_context = original["evidence"][old_pointer[len(EVIDENCE_PREFIX):]]
+    if not {"energy_model", "scenario_inputs"}.issubset(old_context):
+        raise ValueError("Legacy fixed wind snapshot is unbound; rebuild it with structured scenario_inputs before recomputation")
+    # read_grid_impact_snapshot has validated this graph and returned a private
+    # copy. Reuse its nodes, hashing only new lineage/derivation nodes below.
+    evidence = _Evidence()
+    evidence.nodes = original["evidence"]
+    proxy = old_context["proxy_hours"]
+    baseline = evidence.register({
+        "method": "original fixed snapshot scenario; audit lineage only, not the new energy capacity",
+        "snapshot_path": str(Path(path)), "wind_context": old_pointer,
+        "wind_absorption_mwh_in_observed_hours": original["wind_absorption_mwh_in_observed_hours"],
+        "wind_absorption_mwh_per_year": original["wind_absorption_mwh_per_year"],
+        "units": {key: UNITS[key] for key in ("wind_absorption_mwh_in_observed_hours", "wind_absorption_mwh_per_year")},
+    })
+    context = evidence.register({
+        "method": "wind screening context", "screen_method": old_context["screen_method"],
+        "system_scope": old_context["system_scope"], "proxy_hours": proxy,
+        "coverage": old_context["coverage"], "energy_model": WIND_ENERGY_MODEL,
+        "scenario_inputs": {key: evidence.compact_source(value) for key, value in controls.items()},
+        "baseline": baseline,
+    })
+    result = _empty_result(original["location_id"], evidence, "wind-only scenario; no independently prepared explicit carbon-shift schedule supplied")
+    result["coverage"]["wind"] = original["coverage"]["wind"]
+    result["evidence_context"]["wind"] = context
+    energy = evidence.derive(_wind_energy(proxy, controls), [proxy, *controls.values(), SCENARIO_SOURCE,
+        {"source_type": "assumption", "ref": context}],
+        "proxy hours times explicitly supplied constant flexible MW times available fraction; not measured recoverable wind")
+    result["wind_absorption_mwh_in_observed_hours"] = energy
+    result["wind_absorption_mwh_per_year"] = _annual(evidence, energy, result["coverage"]["wind"])
+    operational = _wind_operational_carbon(evidence, energy)
+    result["carbon_absorbed_tonnes_in_observed_hours"] = operational
+    result["carbon_absorbed_tonnes_per_year"] = _annual(evidence, operational, result["coverage"]["wind"])
+    return evidence.finish(result)

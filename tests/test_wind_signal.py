@@ -138,6 +138,21 @@ def test_capacity_rejects_bad_values(bad):
         summarize(observations(), flexible_load_mw={**LOAD, "value": bad})
 
 
+@pytest.mark.parametrize("fraction,expected", [(0.0, 0.0), (1e-308, 4.0)])
+def test_finite_available_capacity_does_not_overflow_before_applying_fraction(fraction, expected):
+    report = summarize(observations(), flexible_load_mw={**LOAD, "value": 1e308},
+                       available_fraction={**FRACTION, "value": fraction})[0]
+    assert report["wind_absorption_mwh_in_observed_hours"]["value"] == pytest.approx(expected)
+    assert report["scenario_inputs"]["flexible_load_mw"]["value"] == 1e308
+    assert report["scenario_inputs"]["available_fraction"]["value"] == fraction
+
+
+def test_unrepresentable_scenario_energy_remains_rejected():
+    with pytest.raises(ValueError, match="finite"):
+        summarize(observations(), flexible_load_mw={**LOAD, "value": 1e308},
+                  available_fraction={**FRACTION, "value": 1.0})
+
+
 def test_duplicate_and_naive_timestamps_are_rejected():
     frame = observations()
     with pytest.raises(ValueError, match="Duplicate"):
@@ -158,9 +173,15 @@ def test_reproducible_order_and_no_avoided_claims_or_unsourced_numbers():
     first, second = summarize(frame), summarize(frame.sample(frac=1, random_state=2026))
     assert first == second
     assert "avoided" not in json.dumps(first).lower()
-    for value in first[0].values():
-        if isinstance(value, dict):
+    def check_provenance(value):
+        if isinstance(value, dict) and "value" in value:
             assert set(value) == {"value", "source_type", "ref"}
+        elif isinstance(value, dict):
+            for child in value.values():
+                check_provenance(child)
+        else:
+            assert not isinstance(value, (int, float))
+    check_provenance(first[0])
     assert "unobserved" in first[0]["basis"]
 
 
@@ -176,6 +197,11 @@ def test_provenance_keeps_exact_scenario_and_threshold_values():
     for value in (load, fraction, share, price):
         assert repr(value) in ref
     assert report["wind_absorption_mwh_in_observed_hours"]["value"] == 4 * load * fraction
+    assert report["energy_model"] == "declared_available_capacity_times_proxy_hours_v1"
+    assert report["scenario_inputs"] == {
+        "flexible_load_mw": {**LOAD, "value": load},
+        "available_fraction": {**FRACTION, "value": fraction},
+    }
 
 
 def test_source_mapping_order_does_not_change_serialized_output():

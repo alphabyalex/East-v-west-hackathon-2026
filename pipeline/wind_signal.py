@@ -21,12 +21,15 @@ partial history is reported for its actual period without extrapolation.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import csv
 import hashlib
 import io
 import json
 from numbers import Real
 from pathlib import Path
+import re
 from typing import Mapping
+import zipfile
 
 import numpy as np
 import pandas as pd
@@ -85,6 +88,236 @@ class WindPolicy:
 
 
 INPUT_COLUMNS = ("system_wind_mw", "system_load_mw", "lmp_usd_mwh")
+VER_WIND_COLUMNS = ("WindRedispatchCurtailments", "WindManualCurtailments", "WindCurtailedForEnergy")
+VER_DESCRIPTION_REF = "https://portal.spp.org/api/pageConfig/by-slug/ver-curtailments"
+
+
+def _archive_csv_header(stream):
+    """Reject duplicate source fields before pandas silently renames them."""
+    header = next(csv.reader([stream.readline().decode("utf-8-sig")]))
+    if not header or len(header) != len(set(name.strip() for name in header)):
+        raise ValueError("Archive CSV has duplicate or missing column headers.")
+    stream.seek(0)
+
+
+def _archive_operating_day(raw_ends, day, *, minutes):
+    """Check the member's Central operating day using interval starts, not ends."""
+    ends = pd.to_datetime(raw_ends, utc=True, format="mixed")
+    starts = ends - pd.Timedelta(minutes, unit="min")
+    local_days = starts.dt.tz_convert("America/Chicago").dt.strftime("%Y-%m-%d")
+    if ends.isna().any() or not local_days.eq(day.strftime("%Y-%m-%d")).all():
+        raise ValueError("Archive observation operating day disagrees with its daily member date.")
+
+
+def read_cached_wind_curtailment_archive(year: int) -> tuple[pd.DataFrame, dict]:
+    """Read independent SPP VER observations from the existing evidence cache.
+
+    Uses daily CSV members only: annual ZIPs also contain monthly duplicates.
+    No archive member is extracted to disk and this reader never downloads.
+    The raw category quantities retain their source units; they are not summed
+    or converted to energy here. WindCurtailedForEnergy is a redispatch subset.
+    Missing days/observations remain missing, not negative training examples.
+    """
+    if isinstance(year, bool) or not isinstance(year, int) or not 2014 <= year <= 2024:
+        raise ValueError("Use a declared historical VER archive year from 2014 through 2024.")
+    path = ROOT / f"data/raw/spp/evidence/ver_curtailments_{year}.parquet"
+    cached = pd.read_parquet(path)
+    if len(cached) != 1 or not cached.columns.is_unique or not {"request_url", "content", "source_json"}.issubset(cached.columns):
+        raise ValueError("Invalid cached VER archive record.")
+    row = cached.iloc[0]
+    url = f"https://portal.spp.org/file-browser-api/download/ver-curtailments?path=/{year}/{year}.zip"
+    manifest = json.loads(row.source_json)
+    if not isinstance(manifest, dict) or row.request_url != url or manifest.get("requested_url") != url or manifest.get("ref") != url:
+        raise ValueError("VER cache must identify its exact SPP archive URL.")
+    origin = source({key: manifest.get(key) for key in ("source_type", "ref")})
+    if not isinstance(row.content, (bytes, bytearray)):
+        raise ValueError("Cached VER archive must contain ZIP bytes.")
+    digest = hashlib.sha256(row.content).hexdigest()
+    if manifest.get("sha256") != digest:
+        raise ValueError("Cached VER bytes do not match their source fingerprint.")
+    with zipfile.ZipFile(io.BytesIO(row.content)) as archive:
+        names = sorted(name for name in archive.namelist()
+                       if re.fullmatch(rf"{year}/\d{{2}}/VER-Curtailments-{year}\d{{4}}\.csv", name))
+        if not names or len(names) != len(set(names)) or len(names) > 366:
+            raise ValueError("VER archive requires unambiguous daily CSV members.")
+        frames = []
+        for name in names:
+            stamp = pd.Timestamp(name[-12:-4])
+            if stamp.strftime("%m") != name.split("/")[1]:
+                raise ValueError("VER daily member path disagrees with its filename date.")
+            # Limit malformed archives before allocating their decompressed data.
+            if archive.getinfo(name).file_size > 10_000_000:
+                raise ValueError("VER daily member exceeds the supported observation size.")
+            with archive.open(name) as stream:
+                _archive_csv_header(stream)
+                frame = pd.read_csv(stream)
+            if frame.empty:
+                raise ValueError("VER daily member contains no observations.")
+            if "GMTIntervalEnding" not in frame:
+                raise ValueError("VER daily member lacks its GMT interval-end field.")
+            _archive_operating_day(frame.GMTIntervalEnding, stamp, minutes=5)
+            frame["archive_member"] = name
+            frames.append(frame)
+    result = pd.concat(frames, ignore_index=True)
+    return result, {**origin, "ref": f"{url}; cached_sha256={digest}; daily CSV members only; "
+                                    "monthly archive duplicates excluded; category quantities not added"}
+
+
+def prepare_wind_curtailment_labels(
+    raw: pd.DataFrame, *, origin: Mapping, system_scope: str, scope_source: Mapping,
+) -> pd.DataFrame:
+    """Independent reported system-wind-curtailment event labels, not site labels.
+
+    SPP documents GMTIntervalEnding as the five-minute interval END in GMT.
+    Each interval is positive if ANY observed wind category is positive. Energy
+    curtailment is a subset of redispatch and is never added a second time.
+    With no positive category, missing categories mean unknown, not zero.
+    A training hour requires twelve distinct, evaluable five-minute intervals;
+    even a partial positive hour stays unknown for this complete-hour target.
+
+    An explicit sourced historical SPP footprint declaration is mandatory because
+    older files omit BAA. If BAA exists, select SPP exactly and exclude SWPW. The
+    result cannot establish local deliverability, recoverable MWh, or whether an
+    individual flexible load would have absorbed reported curtailed wind.
+    """
+    origin, scope = source(origin), source(scope_source)
+    if system_scope != "SPP_SYSTEM":
+        raise ValueError("Independent VER labels currently support only the declared SPP_SYSTEM footprint.")
+    needed = {"GMTIntervalEnding", *VER_WIND_COLUMNS}
+    if not isinstance(raw, pd.DataFrame) or not raw.columns.is_unique or raw.empty or not needed.issubset(raw.columns):
+        raise ValueError("VER labels require nonempty GMT interval-end and all three wind-category columns.")
+    selected = raw
+    if "BAA" in raw:
+        if raw.BAA.isna().any():
+            raise ValueError("Explicit BAA observations cannot have an unknown footprint.")
+        selected = raw[raw.BAA == "SPP"]
+        if selected.empty:
+            raise ValueError("VER observations contain no explicitly selected SPP BAA rows.")
+    frame = selected[["GMTIntervalEnding", *VER_WIND_COLUMNS]].copy()
+    if frame.GMTIntervalEnding.map(lambda value: isinstance(value, (Real, bool, np.bool_))).any():
+        raise ValueError("GMT interval-end timestamps cannot be numeric or boolean.")
+    ends = pd.to_datetime(frame.GMTIntervalEnding, utc=True, format="mixed")
+    if ends.isna().any() or not ends.eq(ends.dt.floor("5min")).all():
+        raise ValueError("VER interval ends must identify valid five-minute GMT boundaries.")
+    frame["timestamp_utc"] = ends - pd.Timedelta(5, unit="min")
+    frame = frame.drop(columns="GMTIntervalEnding")
+    for name in VER_WIND_COLUMNS:
+        if frame[name].map(lambda value: isinstance(value, (bool, np.bool_))).any():
+            raise ValueError("VER quantities cannot be boolean.")
+        frame[name] = pd.to_numeric(frame[name], errors="raise").astype(float)
+        if np.isinf(frame[name]).any() or frame[name].lt(0).any():
+            raise ValueError("VER categories require nonnegative finite observations or missing values.")
+    frame = frame.drop_duplicates()
+    if frame.timestamp_utc.duplicated().any():
+        raise ValueError("Conflicting VER interval revisions must be reconciled before labeling.")
+    frame = frame.set_index("timestamp_utc").sort_index()
+    positive = frame[list(VER_WIND_COLUMNS)].gt(0).any(axis=1)
+    evaluable = positive | frame[list(VER_WIND_COLUMNS)].notna().all(axis=1)
+    event = positive.astype("boolean").where(evaluable, pd.NA)
+    grouped = pd.DataFrame({"event": event}).resample("h")
+    observed = grouped.size()
+    known = grouped.event.count()
+    count = grouped.event.sum(min_count=1)
+    complete = observed.eq(12) & known.eq(12)
+    output = pd.DataFrame({"observed_five_minute_samples": observed,
+                           "evaluable_five_minute_samples": known,
+                           "wind_curtailment_event": count.gt(0).astype("boolean").where(complete, pd.NA)})
+    output["location_id"] = system_scope
+    kind = "assumption" if "assumption" in (origin["source_type"], scope["source_type"]) else "model" if "model" in (origin["source_type"], scope["source_type"]) else "data"
+    output.attrs = {"method": "reported_system_wind_curtailment_any_category_v1", "system_scope": system_scope,
+                    "source": {"source_type": kind, "ref": f"{origin['ref']}; footprint: {scope['ref']}; "
+                               f"schema: {VER_DESCRIPTION_REF}; GMT interval end minus five minutes; "
+                               "any observed positive wind category; twelve evaluable samples per hour; no category summation"},
+                    "limitation": "Reported system wind-curtailment occurrence; not a site absorption opportunity or recoverable-energy estimate."}
+    return output.reset_index()
+
+
+def read_cached_day_ahead_prices(year: int, *, settlement_locations: list[str]) -> tuple[pd.DataFrame, dict]:
+    """Offline exact-location selection from SPP's archived annual DA price ZIP.
+
+    Reuses an archive cached by ingest.fetch_public_evidence under the key
+    da_lmp_settlement_<year>. Daily URLs may disappear after annual rollup; this
+    reader never retries them or fetches anything. It streams daily CSV members,
+    filters before concatenation, and excludes monthly duplicate files.
+
+    Returned columns match the existing wind adapter: Interval Start/End, Market
+    ('DAY_AHEAD_HOURLY'), Location (exact Settlement Location), Pnode and LMP.
+    GMTIntervalEnd is documented delivery interval END in GMT, so subtract one
+    hour. This does not establish the publication/revision vintage. Prices are
+    USD/MWh at the supplied settlement point; no city, BAA or site mapping is made.
+    This full-archive parsing is preparation work, never an API request operation.
+    """
+    if isinstance(year, bool) or not isinstance(year, int) or not 2014 <= year <= 2024:
+        raise ValueError("Use a declared historical day-ahead price year from 2014 through 2024.")
+    if not isinstance(settlement_locations, list) or not settlement_locations or any(
+        not isinstance(value, str) or not value.strip() or value != value.strip() for value in settlement_locations
+    ) or len(set(settlement_locations)) != len(settlement_locations):
+        raise ValueError("Select a nonempty unique list of exact settlement-location identifiers.")
+    path = ROOT / f"data/raw/spp/evidence/da_lmp_settlement_{year}.parquet"
+    cached = pd.read_parquet(path)
+    if len(cached) != 1 or not cached.columns.is_unique or not {"request_url", "content", "source_json"}.issubset(cached.columns):
+        raise ValueError("Invalid cached day-ahead price archive record.")
+    row = cached.iloc[0]
+    url = f"https://portal.spp.org/file-browser-api/download/da-lmp-by-settlement-location?path=/{year}/{year}.zip"
+    manifest = json.loads(row.source_json)
+    if not isinstance(manifest, dict) or row.request_url != url or manifest.get("requested_url") != url or manifest.get("ref") != url:
+        raise ValueError("Day-ahead price cache must identify its exact SPP archive URL.")
+    origin = source({key: manifest.get(key) for key in ("source_type", "ref")})
+    if not isinstance(row.content, (bytes, bytearray)):
+        raise ValueError("Cached day-ahead archive must contain ZIP bytes.")
+    digest = hashlib.sha256(row.content).hexdigest()
+    if manifest.get("sha256") != digest:
+        raise ValueError("Cached day-ahead bytes do not match their source fingerprint.")
+    columns = ["GMTIntervalEnd", "Settlement Location", "Pnode", "LMP"]
+    selected = []
+    with zipfile.ZipFile(io.BytesIO(row.content)) as archive:
+        names = sorted(name for name in archive.namelist()
+                       if re.fullmatch(rf"{year}/\d{{2}}/By_Day/DA-LMP-SL-{year}\d{{4}}0100\.csv", name))
+        if not names or len(names) != len(set(names)) or len(names) > 366:
+            raise ValueError("Day-ahead archive requires unambiguous daily CSV members.")
+        for name in names:
+            date = pd.Timestamp(name.rsplit("-", 1)[1][:8])
+            if date.strftime("%m") != name.split("/")[1]:
+                raise ValueError("Day-ahead member path disagrees with its filename date.")
+            if archive.getinfo(name).file_size > 50_000_000:
+                raise ValueError("Day-ahead daily member exceeds the supported observation size.")
+            with archive.open(name) as stream:
+                _archive_csv_header(stream)
+                for chunk in pd.read_csv(stream, usecols=columns, dtype={"Settlement Location": str, "Pnode": str}, chunksize=50_000):
+                    local = chunk[chunk["Settlement Location"].isin(settlement_locations)]
+                    if not local.empty:
+                        _archive_operating_day(local.GMTIntervalEnd, date, minutes=60)
+                        selected.append(local.copy())
+    if not selected:
+        raise ValueError("No cached observations for the explicitly selected settlement locations.")
+    frame = pd.concat(selected, ignore_index=True)
+    absent = set(settlement_locations) - set(frame["Settlement Location"])
+    if absent:
+        raise ValueError(f"No cached observations for exact settlement locations: {sorted(absent)}.")
+    if frame.GMTIntervalEnd.map(lambda value: isinstance(value, (Real, bool, np.bool_))).any():
+        raise ValueError("GMT delivery interval-end timestamps cannot be numeric or boolean.")
+    ends = pd.to_datetime(frame.GMTIntervalEnd, utc=True, format="mixed")
+    if ends.isna().any() or not ends.eq(ends.dt.floor("h")).all():
+        raise ValueError("Day-ahead delivery interval ends require whole GMT hours.")
+    if frame.Pnode.isna().any() or not frame.Pnode.map(lambda value: isinstance(value, str) and bool(value.strip())).all():
+        raise ValueError("Selected prices require their explicit published Pnode identifiers.")
+    if frame.LMP.map(lambda value: isinstance(value, (bool, np.bool_))).any():
+        raise ValueError("Day-ahead LMP cannot be boolean.")
+    frame["LMP"] = pd.to_numeric(frame.LMP, errors="raise").astype(float)
+    if np.isinf(frame.LMP).any():
+        raise ValueError("Day-ahead LMP cannot be infinite.")
+    frame["Interval End"] = ends
+    frame["Interval Start"] = ends - pd.Timedelta(1, unit="h")
+    frame["Market"] = "DAY_AHEAD_HOURLY"
+    frame = frame.rename(columns={"Settlement Location": "Location"})
+    frame = frame[["Interval Start", "Interval End", "Market", "Location", "Pnode", "LMP"]].drop_duplicates()
+    if frame.duplicated(["Location", "Interval Start"]).any():
+        raise ValueError("Conflicting settlement price or Pnode revisions must be reconciled first.")
+    frame = frame.sort_values(["Location", "Interval Start"]).reset_index(drop=True)
+    return frame, {**origin, "ref": f"{url}; cached_sha256={digest}; daily members only; "
+                                   f"exact Settlement Location selection={sorted(settlement_locations)!r}; "
+                                   "GMTIntervalEnd minus one hour; LMP USD/MWh; publication vintage unverified; "
+                                   "https://portal.spp.org/api/pageConfig/by-slug/da-lmp-by-settlement-location"}
 
 
 def _complete_hourly_power(raw: pd.DataFrame, value_column: str, *, nonnegative=False) -> pd.DataFrame:
@@ -389,7 +622,7 @@ def summarize_wind(
         complete = start == expected_start and end == expected_end and flags.notna().all()
         complete = bool(complete and len(group) == (expected_end - expected_start) / pd.Timedelta(1, unit="h"))
         count = int(flags.sum())
-        mwh = finite_number(count * load * fraction, "scenario MWh", minimum=0) if flags.notna().any() else None
+        mwh = finite_number(count * (load * fraction), "scenario MWh", minimum=0) if flags.notna().any() else None
         missing_hours = int((end - start) / pd.Timedelta(1, unit="h")) - len(group)
         annual_source = energy_source if complete else {
             "source_type": "assumption",
@@ -405,7 +638,417 @@ def summarize_wind(
             "proxy_hours": sourced(count if flags.notna().any() else None, proxy_source),
             "wind_absorption_mwh_in_observed_hours": sourced(mwh, energy_source),
             "wind_absorption_mwh_per_year": sourced(mwh if complete else None, annual_source),
+            "energy_model": "declared_available_capacity_times_proxy_hours_v1",
+            "scenario_inputs": {
+                "flexible_load_mw": sourced(load, load_origin),
+                "available_fraction": sourced(fraction, fraction_origin),
+            },
             "basis": "Flexible-load energy scenario over evaluable observed high-wind/low-price hours only; "
                      "wind curtailment, local deliverability and recoverable MW are unobserved.",
         })
     return output
+
+
+# This independent event classifier is an offline research experiment. It does
+# not replace the high-wind/low-price policy screen above or any estimate API.
+WIND_CLASSIFIER_FEATURES = tuple(f"{name}_lag_{lag}h"
+                                 for lag in (1, 24) for name in ("system_wind_mw", "system_load_mw"))
+WIND_CLASSIFIER_SCHEMA = "spp-wind-event-logistic-v1"
+WIND_CLASSIFIER_SPLITS = {
+    "train": ("2024-01-01T00:00:00+00:00", "2024-09-01T00:00:00+00:00"),
+    "calibration": ("2024-09-01T00:00:00+00:00", "2024-10-01T00:00:00+00:00"),
+    "test": ("2024-10-01T00:00:00+00:00", "2025-01-01T00:00:00+00:00"),
+}
+WIND_CLASSIFIER_LIMITATION = (
+    "Historical replay of reported SPP-system wind-curtailment occurrence, not a verified live forecast. "
+    "Publication and revision timestamps for lagged actuals are unverified. A positive target means at least "
+    "one reported five-minute event within a completely evaluable hour, not sixty minutes of curtailment, "
+    "site deliverability or absorbable energy. One 2024 autumn holdout does not establish other-year or site skill. "
+    "Event probability is not the product's model-confidence estimate."
+)
+
+
+def _wind_json_digest(value):
+    encoded = json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False)
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def _wind_frame_digest(frame):
+    """Fingerprint canonical values without rounding floats or inventing zeros."""
+    rows = []
+    for row in frame.itertuples(index=False, name=None):
+        rows.append([None if pd.isna(value) else value.isoformat() if isinstance(value, pd.Timestamp)
+                     else value.item() if isinstance(value, np.generic) else value for value in row])
+    return _wind_json_digest({"columns": list(frame.columns), "rows": rows})
+
+
+def _wind_hour_index(values):
+    stamps = [pd.Timestamp(value) if not isinstance(value, (Real, bool, np.bool_)) else pd.NaT for value in values]
+    if not stamps or any(pd.isna(stamp) or stamp.tzinfo is None for stamp in stamps):
+        raise ValueError("Wind classifier timestamps require explicit timezones and nonnumeric hourly values.")
+    index = pd.DatetimeIndex(pd.to_datetime(stamps, utc=True), name="timestamp_utc")
+    if index.duplicated().any() or not index.equals(index.floor("h")):
+        raise ValueError("Wind classifier timestamps must be unique hourly interval starts.")
+    return index
+
+
+def _wind_observations(hourly, sources):
+    columns = ("system_wind_mw", "system_load_mw")
+    if not isinstance(sources, Mapping) or set(sources) != set(columns):
+        raise ValueError("Supply source objects for exactly system_wind_mw and system_load_mw.")
+    origins = {name: source(sources[name]) for name in columns}
+    if any(value["source_type"] == "model" for value in origins.values()):
+        raise ValueError("This experiment requires observed wind/load, not modeled input forecasts.")
+    needed = {"timestamp_utc", "location_id", *columns}
+    if not isinstance(hourly, pd.DataFrame) or hourly.empty or not hourly.columns.is_unique or not needed.issubset(hourly.columns):
+        raise ValueError("Wind classifier needs nonempty canonical hourly wind/load observations.")
+    if not hourly.location_id.eq("SPP_SYSTEM").all():
+        raise ValueError("Wind classifier supports only one declared SPP_SYSTEM observation per hour.")
+    frame = hourly[["timestamp_utc", *columns]].copy()
+    frame["timestamp_utc"] = _wind_hour_index(frame.timestamp_utc)
+    for name in columns:
+        if frame[name].map(lambda value: isinstance(value, (bool, np.bool_))).any():
+            raise ValueError("Wind classifier actual observations cannot be boolean.")
+        frame[name] = pd.to_numeric(frame[name], errors="raise").astype(float)
+        if np.isinf(frame[name]).any() or frame[name].lt(0).any():
+            raise ValueError("Wind classifier actual observations must be finite nonnegative values or missing.")
+    # A zero system-load observation is unevaluable, not an invented operating state.
+    frame.loc[frame.system_load_mw.eq(0), "system_load_mw"] = np.nan
+    return frame.sort_values("timestamp_utc").reset_index(drop=True), origins
+
+
+def prepare_wind_classifier_features(hourly, *, sources, target_timestamps=None):
+    """Four fixed exact-time lags, calculated before excluding missing examples.
+
+    Input rows declare the common SPP_SYSTEM footprint. At target start t the
+    features are hourly wind/load observations for [t-1h,t) and [t-24h,t-23h).
+    These are historical actuals, not verified as-of-published observations.
+    A missing current-hour actual does not prevent prediction if its lag inputs
+    exist. Supply target_timestamps to request such hours or future intervals.
+    No interpolation, current-hour values, target labels or price features enter.
+    """
+    frame, origins = _wind_observations(hourly, sources)
+    target = _wind_hour_index(frame.timestamp_utc if target_timestamps is None else target_timestamps).sort_values()
+    observations = frame.set_index("timestamp_utc")
+    result = pd.DataFrame({"timestamp_utc": target, "location_id": "SPP_SYSTEM"})
+    for lag in (1, 24):
+        requested = target - pd.Timedelta(lag, unit="h")
+        for name in ("system_wind_mw", "system_load_mw"):
+            result[f"{name}_lag_{lag}h"] = observations[name].reindex(requested).to_numpy()
+    result.attrs = {"sources": origins, "system_scope": "SPP_SYSTEM", "forecast_asof_verified": False,
+                    "feature_input_sha256": _wind_frame_digest(frame), "limitation": WIND_CLASSIFIER_LIMITATION}
+    return result
+
+
+def _wind_classifier_labels(labels):
+    needed = {"timestamp_utc", "location_id", "wind_curtailment_event",
+              "observed_five_minute_samples", "evaluable_five_minute_samples"}
+    if not isinstance(labels, pd.DataFrame) or labels.empty or not labels.columns.is_unique or not needed.issubset(labels.columns):
+        raise ValueError("Wind classifier requires independent VER hourly labels and completeness counts.")
+    if labels.attrs.get("method") != "reported_system_wind_curtailment_any_category_v1" or labels.attrs.get("system_scope") != "SPP_SYSTEM":
+        raise ValueError("Wind classifier requires the declared independent VER event-label method and SPP_SYSTEM scope.")
+    origin = source(labels.attrs.get("source"))
+    if origin["source_type"] == "model":
+        raise ValueError("Independent VER targets cannot be another model's generated labels.")
+    if not labels.location_id.eq("SPP_SYSTEM").all():
+        raise ValueError("Independent wind-event labels cannot be relabeled as individual sites or zones.")
+    frame = labels[["timestamp_utc", "wind_curtailment_event", "observed_five_minute_samples",
+                    "evaluable_five_minute_samples"]].copy()
+    frame["timestamp_utc"] = _wind_hour_index(frame.timestamp_utc)
+    for name in ("observed_five_minute_samples", "evaluable_five_minute_samples"):
+        values = [finite_number(value, name, minimum=0, maximum=12) for value in frame[name]]
+        if any(not value.is_integer() for value in values):
+            raise ValueError("VER completeness counts must be integers.")
+        frame[name] = [int(value) for value in values]
+    if frame.evaluable_five_minute_samples.gt(frame.observed_five_minute_samples).any():
+        raise ValueError("VER evaluable samples cannot exceed observed samples.")
+    if not frame.wind_curtailment_event.map(lambda value: isinstance(value, (bool, np.bool_)) or value is None or value is pd.NA or isinstance(value, Real) and np.isnan(value)).all():
+        raise ValueError("VER hourly targets must be nullable Booleans, not numeric or inferred rule targets.")
+    frame["wind_curtailment_event"] = frame.wind_curtailment_event.astype("boolean")
+    complete = frame.observed_five_minute_samples.eq(12) & frame.evaluable_five_minute_samples.eq(12)
+    if not frame.wind_curtailment_event.notna().eq(complete).all():
+        raise ValueError("VER target availability must match twelve observed and evaluable intervals.")
+    return frame.sort_values("timestamp_utc").reset_index(drop=True), origin
+
+
+def _wind_sigmoid(scores):
+    if not np.isfinite(scores).all():
+        raise ValueError("Wind classifier score overflow; inspect input units or fitted parameters.")
+    # Algebraically identical on either side of zero, without exp overflow.
+    magnitude = np.exp(-np.abs(scores))
+    return np.where(scores >= 0, 1. / (1. + magnitude), magnitude / (1. + magnitude))
+
+
+def _wind_parameter_vector(values, name, length):
+    if not isinstance(values, list) or len(values) != length:
+        raise ValueError(f"Wind classifier {name} has the wrong shape.")
+    return np.asarray([finite_number(value, name) for value in values], dtype=float)
+
+
+def _validate_wind_classifier_bundle(bundle):
+    if not isinstance(bundle, dict) or set(bundle) != {"schema_version", "model_id", "features", "standardizer", "base_model", "calibrator", "manifest"}:
+        raise ValueError("Invalid JSON wind classifier bundle.")
+    if bundle["schema_version"] != WIND_CLASSIFIER_SCHEMA or bundle["features"] != list(WIND_CLASSIFIER_FEATURES):
+        raise ValueError("Unsupported wind classifier schema or feature order.")
+    try:
+        expected = _wind_json_digest({key: value for key, value in bundle.items() if key != "model_id"})
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Wind classifier bundle must contain finite JSON values.") from exc
+    if bundle["model_id"] != expected:
+        raise ValueError("Wind classifier parameters or manifest do not match their model fingerprint.")
+    scaler, base, calibration = bundle["standardizer"], bundle["base_model"], bundle["calibrator"]
+    if not isinstance(scaler, dict) or set(scaler) != {"mean", "scale"} or not isinstance(base, dict) or set(base) != {"coefficients", "intercept"}:
+        raise ValueError("Invalid wind classifier parameter dictionaries.")
+    mean = _wind_parameter_vector(scaler["mean"], "mean", 4)
+    scale = _wind_parameter_vector(scaler["scale"], "scale", 4)
+    if not (scale > 0).all():
+        raise ValueError("Wind classifier scales must be positive.")
+    coefficient = _wind_parameter_vector(base["coefficients"], "coefficients", 4)
+    intercept = finite_number(base["intercept"], "intercept")
+    if calibration is not None:
+        if not isinstance(calibration, dict) or set(calibration) != {"coefficient", "intercept"}:
+            raise ValueError("Invalid wind classifier calibration parameters.")
+        calibration = {key: finite_number(value, key) for key, value in calibration.items()}
+    manifest = bundle["manifest"]
+    if not isinstance(manifest, dict) or manifest.get("system_scope") != "SPP_SYSTEM" or manifest.get("forecast_asof_verified") is not False:
+        raise ValueError("Wind classifier bundle must preserve its research scope and unverified publication timing.")
+    expected_splits = {name: list(bounds) for name, bounds in WIND_CLASSIFIER_SPLITS.items()}
+    if (manifest.get("status") != "research_only_no_production_promotion"
+            or manifest.get("target_method") != "reported_system_wind_curtailment_any_category_v1"
+            or manifest.get("split_bounds") != expected_splits
+            or manifest.get("limitation") != WIND_CLASSIFIER_LIMITATION
+            or type(manifest.get("calibration_minimum_per_class")) is not int
+            or manifest["calibration_minimum_per_class"] != 20):
+        raise ValueError("Wind classifier manifest does not preserve the predeclared experiment or honesty framing.")
+    requested, status = manifest.get("calibration_requested"), manifest.get("calibration_status")
+    valid_statuses = {"insufficient_september_class_support", "september_calibration_did_not_converge"}
+    if (type(requested) is not bool
+            or calibration is not None and (not requested or status != "regularized_sigmoid_fitted_on_september_only")
+            or calibration is None and (status not in valid_statuses if requested else status != "disabled_by_declared_policy")):
+        raise ValueError("Wind classifier calibration parameters and declared fit policy disagree.")
+    for name in ("training_cohort_sha256", "calibration_cohort_sha256"):
+        digest = manifest.get(name)
+        if name == "calibration_cohort_sha256" and not requested:
+            if digest is not None:
+                raise ValueError("Disabled calibration must not declare a fitted calibration cohort.")
+        elif not isinstance(digest, str) or re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+            raise ValueError("Wind classifier fitted cohort fingerprints are missing or invalid.")
+    parameters = manifest.get("fit_parameters")
+    expected_parameters = {"C": 1.0, "solver": "lbfgs", "class_weight": None, "max_iter": 2000, "tol": 1e-8}
+    if (not isinstance(parameters, dict) or set(parameters) != {*expected_parameters, "random_state"}
+            or any(parameters.get(name) != value or isinstance(parameters.get(name), bool) for name, value in expected_parameters.items())
+            or type(parameters.get("random_state")) is not int or not 0 <= parameters["random_state"] < 2 ** 32):
+        raise ValueError("Wind classifier fitted parameters do not match its declared fixed experiment.")
+    policy_origin = source(manifest.get("policy_source"))
+    if policy_origin["source_type"] != "assumption":
+        raise ValueError("Wind classifier experiment choices must remain assumptions.")
+    origins = manifest.get("input_sources")
+    if not isinstance(origins, dict) or set(origins) != {"system_wind_mw", "system_load_mw", "labels"}:
+        raise ValueError("Wind classifier fitted input provenance is incomplete.")
+    for origin in origins.values():
+        if source(origin)["source_type"] == "model":
+            raise ValueError("Wind classifier fitted inputs must preserve independent observations or declared assumptions.")
+    return mean, scale, coefficient, intercept, calibration
+
+
+def _wind_predict_values(bundle, features):
+    mean, scale, coefficient, intercept, calibration = _validate_wind_classifier_bundle(bundle)
+    matrix = features[list(WIND_CLASSIFIER_FEATURES)].to_numpy(dtype=float)
+    known = np.isfinite(matrix).all(axis=1)
+    raw = np.full(len(matrix), np.nan)
+    calibrated = np.full(len(matrix), np.nan)
+    with np.errstate(over="ignore", invalid="ignore", divide="ignore"):
+        scores = ((matrix[known] - mean) / scale) @ coefficient + intercept
+    raw[known] = _wind_sigmoid(scores)
+    if calibration is not None:
+        with np.errstate(over="ignore", invalid="ignore"):
+            calibrated_scores = calibration["coefficient"] * scores + calibration["intercept"]
+        calibrated[known] = _wind_sigmoid(calibrated_scores)
+    return raw, calibrated
+
+
+def _wind_prediction_source(bundle, *, input_sources=None):
+    origins = list(bundle["manifest"]["input_sources"].values()) + list((input_sources or {}).values())
+    assumed = any(origin["source_type"] == "assumption" for origin in origins)
+    return {"source_type": "assumption" if assumed else "model", "ref": f"wind-event-model:{bundle['model_id']}; offline research; "
+            + ("includes assumption-sourced observations; " if assumed else "")
+            + "input hashes, source objects, timing limits and policies retained in model/report manifests"}
+
+
+def predict_wind_event_classifier(bundle, hourly, *, sources, target_timestamps=None):
+    """Reconstruct JSON linear parameters offline; no pickle, training or writes.
+
+    Returns source-bearing probability rows, not confidence badges or an energy
+    schedule. target_timestamps may request hours absent from actual-input rows.
+    Reading a supplied bundle never follows provenance refs or performs I/O.
+    """
+    _validate_wind_classifier_bundle(bundle)
+    features = prepare_wind_classifier_features(hourly, sources=sources, target_timestamps=target_timestamps)
+    raw, calibrated = _wind_predict_values(bundle, features)
+    origin = _wind_prediction_source(bundle, input_sources=features.attrs["sources"])
+    result = []
+    for stamp, first, second in zip(features.timestamp_utc, raw, calibrated):
+        roles = {"train": "training_period", "calibration": "calibration_period", "test": "heldout_2024_autumn"}
+        period_role = next((roles[name] for name, (start, end) in WIND_CLASSIFIER_SPLITS.items()
+                            if pd.Timestamp(start) <= stamp < pd.Timestamp(end)), "outside_evaluated_period")
+        def probability(value, reason):
+            return sourced(float(value), origin) if np.isfinite(value) else sourced(None, {
+                "source_type": "assumption", "ref": f"unavailable: {reason}; {origin['ref']}"})
+        result.append({"timestamp_utc": stamp.isoformat(), "location_id": "SPP_SYSTEM",
+                       "raw_probability": probability(first, "missing exact-time lag observations"),
+                       "calibrated_probability": probability(second, "calibration not fitted" if bundle["calibrator"] is None else "missing exact-time lag observations"),
+                       "forecast_asof_verified": False,
+                       "target_period_role": period_role, "limitation": WIND_CLASSIFIER_LIMITATION,
+                       "period_role_basis": "Calendar period only; does not assert this row was used in fitting or evaluation.",
+                       "feature_input_sha256": features.attrs["feature_input_sha256"],
+                       "input_sources": features.attrs["sources"], "model_id": bundle["model_id"]})
+    return json.loads(json.dumps(result, sort_keys=True, allow_nan=False))
+
+
+def _wind_classifier_metrics(target, probabilities, origin, *, unavailable=None):
+    from sklearn.metrics import roc_auc_score
+
+    policy = {"source_type": "assumption", "ref": "wind-event-logistic-v1: ten predeclared equal-width probability bins; upper boundary exclusive except final bin"}
+    missing = {"source_type": "assumption", "ref": f"unavailable: {unavailable or 'no evaluable held-out rows'}; {origin['ref']}"}
+    target, probabilities = np.asarray(target, dtype=float), np.asarray(probabilities, dtype=float)
+    available = len(target) > 0 and unavailable is None
+    if len(target) != len(probabilities) or available and (not np.isfinite(probabilities).all() or ((probabilities < 0) | (probabilities > 1)).any()):
+        raise ValueError("Held-out probability metrics require aligned finite probabilities.")
+    def metric(value, reason=None):
+        return sourced(None, {**missing, "ref": f"unavailable: {reason}; {origin['ref']}"} if reason else missing) if value is None else sourced(float(value), origin)
+    clipped = np.clip(probabilities, np.finfo(float).eps, 1. - np.finfo(float).eps)
+    result = {"status": "available" if available else unavailable or "no_evaluable_test_rows",
+              "sample_count": sourced(len(target) if available else 0, origin),
+              "brier_score": metric(float(np.mean((probabilities - target) ** 2)) if available else None),
+              "log_loss": metric(float(-np.mean(target * np.log(clipped) + (1. - target) * np.log1p(-clipped))) if available else None),
+              "roc_auc": metric(float(roc_auc_score(target, probabilities)) if available and len(np.unique(target)) == 2 else None,
+                                "ROC-AUC requires both observed classes" if available else None),
+              "reliability": []}
+    for index in range(10):
+        lower, upper = index / 10., (index + 1) / 10.
+        selected = (probabilities >= lower) & ((probabilities <= upper) if index == 9 else (probabilities < upper)) if available else np.zeros(len(target), dtype=bool)
+        count = int(selected.sum())
+        result["reliability"].append({"lower_probability": sourced(lower, policy), "upper_probability": sourced(upper, policy),
+                                      "sample_count": sourced(count, origin),
+                                      "mean_probability": metric(float(probabilities[selected].mean()) if count else None, "empty probability bin" if not count else None),
+                                      "observed_event_frequency": metric(float(target[selected].mean()) if count else None, "empty probability bin" if not count else None)})
+    return result
+
+
+def fit_wind_event_classifier(hourly, labels, *, sources, seed=2026, calibrate=True):
+    """Fit a fixed offline experiment; return (JSON bundle, report, test rows).
+
+    Standardization and unweighted L2 logistic fitting see Jan-Aug 2024 only.
+    A separate regularized sigmoid sees September base decision scores only,
+    if enabled and September has at least twenty eligible examples per class.
+    Both choices are predeclared; October-December never selects or fits them.
+    All source assumptions remain visible in immutable content-addressed JSON.
+    This function does not write artifacts, promote a model, or call an API.
+    """
+    import importlib.metadata
+    import warnings
+    from sklearn.exceptions import ConvergenceWarning
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.preprocessing import StandardScaler
+
+    if isinstance(seed, bool) or not isinstance(seed, int) or not 0 <= seed < 2 ** 32 or not isinstance(calibrate, bool):
+        raise ValueError("Wind classifier requires an integer random seed and explicit Boolean calibration policy.")
+    targets, label_origin = _wind_classifier_labels(labels)
+    features = prepare_wind_classifier_features(hourly, sources=sources, target_timestamps=targets.timestamp_utc)
+    joined = features.merge(targets, on="timestamp_utc", how="left", validate="one_to_one")
+    input_sources = {**features.attrs["sources"], "labels": label_origin}
+    eligible = joined.wind_curtailment_event.notna() & joined[list(WIND_CLASSIFIER_FEATURES)].notna().all(axis=1)
+    splits, counts = {}, {}
+    count_origin = {"source_type": "assumption" if any(item["source_type"] == "assumption" for item in input_sources.values()) else "data",
+                    "ref": "Exact UTC experiment cohorts, observed VER completeness and exact-lag input availability; " + "; ".join(item["ref"] for item in input_sources.values())}
+    for name, (start, end) in WIND_CLASSIFIER_SPLITS.items():
+        in_window = joined.timestamp_utc.ge(pd.Timestamp(start)) & joined.timestamp_utc.lt(pd.Timestamp(end))
+        chosen = joined.loc[in_window & eligible].copy()
+        splits[name] = chosen
+        known_target = joined.wind_curtailment_event.notna()
+        known_features = joined[list(WIND_CLASSIFIER_FEATURES)].notna().all(axis=1)
+        values = {"supplied_label_hours": int(in_window.sum()), "eligible_hours": len(chosen),
+                  "positive_hours": int(chosen.wind_curtailment_event.sum()),
+                  "negative_hours": int((~chosen.wind_curtailment_event).sum()),
+                  "unknown_target_hours": int((in_window & ~known_target).sum()),
+                  "missing_lag_hours": int((in_window & ~known_features).sum()),
+                  "excluded_hours": int((in_window & ~eligible).sum())}
+        counts[name] = {"start_utc": start, "end_exclusive_utc": end,
+                        **{key: sourced(value, count_origin) for key, value in values.items()}}
+    training, calibration, test = (splits[name] for name in ("train", "calibration", "test"))
+    if training.empty or training.wind_curtailment_event.nunique() != 2:
+        raise ValueError("Wind classifier training requires evaluable January-August examples of both independent event classes.")
+    matrix = training[list(WIND_CLASSIFIER_FEATURES)].to_numpy(dtype=float)
+    y_train = training.wind_curtailment_event.astype(int).to_numpy()
+    parameters = {"C": 1.0, "solver": "lbfgs", "class_weight": None, "max_iter": 2000, "tol": 1e-8, "random_state": seed}
+    scaler = StandardScaler()
+    base = LogisticRegression(**parameters)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", ConvergenceWarning)
+        try:
+            base.fit(scaler.fit_transform(matrix), y_train)
+        except ConvergenceWarning as exc:
+            raise ValueError("Wind classifier did not converge; no fitted artifact returned.") from exc
+    fitted_calibration = None
+    cal_status = "disabled_by_declared_policy" if not calibrate else "insufficient_september_class_support"
+    support = calibration.wind_curtailment_event.value_counts()
+    if calibrate and support.get(False, 0) >= 20 and support.get(True, 0) >= 20:
+        cal_model = LogisticRegression(**parameters)
+        cal_scores = base.decision_function(scaler.transform(calibration[list(WIND_CLASSIFIER_FEATURES)].to_numpy(dtype=float)))
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", ConvergenceWarning)
+            try:
+                cal_model.fit(cal_scores.reshape(-1, 1), calibration.wind_curtailment_event.astype(int).to_numpy())
+            except ConvergenceWarning:
+                cal_status = "september_calibration_did_not_converge"
+            else:
+                fitted_calibration = {"coefficient": float(cal_model.coef_[0, 0]), "intercept": float(cal_model.intercept_[0])}
+                cal_status = "regularized_sigmoid_fitted_on_september_only"
+    fit_columns = ["timestamp_utc", *WIND_CLASSIFIER_FEATURES, "wind_curtailment_event"]
+    policy = {"source_type": "assumption", "ref": "wind-event-logistic-v1: fixed 2024 UTC calendar splits; exact 1h/24h actual lags; C=1 unweighted logistic; September sigmoid enabled only by declared flag with minimum20/class; no test selection"}
+    bundle = {"schema_version": WIND_CLASSIFIER_SCHEMA, "features": list(WIND_CLASSIFIER_FEATURES),
+              "standardizer": {"mean": scaler.mean_.tolist(), "scale": scaler.scale_.tolist()},
+              "base_model": {"coefficients": base.coef_[0].tolist(), "intercept": float(base.intercept_[0])},
+              "calibrator": fitted_calibration,
+              "manifest": {"system_scope": "SPP_SYSTEM", "status": "research_only_no_production_promotion",
+                           "forecast_asof_verified": False, "limitation": WIND_CLASSIFIER_LIMITATION,
+                           "target_method": labels.attrs["method"], "input_sources": input_sources,
+                           "training_cohort_sha256": _wind_frame_digest(training[fit_columns]),
+                           "calibration_cohort_sha256": _wind_frame_digest(calibration[fit_columns]) if calibrate else None,
+                           "policy_source": policy, "split_bounds": WIND_CLASSIFIER_SPLITS.copy(),
+                           "fit_parameters": parameters, "standardizer_method": "training-only population mean and scale; constant-feature scale=1",
+                           "calibration_requested": calibrate, "calibration_status": cal_status,
+                           "calibration_minimum_per_class": 20,
+                           "versions": {name: importlib.metadata.version(name) for name in ("numpy", "pandas", "scikit-learn")}}}
+    # Tuples become JSON lists now, so reloads have exactly the same object shape.
+    bundle = json.loads(json.dumps(bundle, sort_keys=True, allow_nan=False))
+    bundle["model_id"] = _wind_json_digest(bundle)
+    raw, calibrated = _wind_predict_values(bundle, test)
+    y_test = test.wind_curtailment_event.astype(int).to_numpy()
+    baseline = float(y_train.mean())
+    model_origin = _wind_prediction_source(bundle)
+    report = {"schema_version": WIND_CLASSIFIER_SCHEMA, "model_id": bundle["model_id"],
+              "status": "research_only_no_production_promotion", "forecast_asof_verified": False,
+              "limitation": WIND_CLASSIFIER_LIMITATION, "calibration_status": cal_status,
+              "cohorts": counts, "input_sources": input_sources, "policy_source": policy,
+              "data_manifest": {"hourly_observations_sha256": features.attrs["feature_input_sha256"],
+                                "labels_sha256": _wind_frame_digest(targets),
+                                "test_cohort_sha256": _wind_frame_digest(test[fit_columns]),
+                                "outside_fixed_windows": sourced(int((joined.timestamp_utc.lt(pd.Timestamp(WIND_CLASSIFIER_SPLITS["train"][0])) | joined.timestamp_utc.ge(pd.Timestamp(WIND_CLASSIFIER_SPLITS["test"][1]))).sum()), count_origin)},
+              "training_event_rate": sourced(baseline, count_origin),
+              "test_metrics": {"raw": _wind_classifier_metrics(y_test, raw, model_origin),
+                               "calibrated": _wind_classifier_metrics(y_test, calibrated, model_origin,
+                                               unavailable=cal_status if fitted_calibration is None else None),
+                               "training_prevalence_baseline": _wind_classifier_metrics(y_test, np.full(len(test), baseline),
+                                   {**model_origin, "ref": "constant training-only event-prevalence baseline; " + model_origin["ref"]})},
+              "interpretation": "Brier and log loss assess probability performance, not calibration alone. Reliability bins are held-out empirical summaries without a future confidence guarantee. No automatic selection between raw and calibrated models."}
+    prediction_times = joined.loc[joined.timestamp_utc.ge(pd.Timestamp(WIND_CLASSIFIER_SPLITS["test"][0])) & joined.timestamp_utc.lt(pd.Timestamp(WIND_CLASSIFIER_SPLITS["test"][1])), "timestamp_utc"]
+    prediction_rows = predict_wind_event_classifier(bundle, hourly, sources=sources, target_timestamps=prediction_times) if len(prediction_times) else []
+    label_lookup = targets.set_index("timestamp_utc").wind_curtailment_event
+    for row in prediction_rows:
+        target = label_lookup.loc[pd.Timestamp(row["timestamp_utc"])]
+        row["observed_event"] = {"value": None if pd.isna(target) else bool(target), **label_origin}
+        row["evaluated"] = not pd.isna(target) and row["raw_probability"]["value"] is not None
+    # Also rejects accidental numpy scalars, timestamps, NaNs or infinity in public results.
+    report, prediction_rows = json.loads(json.dumps((report, prediction_rows), sort_keys=True, allow_nan=False))
+    return bundle, report, prediction_rows

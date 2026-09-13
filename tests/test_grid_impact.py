@@ -10,8 +10,8 @@ import pandas as pd
 import pytest
 
 from api.grid_impact import (
-    EVIDENCE_PREFIX, UNITS, GridImpactSnapshotCache, compile_grid_impact_snapshot,
-    compose_grid_impact, get_location_grid_impact, read_grid_impact_snapshot,
+    EVIDENCE_PREFIX, UNITS, WIND_ENERGY_MODEL, GridImpactSnapshotCache, compile_grid_impact_snapshot,
+    compose_grid_impact, get_location_grid_impact, read_grid_impact_snapshot, read_wind_scenario,
 )
 from pipeline.carbon import BOUNDARY, FACTOR_UNIT, fuel_mix_intensity, shift_carbon
 from pipeline.wind_signal import summarize_wind
@@ -34,14 +34,14 @@ def coverage(hours=4, start="2024-01-01T00:00:00Z", **changes):
             "schedule_scope": "complete_period", **changes}
 
 
-def wind(hours=4, start="2024-01-01T00:00:00Z", price=-1.):
+def wind(hours=4, start="2024-01-01T00:00:00Z", price=-1., flexible_mw=100., available_fraction=.5):
     frame = pd.DataFrame({"timestamp_utc": pd.date_range(start, periods=hours, freq="h"),
                           "location_id": "NODE", "system_wind_mw": 60.,
                           "system_load_mw": 100., "lmp_usd_mwh": price})
     sources = {name: {"source_type": "assumption", "ref": "synthetic unit fixture"}
                for name in ("system_wind_mw", "system_load_mw", "lmp_usd_mwh")}
     return summarize_wind(frame, sources=sources, wind_scope="SPP_SYSTEM", load_scope="SPP_SYSTEM",
-                          flexible_load_mw=datum(100.), available_fraction=datum(.5))[0]
+                          flexible_load_mw=datum(flexible_mw), available_fraction=datum(available_fraction))[0]
 
 
 def shift(*, risk_intensity=100., makeup_intensity=300., energy=10., makeup="2024-01-01T01:00:00Z"):
@@ -711,3 +711,194 @@ def test_snapshot_cache_revalidates_a_new_valid_version_and_evicts_old_version(t
 def test_snapshot_invalid_cache_argument_is_explicit(tmp_path):
     with pytest.raises(ValueError, match="cache"):
         read_grid_impact_snapshot("NODE", tmp_path / "missing.json", cache={})
+
+
+def wind_scenario_context(result):
+    return result["evidence"][result["evidence_context"]["wind"][len(EVIDENCE_PREFIX):]]
+
+
+def test_wind_producer_controls_survive_composition_and_snapshot(tmp_path):
+    raw = wind(flexible_mw=123.45678912345, available_fraction=.12345678912345)
+    assert raw["energy_model"] == WIND_ENERGY_MODEL
+    path = snapshot(tmp_path / "bound.json", wind_summary=raw)
+    result = read_grid_impact_snapshot("NODE", path)
+    context = wind_scenario_context(result)
+    assert context["energy_model"] == raw["energy_model"]
+    assert context["scenario_inputs"] == raw["scenario_inputs"]
+    assert result["wind_absorption_mwh_in_observed_hours"]["value"] == 4 * 123.45678912345 * .12345678912345
+
+
+@pytest.mark.parametrize("field,value", [("flexible_load_mw", 101.), ("available_fraction", .75)])
+def test_wind_declared_control_product_must_match_observed_energy(field, value):
+    raw = wind()
+    raw["scenario_inputs"][field]["value"] = value
+    with pytest.raises(ValueError, match="disagrees"):
+        compose_grid_impact("NODE", wind_summary=raw)
+
+
+@pytest.mark.parametrize("bad", [None, {}, {"flexible_load_mw": datum(100.)},
+    {"flexible_load_mw": datum(100.), "available_fraction": datum(.5), "site_exposure": datum(.5)}])
+def test_wind_partial_or_unrecognized_control_shape_is_rejected(bad):
+    raw = wind()
+    raw["scenario_inputs"] = bad
+    with pytest.raises(ValueError, match="structured controls"):
+        compose_grid_impact("NODE", wind_summary=raw)
+
+
+def test_wind_unrecognized_energy_model_cannot_claim_linear_recompute():
+    raw = wind()
+    raw["energy_model"] = "hypothetical capped recoverable wind model"
+    with pytest.raises(ValueError, match="energy_model"):
+        compose_grid_impact("NODE", wind_summary=raw)
+
+
+def test_wind_legacy_snapshot_remains_readable_but_not_recomputable(tmp_path):
+    raw = wind()
+    raw.pop("energy_model")
+    raw.pop("scenario_inputs")
+    path = snapshot(tmp_path / "legacy.json", wind_summary=raw)
+    assert read_grid_impact_snapshot("NODE", path)["wind_absorption_mwh_in_observed_hours"]["value"] == 200.
+    with pytest.raises(ValueError, match="Legacy fixed"):
+        read_wind_scenario("NODE", path, flexible_load_mw=datum(50.), available_fraction=datum(.25))
+
+
+def test_wind_scenario_uses_new_controls_and_preserves_original_lineage(tmp_path):
+    import api.grid_impact as module
+    raw = wind()
+    path = snapshot(tmp_path / "bound.json", wind_summary=raw)
+    controls = {"flexible_load_mw": datum(80., "explicit new flexible capacity assumption"),
+                "available_fraction": datum(.25, "explicit new available upward fraction assumption")}
+    result = read_wind_scenario("NODE", path, **controls)
+    assert result["wind_absorption_mwh_in_observed_hours"]["value"] == 80.
+    assert result["wind_absorption_mwh_per_year"]["value"] is None
+    assert result["carbon_absorbed_tonnes_in_observed_hours"]["value"] == 0.
+    assert all(result[field]["value"] is None for field in ("carbon_shifted_tonnes_in_observed_hours", "carbon_shifted_tonnes_per_year"))
+    context = wind_scenario_context(result)
+    assert context["scenario_inputs"] == controls
+    baseline = result["evidence"][context["baseline"][len(EVIDENCE_PREFIX):]]
+    original_context = result["evidence"][baseline["wind_context"][len(EVIDENCE_PREFIX):]]
+    assert baseline["wind_absorption_mwh_in_observed_hours"]["value"] == 200.
+    assert baseline["units"]["wind_absorption_mwh_in_observed_hours"] == "MWh"
+    assert original_context["scenario_inputs"] == raw["scenario_inputs"]
+    assert "audit lineage only" in baseline["method"]
+    assert str(path) == baseline["snapshot_path"]
+    assert "explicit new flexible capacity assumption" in evidence_text(result)
+    assert "egrid2023_technical_guide" in evidence_text(result)
+    assert all(result[field]["source_type"] == "assumption" for field in UNITS)
+    assert_complete_evidence_graph(result)
+    module._validate_snapshot_result(result, "NODE")
+
+
+@pytest.mark.parametrize("inputs", [{}, {"flexible_load_mw": datum(10.)}, {"available_fraction": datum(.5)}])
+def test_wind_scenario_has_no_hidden_defaults_for_request_controls(tmp_path, inputs):
+    with pytest.raises(TypeError):
+        read_wind_scenario("NODE", tmp_path / "missing.json", **inputs)
+
+
+@pytest.mark.parametrize("field,value", [("flexible_load_mw", None), ("flexible_load_mw", -1.),
+    ("flexible_load_mw", True), ("flexible_load_mw", math.inf), ("available_fraction", 1.01),
+    ("available_fraction", -1.), ("available_fraction", math.nan), ("available_fraction", "0.5")])
+def test_wind_scenario_invalid_request_controls_fail_even_without_a_file(tmp_path, field, value):
+    controls = {"flexible_load_mw": datum(10.), "available_fraction": datum(.5)}
+    controls[field]["value"] = value
+    with pytest.raises(ValueError):
+        read_wind_scenario("NODE", tmp_path / "missing.json", **controls)
+
+
+@pytest.mark.parametrize("energy,intensity", [(10., 300.), (0., 300.), (10., None)])
+def test_wind_scenario_never_carries_or_rescales_an_existing_shift_schedule(tmp_path, energy, intensity):
+    path = snapshot(tmp_path / "combined.json", wind_summary=wind(), carbon_shift=shift(energy=energy, makeup_intensity=intensity), shift_coverage=coverage())
+    with pytest.raises(ValueError, match="wind-only"):
+        read_wind_scenario("NODE", path, flexible_load_mw=datum(50.), available_fraction=datum(.25))
+
+
+@pytest.mark.parametrize("load,fraction", [(0., .5), (100., 0.)])
+def test_wind_scenario_recomputes_from_counts_when_old_capacity_was_zero(tmp_path, load, fraction):
+    path = snapshot(tmp_path / "zero-baseline.json", wind_summary=wind(flexible_mw=load, available_fraction=fraction))
+    result = read_wind_scenario("NODE", path, flexible_load_mw=datum(80.), available_fraction=datum(.25))
+    assert result["wind_absorption_mwh_in_observed_hours"]["value"] == 80.
+
+
+def test_wind_scenario_known_zero_and_unknown_history_remain_distinct(tmp_path):
+    known = snapshot(tmp_path / "known.json", wind_summary=wind(price=10.))
+    unknown = snapshot(tmp_path / "unknown.json", wind_summary=wind(price=math.nan))
+    controls = {"flexible_load_mw": datum(0.), "available_fraction": datum(0.)}
+    assert read_wind_scenario("NODE", known, **controls)["wind_absorption_mwh_in_observed_hours"]["value"] == 0.
+    result = read_wind_scenario("NODE", unknown, **controls)
+    assert result["wind_absorption_mwh_in_observed_hours"]["value"] is None
+    assert result["carbon_absorbed_tonnes_in_observed_hours"]["value"] is None
+    assert all(read_wind_scenario("NODE", tmp_path / "missing.json", **controls)[field]["value"] is None for field in UNITS)
+
+
+def test_wind_scenario_annual_total_uses_complete_year_without_extrapolation(tmp_path):
+    path = snapshot(tmp_path / "year.json", wind_summary=wind(8784))
+    result = read_wind_scenario("NODE", path, flexible_load_mw=datum(80.), available_fraction=datum(.25))
+    assert result["wind_absorption_mwh_per_year"]["value"] == 8784 * 80. * .25
+    assert result["carbon_absorbed_tonnes_per_year"]["value"] == 0.
+
+
+def test_wind_scenario_is_deterministic_isolated_and_avoids_heavy_revalidation(tmp_path):
+    import api.grid_impact as module
+    path = snapshot(tmp_path / "bound.json", wind_summary=wind())
+    memo = GridImpactSnapshotCache()
+    read_grid_impact_snapshot("NODE", path, cache=memo)
+    controls = {"flexible_load_mw": datum(80.), "available_fraction": datum(.25)}
+    with patch.object(module, "_validate_snapshot_result", side_effect=AssertionError("validated cache should be reused")), \
+         patch.object(module, "compose_grid_impact", side_effect=AssertionError("no raw composition")), \
+         patch("pipeline.wind_signal.wind_oversupply_hours", side_effect=AssertionError("no hourly screening")), \
+         patch("pandas.read_parquet", side_effect=AssertionError("no hourly cache scanning")):
+        first = read_wind_scenario("NODE", path, cache=memo, **controls)
+        second = read_wind_scenario("NODE", path, cache=memo, **dict(reversed(list(controls.items()))))
+        assert json.dumps(first) == json.dumps(second)
+        first["evidence"].clear()
+        assert read_wind_scenario("NODE", path, cache=memo, **controls) == second
+        assert read_grid_impact_snapshot("NODE", path, cache=memo)["wind_absorption_mwh_in_observed_hours"]["value"] == 200.
+
+
+def test_wind_snapshot_published_period_cannot_disagree_with_screening_context(tmp_path):
+    path = snapshot(tmp_path / "bound.json", wind_summary=wind())
+    def change_period(result):
+        result["coverage"]["wind"]["period_start_utc"] = "2024-01-01T01:00:00+00:00"
+        result["coverage"]["wind"]["period_end_exclusive_utc"] = "2024-01-01T05:00:00+00:00"
+    rewrite_snapshot(path, change_period)
+    with pytest.raises(ValueError, match="published coverage"):
+        read_wind_scenario("NODE", path, flexible_load_mw=datum(10.), available_fraction=datum(.5))
+
+
+def test_wind_structured_inputs_cannot_hide_tiny_nonzero_energy_as_zero():
+    raw = wind(flexible_mw=1e-10)
+    raw["wind_absorption_mwh_in_observed_hours"]["value"] = 0.
+    with pytest.raises(ValueError, match="disagrees"):
+        compose_grid_impact("NODE", wind_summary=raw)
+
+
+@pytest.mark.parametrize("fraction", [0., 1e-308])
+def test_wind_scenario_extreme_capacity_with_zero_or_tiny_availability_stays_finite(tmp_path, fraction):
+    import api.grid_impact as module
+    path = snapshot(tmp_path / "bound.json", wind_summary=wind())
+    controls = {"flexible_load_mw": datum(1e308, "synthetic extreme capacity input"),
+                "available_fraction": datum(fraction, "synthetic extreme availability input")}
+    result = read_wind_scenario("NODE", path, **controls)
+    assert result["wind_absorption_mwh_in_observed_hours"]["value"] == 4 * (1e308 * fraction)
+    assert wind_scenario_context(result)["scenario_inputs"] == controls
+    assert result["wind_absorption_mwh_in_observed_hours"]["source_type"] == "assumption"
+    assert_complete_evidence_graph(result)
+    module._validate_snapshot_result(result, "NODE")
+
+
+def test_wind_scenario_still_rejects_a_true_unrepresentable_energy_total(tmp_path):
+    path = snapshot(tmp_path / "bound.json", wind_summary=wind())
+    with pytest.raises(ValueError, match="finite"):
+        read_wind_scenario("NODE", path, flexible_load_mw=datum(1e308), available_fraction=datum(1.))
+
+
+def test_wind_earlier_multiplication_order_is_accepted_within_one_float_step(tmp_path):
+    raw = wind(hours=3, flexible_mw=.3, available_fraction=.3)
+    previous = (3 * .3) * .3
+    current = 3 * (.3 * .3)
+    assert previous != current and math.nextafter(previous, current) == current
+    raw["wind_absorption_mwh_in_observed_hours"]["value"] = previous
+    path = snapshot(tmp_path / "earlier-order.json", wind_summary=raw)
+    assert read_grid_impact_snapshot("NODE", path)["wind_absorption_mwh_in_observed_hours"]["value"] == previous
+    result = read_wind_scenario("NODE", path, flexible_load_mw=datum(.3), available_fraction=datum(.3))
+    assert result["wind_absorption_mwh_in_observed_hours"]["value"] == current
