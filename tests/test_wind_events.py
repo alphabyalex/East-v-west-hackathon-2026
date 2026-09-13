@@ -333,7 +333,7 @@ def test_missing_archive_stays_missing_without_refetch(tmp_path, monkeypatch):
         wind.read_cached_wind_curtailment_archive(2024)
 
 
-@pytest.mark.parametrize("year", [True, 2013, 2025, "2024", 2024.0])
+@pytest.mark.parametrize("year", [True, 2013, 2026, "2024", 2024.0])
 def test_unsupported_year_is_rejected_before_any_cache_read(monkeypatch, year):
     monkeypatch.setattr(pd, "read_parquet", lambda *a, **k: pytest.fail("Must validate year before reading"))
     with pytest.raises(ValueError):

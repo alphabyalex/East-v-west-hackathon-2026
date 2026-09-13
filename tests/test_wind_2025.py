@@ -1,0 +1,263 @@
+"""Explicit 2025 readers; generated observation fixtures remain assumptions."""
+import hashlib
+import io
+import json
+from pathlib import Path
+import zipfile
+
+import numpy as np
+import pandas as pd
+import pytest
+
+from pipeline import wind_signal as wind
+from pipeline.prepare import LOAD_AREAS, normalize_legacy_load
+
+
+VER_URL = "https://portal.spp.org/file-browser-api/download/ver-curtailments?path=/2025/2025-VER-Curtailments-ANNUAL-ROLLUP.zip"
+VER_MEMBER = "2025-VER-Curtailments-ANNUAL-ROLLUP.csv"
+VER_COLUMNS = ["LocalIntervalEnding", "GMTIntervalEnding", *wind.VER_WIND_COLUMNS,
+               "SolarRedispatchCurtailments", "SolarManualCurtailments", "SolarCurtailedForEnergy"]
+
+
+@pytest.fixture(autouse=True)
+def offline_only(monkeypatch):
+    def forbidden(*args, **kwargs):
+        pytest.fail("Cached archive readers must neither fetch nor extract ZIP files")
+    monkeypatch.setattr(wind.ingest, "fetch_public_evidence", forbidden)
+    monkeypatch.setattr(wind.ingest, "fetch_load_sample", forbidden)
+    monkeypatch.setattr(zipfile.ZipFile, "extract", forbidden)
+    monkeypatch.setattr(zipfile.ZipFile, "extractall", forbidden)
+
+
+def evidence(tmp_path, monkeypatch, key, url, content, *, changes=None, manifest_changes=None):
+    manifest = {"source_type": "assumption", "ref": url, "requested_url": url,
+                "sha256": hashlib.sha256(content).hexdigest(), **(manifest_changes or {})}
+    row = {"request_url": url, "content": content, "source_json": json.dumps(manifest), **(changes or {})}
+    path = tmp_path / f"data/raw/spp/evidence/{key}.parquet"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame([row]).to_parquet(path, index=False)
+    monkeypatch.setattr(wind, "ROOT", tmp_path)
+    return path
+
+
+def ver_rows(start="2025-01-01T06:00:00Z"):
+    ends = pd.date_range(start, periods=13, freq="5min")[1:]
+    return pd.DataFrame({"LocalIntervalEnding": ends.tz_convert("America/Chicago").strftime("%m/%d/%Y %H:%M:%S"),
+                         "GMTIntervalEnding": ends.strftime("%m/%d/%Y %H:%M:%S"),
+                         **{name: np.zeros(12) for name in VER_COLUMNS[2:]}})
+
+
+def ver_cache(tmp_path, monkeypatch, *, rows=None, members=None, **kwargs):
+    rows = ver_rows() if rows is None else rows
+    members = [(VER_MEMBER, rows.to_csv(index=False))] if members is None else members
+    stream = io.BytesIO()
+    with zipfile.ZipFile(stream, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for name, content in members:
+            archive.writestr(name, content)
+    return evidence(tmp_path, monkeypatch, "ver_curtailments_2025_rollup", VER_URL, stream.getvalue(), **kwargs)
+
+
+def load_rows(month):
+    start = pd.Timestamp(f"2025-{month:02d}-01", tz="America/Chicago")
+    end = (start + pd.Timedelta(1, unit="h")).tz_convert("UTC")
+    return pd.DataFrame({"MarketHour": [end.strftime("%m/%d/%Y %H:%M:%S")], **{name: [10.] for name in LOAD_AREAS}})
+
+
+def load_cache(tmp_path, monkeypatch, *, replace_month=None, replacement=None, missing_month=None,
+               changes=None, manifest_changes=None):
+    paths = []
+    for month in range(1, 13):
+        if month == missing_month:
+            continue
+        raw = load_rows(month)
+        raw.columns = ["MarketHour", *[" " + name for name in LOAD_AREAS]]
+        content = raw.to_csv(index=False).encode()
+        if month == replace_month and replacement is not None:
+            content = replacement if isinstance(replacement, bytes) else replacement.to_csv(index=False).encode()
+        url = f"https://portal.spp.org/file-browser-api/download/hourly-load?path=/2025/HOURLY_LOAD-2025{month:02d}.csv"
+        paths.append(evidence(tmp_path, monkeypatch, f"hourly_load_2025_{month:02d}", url, content,
+                              changes=changes if month == replace_month else None,
+                              manifest_changes=manifest_changes if month == replace_month else None))
+    return paths
+
+
+def test_rollup_removes_only_exact_embedded_headers_and_records_it(tmp_path, monkeypatch):
+    lines = ver_rows().to_csv(index=False).splitlines()
+    content = "\n".join(lines[:7] + [lines[0]] + lines[7:] + [lines[0]]) + "\n"
+    ver_cache(tmp_path, monkeypatch, members=[(VER_MEMBER, content)])
+    raw, origin = wind.read_cached_wind_curtailment_archive(2025)
+    assert len(raw) == 12
+    assert set(raw.archive_member) == {VER_MEMBER}
+    assert "headers removed=2" in origin["ref"]
+    assert "does not guarantee complete annual coverage" in origin["ref"]
+    assert origin["source_type"] == "assumption"
+    result = wind.prepare_wind_curtailment_labels(raw, origin=origin, system_scope="SPP_SYSTEM",
+        scope_source={"source_type": "assumption", "ref": "explicit test SPP footprint"})
+    assert result.wind_curtailment_event.tolist() == [False]
+
+
+def test_partial_header_repetition_is_not_dropped_as_an_observation(tmp_path, monkeypatch):
+    lines = ver_rows().to_csv(index=False).splitlines()
+    malformed = lines[0].replace("WindManualCurtailments", "0")
+    ver_cache(tmp_path, monkeypatch, members=[(VER_MEMBER, "\n".join(lines + [malformed]) + "\n")])
+    with pytest.raises(ValueError):
+        wind.read_cached_wind_curtailment_archive(2025)
+
+
+@pytest.mark.parametrize("names", [["2025/01/VER-Curtailments-20250101.csv"],
+    ["../2025-VER-Curtailments-ANNUAL-ROLLUP.csv"], [VER_MEMBER, "extra.csv"], [VER_MEMBER, VER_MEMBER]])
+def test_rollup_requires_one_exact_unique_member(tmp_path, monkeypatch, names):
+    with pytest.warns(UserWarning) if len(set(names)) != len(names) else __import__('contextlib').nullcontext():
+        ver_cache(tmp_path, monkeypatch, members=[(name, ver_rows().to_csv(index=False)) for name in names])
+    with pytest.raises(ValueError, match="one exact CSV"):
+        wind.read_cached_wind_curtailment_archive(2025)
+    assert not (tmp_path / VER_MEMBER).exists()
+
+
+@pytest.mark.parametrize("change", ["schema", "duplicate_header", "empty", "partial_interval", "numeric_timestamp", "prior_operating_year"])
+def test_invalid_rollup_structure_or_calendar_is_rejected(tmp_path, monkeypatch, change):
+    rows = ver_rows()
+    if change == "schema":
+        rows = rows.drop(columns="LocalIntervalEnding")
+    elif change == "duplicate_header":
+        rows = rows.rename(columns={"LocalIntervalEnding": "GMTIntervalEnding"})
+    elif change == "empty":
+        rows = rows.iloc[:0]
+    elif change == "partial_interval":
+        rows.loc[0, "GMTIntervalEnding"] = "2025-01-01T06:04:00Z"
+    elif change == "numeric_timestamp":
+        rows["GMTIntervalEnding"] = 1
+    else:
+        rows = ver_rows("2025-01-01T05:00:00Z")
+    ver_cache(tmp_path, monkeypatch, rows=rows)
+    with pytest.raises(ValueError):
+        wind.read_cached_wind_curtailment_archive(2025)
+
+
+def test_rollup_allows_utc_next_year_for_last_central_operating_hour(tmp_path, monkeypatch):
+    ver_cache(tmp_path, monkeypatch, rows=ver_rows("2026-01-01T05:00:00Z"))
+    frame, _ = wind.read_cached_wind_curtailment_archive(2025)
+    assert len(frame) == 12
+
+
+@pytest.mark.parametrize("change", ["hash", "url", "manifest_url", "oversize"])
+def test_rollup_cache_identity_and_size_are_checked(tmp_path, monkeypatch, change):
+    kwargs = {"manifest_changes": {"sha256": "bad"}} if change == "hash" else {"changes": {"request_url": VER_URL.replace("2025", "2024")}} if change == "url" else {"manifest_changes": {"requested_url": "wrong"}} if change == "manifest_url" else {}
+    ver_cache(tmp_path, monkeypatch, **kwargs)
+    if change == "oversize":
+        original = zipfile.ZipFile.getinfo
+        def oversized(archive, name):
+            info = original(archive, name)
+            info.file_size = 10_000_001
+            return info
+        monkeypatch.setattr(zipfile.ZipFile, "getinfo", oversized)
+    with pytest.raises(ValueError):
+        wind.read_cached_wind_curtailment_archive(2025)
+
+
+def test_monthly_reader_preserves_components_missingness_and_shared_normalizer(tmp_path, monkeypatch):
+    first = load_rows(1)
+    first.loc[0, "CSWS"] = np.nan
+    load_cache(tmp_path, monkeypatch, replace_month=1, replacement=first)
+    frame, origin = wind.read_cached_monthly_load()
+    assert list(frame.columns) == ["MarketHour", *LOAD_AREAS]
+    assert len(frame) == 12 and pd.isna(frame.CSWS.iloc[0])
+    assert origin["source_type"] == "assumption"
+    assert len(frame.attrs["monthly_sources"]) == 12
+    assert all("cached_sha256=" in value["ref"] for value in frame.attrs["monthly_sources"].values())
+    raw_path, output_path = tmp_path / "raw.parquet", tmp_path / "normalized.parquet"
+    frame.to_parquet(raw_path, index=False)
+    normalize_legacy_load(raw_path, output_path)
+    normalized = pd.read_parquet(output_path)
+    assert pd.isna(normalized.load_mw.iloc[0])
+    assert normalized.load_mw.dropna().eq(170.).all()
+
+
+def test_monthly_reader_retains_duplicates_and_conflicts_for_shared_normalizer(tmp_path, monkeypatch):
+    row = load_rows(1)
+    replacement = pd.concat([row, row, row.assign(CSWS=11.)], ignore_index=True)
+    load_cache(tmp_path, monkeypatch, replace_month=1, replacement=replacement)
+    frame, _ = wind.read_cached_monthly_load()
+    assert len(frame) == 14
+    raw_path, output_path = tmp_path / "raw.parquet", tmp_path / "normalized.parquet"
+    frame.to_parquet(raw_path, index=False)
+    report = normalize_legacy_load(raw_path, output_path)
+    assert report["exact_duplicate_rows_removed"] == 1
+    assert report["conflicting_hours_marked_unknown"] == 1
+    assert pd.isna(pd.read_parquet(output_path).load_mw.iloc[0])
+
+
+@pytest.mark.parametrize("month", [1, 7, 12])
+def test_missing_month_is_not_fetched_or_silently_ignored(tmp_path, monkeypatch, month):
+    load_cache(tmp_path, monkeypatch, missing_month=month)
+    with pytest.raises(FileNotFoundError):
+        wind.read_cached_monthly_load()
+
+
+@pytest.mark.parametrize("change", ["missing_area", "extra_area", "duplicate_header", "blank_header", "empty", "wrong_month", "numeric_time", "fractional_hour", "infinite", "negative", "boolean"])
+def test_invalid_monthly_schema_and_observations_are_rejected(tmp_path, monkeypatch, change):
+    rows = load_rows(1)
+    if change == "missing_area":
+        rows = rows.drop(columns="WR")
+    elif change == "extra_area":
+        rows["NEW_AREA"] = 10.
+    elif change == "duplicate_header":
+        rows = rows.rename(columns={"WR": " CSWS "})
+    elif change == "blank_header":
+        rows = rows.rename(columns={"WR": " "})
+    elif change == "empty":
+        rows = rows.iloc[:0]
+    elif change == "wrong_month":
+        rows = load_rows(2)
+    elif change == "numeric_time":
+        rows["MarketHour"] = 1
+    elif change == "fractional_hour":
+        rows.loc[0, "MarketHour"] = "2025-01-01T07:30:00Z"
+    else:
+        rows["CSWS"] = {"infinite": np.inf, "negative": -1., "boolean": True}[change]
+    load_cache(tmp_path, monkeypatch, replace_month=1, replacement=rows)
+    with pytest.raises(ValueError):
+        wind.read_cached_monthly_load()
+
+
+@pytest.mark.parametrize("change", ["hash", "row_url", "manifest_url", "not_bytes"])
+def test_monthly_cache_identity_is_exact(tmp_path, monkeypatch, change):
+    kwargs = {"manifest_changes": {"sha256": "bad"}} if change == "hash" else {"changes": {"request_url": "wrong"}} if change == "row_url" else {"manifest_changes": {"requested_url": "wrong"}} if change == "manifest_url" else {"changes": {"content": "not CSV bytes"}}
+    load_cache(tmp_path, monkeypatch, replace_month=1, **kwargs)
+    with pytest.raises(ValueError):
+        wind.read_cached_monthly_load()
+
+
+def test_monthly_bounds_use_central_interval_starts_including_dst(tmp_path, monkeypatch):
+    load_cache(tmp_path, monkeypatch)
+    for month, ends in [(3, ["2025-03-09T08:00:00Z", "2025-03-09T09:00:00Z", "2025-04-01T05:00:00Z"]),
+                        (11, ["2025-11-02T07:00:00Z", "2025-11-02T08:00:00Z", "2025-12-01T06:00:00Z"]),
+                        (12, ["2026-01-01T06:00:00Z"])]:
+        rows = pd.DataFrame({"MarketHour": ends, **{name: [10.] * len(ends) for name in LOAD_AREAS}})
+        url = f"https://portal.spp.org/file-browser-api/download/hourly-load?path=/2025/HOURLY_LOAD-2025{month:02d}.csv"
+        evidence(tmp_path, monkeypatch, f"hourly_load_2025_{month:02d}", url, rows.to_csv(index=False).encode())
+    frame, _ = wind.read_cached_monthly_load()
+    assert len(frame) == 16
+    assert frame.MarketHour.iloc[-1] == "2026-01-01T06:00:00Z"
+
+
+@pytest.mark.parametrize("year", [True, 2024, 2026, "2025", 2025.0])
+def test_monthly_year_is_explicit_and_not_coerced(year):
+    with pytest.raises(ValueError):
+        wind.read_cached_monthly_load(year)
+
+
+@pytest.mark.parametrize("duplicate", [False, True])
+def test_generation_2025_exact_vintage_and_duplicate_header_guard(tmp_path, monkeypatch, duplicate):
+    header = "GMT MKT Interval,Coal Market,Wind Market" if not duplicate else "GMT MKT Interval,Wind Market, Wind Market "
+    content = (header + "\n2025-01-01T00:00:00Z,10,20\n").encode()
+    url = "https://portal.spp.org/file-browser-api/download/generation-mix-historical?path=/GenMix_2025.csv"
+    evidence(tmp_path, monkeypatch, "genmix_2025", url, content)
+    if duplicate:
+        with pytest.raises(ValueError, match="headers"):
+            wind.read_cached_generation_archive(2025)
+    else:
+        frame, origin = wind.read_cached_generation_archive(2025)
+        assert "Coal Market" in frame
+        assert origin["source_type"] == "assumption"
+        assert "GenMix_2025.csv" in origin["ref"]

@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from pipeline.wind_signal import WindPolicy, prepare_wind_inputs, read_cached_generation_archive, read_cached_wind_inputs, summarize_wind, wind_oversupply_hours
+from pipeline.wind_signal import WindPolicy, prepare_wind_inputs, read_cached_generation_archive, read_cached_wind_inputs, source, summarize_wind, wind_oversupply_hours
 
 
 SOURCES = {name: {"source_type": "assumption", "ref": "synthetic unit fixture"}
@@ -166,6 +166,59 @@ def test_placeholder_reference_cannot_be_upgraded_to_data():
     sources = {**SOURCES, "lmp_usd_mwh": {"source_type": "data", "ref": "placeholder price"}}
     with pytest.raises(ValueError, match="Placeholder"):
         wind_oversupply_hours(observations(), **{**ARGS, "sources": sources})
+
+
+def derived_source(kind, inputs):
+    return {"source_type": kind, "ref": json.dumps({"method": "test calculation", "inputs": inputs})}
+
+
+@pytest.mark.parametrize("outer,inner", [("data", "model"), ("data", "assumption"), ("model", "assumption")])
+def test_nested_calculation_provenance_cannot_upgrade_an_input(outer, inner):
+    nested = derived_source(outer, [{"value": 0.5, "source_type": inner, "ref": "declared test input"}])
+    with pytest.raises(ValueError, match="upgrade a nested"):
+        source(nested)
+    with pytest.raises(ValueError, match="upgrade a nested"):
+        summarize(observations(), available_fraction={"value": 0.5, **nested})
+
+
+@pytest.mark.parametrize("outer,inner", [("data", "data"), ("model", "data"), ("model", "model"),
+                                        ("assumption", "data"), ("assumption", "model"), ("assumption", "assumption")])
+def test_honest_nested_provenance_retains_exact_source_and_reference(outer, inner):
+    nested = derived_source(outer, [{"value": 0.5, "unit": "fraction", "source_type": inner, "ref": "declared test input"}])
+    saved = dict(nested)
+    assert source(nested) == saved
+    assert nested == saved
+
+
+def test_nested_provenance_checks_descendants_even_when_outermost_source_is_assumption():
+    hidden = derived_source("data", [{"source_type": "assumption", "ref": "declared test coefficient"}])
+    outer = derived_source("assumption", [{"value": 0.5, **hidden}])
+    with pytest.raises(ValueError, match="upgrade a nested"):
+        source(outer)
+
+
+@pytest.mark.parametrize("ref", [
+    '{"catalog": {"source_type": "assumption", "ref": "unrelated metadata"}}',
+    '{"method": "unknown schema", "inputs": ["opaque"]}',
+    '{"method": "unknown schema", "inputs": [], "version": 2}',
+    '{"method": "unknown schema", "inputs": [{"value": 1}]}',
+    '{"unfinished JSON citation', '[{"source_type": "assumption"}]',
+])
+def test_unrecognized_json_references_remain_opaque(ref):
+    origin = {"source_type": "data", "ref": ref}
+    assert source(origin) == origin
+
+
+@pytest.mark.parametrize("bad", [[], {}, None, "clause"])
+def test_recognized_nested_input_rejects_invalid_source_kind(bad):
+    nested = derived_source("assumption", [{"source_type": bad, "ref": "test input"}])
+    with pytest.raises(ValueError, match="Unsupported source_type"):
+        source(nested)
+
+
+def test_wind_source_still_requires_exact_outer_source_keys():
+    with pytest.raises(ValueError, match="exactly"):
+        source({"value": 0.5, "source_type": "assumption", "ref": "test datum"})
 
 
 def test_reproducible_order_and_no_avoided_claims_or_unsourced_numbers():

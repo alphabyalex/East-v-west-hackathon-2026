@@ -37,13 +37,26 @@ import pandas as pd
 from pipeline import ingest
 from pipeline.common import ROOT, fingerprint, read_hourly
 from pipeline.generation import normalize_generation
+from pipeline.prepare import LOAD_AREAS
+
+
+GENMIX_SOURCE_QUALIFICATION = {
+    "revision": "spp-generation-source-review-20260913",
+    "source": {"source_type": "data", "ref": "https://portal.spp.org/api/pageConfig/by-slug/generation-mix-historical; "
+               "reviewed_metadata_sha256=0160d0a41a70029190b79c3856cd427eeb59381a0d1af1f083f8e40011d435db"},
+    "text": "SPP describes GenMix Self columns as end-of-dispatch MW targets. Market plus Self is not established "
+            "as metered actual generation. SPP describes GMT MKT Interval as hour-ending, while the reviewed "
+            "gridstatus adapter treats its five-minute timestamps as interval-start. That discrepancy is unresolved; "
+            "the frozen experiment retains its declared observation-time binning assumption. This qualification "
+            "does not change fitted parameters, historical processing or verified publication availability.",
+}
 
 
 def source(value: object) -> dict:
     """Validate a source without upgrading it or discarding its reference."""
     if not isinstance(value, Mapping) or set(value) != {"source_type", "ref"}:
         raise ValueError("A source requires exactly source_type and ref.")
-    if value["source_type"] not in {"data", "model", "assumption"}:
+    if not isinstance(value["source_type"], str) or value["source_type"] not in {"data", "model", "assumption"}:
         raise ValueError("Unsupported source_type.")
     ref = value["ref"]
     if not isinstance(ref, str) or not ref.strip():
@@ -52,6 +65,25 @@ def source(value: object) -> dict:
         word in ref.lower() for word in ("placeholder", "mock://", "illustrative")
     ):
         raise ValueError("Placeholder references must remain assumptions.")
+    # Traverse only the producer's exact derived-source format. Other JSON refs
+    # remain opaque citations, and no ref is ever followed or fetched.
+    if ref.lstrip().startswith("{"):
+        try:
+            nested = json.loads(ref)
+        except ValueError:
+            nested = None
+        recognized = (isinstance(nested, dict) and set(nested) == {"method", "inputs"}
+                      and isinstance(nested["method"], str) and isinstance(nested["inputs"], list)
+                      and all(isinstance(item, dict) and {"source_type", "ref"}.issubset(item)
+                              for item in nested["inputs"]))
+        if recognized:
+            rank = {"data": 0, "model": 1, "assumption": 2}
+            for item in nested["inputs"]:
+                # Inputs may be complete sourced datums with value/unit fields;
+                # the source validator itself still requires exactly two keys.
+                origin = source({key: item[key] for key in ("source_type", "ref")})
+                if rank[origin["source_type"]] > rank[value["source_type"]]:
+                    raise ValueError("Derived provenance cannot upgrade a nested input source type.")
     return dict(value)
 
 
@@ -95,7 +127,7 @@ VER_DESCRIPTION_REF = "https://portal.spp.org/api/pageConfig/by-slug/ver-curtail
 def _archive_csv_header(stream):
     """Reject duplicate source fields before pandas silently renames them."""
     header = next(csv.reader([stream.readline().decode("utf-8-sig")]))
-    if not header or len(header) != len(set(name.strip() for name in header)):
+    if not header or any(not name.strip() for name in header) or len(header) != len(set(name.strip() for name in header)):
         raise ValueError("Archive CSV has duplicate or missing column headers.")
     stream.seek(0)
 
@@ -112,20 +144,24 @@ def _archive_operating_day(raw_ends, day, *, minutes):
 def read_cached_wind_curtailment_archive(year: int) -> tuple[pd.DataFrame, dict]:
     """Read independent SPP VER observations from the existing evidence cache.
 
-    Uses daily CSV members only: annual ZIPs also contain monthly duplicates.
+    Through 2024 uses daily CSV members only, excluding monthly duplicates.
+    The explicit 2025 annual-rollup URL has one CSV with repeated full headers;
+    only exact complete header repetitions are removed, with count in provenance.
     No archive member is extracted to disk and this reader never downloads.
     The raw category quantities retain their source units; they are not summed
     or converted to energy here. WindCurtailedForEnergy is a redispatch subset.
     Missing days/observations remain missing, not negative training examples.
     """
-    if isinstance(year, bool) or not isinstance(year, int) or not 2014 <= year <= 2024:
-        raise ValueError("Use a declared historical VER archive year from 2014 through 2024.")
-    path = ROOT / f"data/raw/spp/evidence/ver_curtailments_{year}.parquet"
+    if isinstance(year, bool) or not isinstance(year, int) or not 2014 <= year <= 2025:
+        raise ValueError("Use a declared historical VER archive year from 2014 through 2025.")
+    rollup = year == 2025
+    path = ROOT / f"data/raw/spp/evidence/ver_curtailments_{year}{'_rollup' if rollup else ''}.parquet"
     cached = pd.read_parquet(path)
     if len(cached) != 1 or not cached.columns.is_unique or not {"request_url", "content", "source_json"}.issubset(cached.columns):
         raise ValueError("Invalid cached VER archive record.")
     row = cached.iloc[0]
-    url = f"https://portal.spp.org/file-browser-api/download/ver-curtailments?path=/{year}/{year}.zip"
+    filename = f"{year}-VER-Curtailments-ANNUAL-ROLLUP.zip" if rollup else f"{year}.zip"
+    url = f"https://portal.spp.org/file-browser-api/download/ver-curtailments?path=/{year}/{filename}"
     manifest = json.loads(row.source_json)
     if not isinstance(manifest, dict) or row.request_url != url or manifest.get("requested_url") != url or manifest.get("ref") != url:
         raise ValueError("VER cache must identify its exact SPP archive URL.")
@@ -136,6 +172,33 @@ def read_cached_wind_curtailment_archive(year: int) -> tuple[pd.DataFrame, dict]
     if manifest.get("sha256") != digest:
         raise ValueError("Cached VER bytes do not match their source fingerprint.")
     with zipfile.ZipFile(io.BytesIO(row.content)) as archive:
+        if rollup:
+            member = f"{year}-VER-Curtailments-ANNUAL-ROLLUP.csv"
+            if archive.namelist() != [member]:
+                raise ValueError("VER annual rollup requires its one exact CSV member, without duplicates or extra paths.")
+            if archive.getinfo(member).file_size > 10_000_000:
+                raise ValueError("VER annual rollup exceeds the supported observation size.")
+            with archive.open(member) as stream:
+                _archive_csv_header(stream)
+                frame = pd.read_csv(stream)
+            expected = {"LocalIntervalEnding", "GMTIntervalEnding", *VER_WIND_COLUMNS,
+                        "SolarRedispatchCurtailments", "SolarManualCurtailments", "SolarCurtailedForEnergy"}
+            if set(frame.columns) != expected:
+                raise ValueError("VER annual rollup requires the reviewed eight-column schema.")
+            repeated = frame.eq(pd.Series(frame.columns, index=frame.columns)).all(axis=1)
+            removed_headers = int(repeated.sum())
+            frame = frame.loc[~repeated].copy()
+            if frame.empty or frame.GMTIntervalEnding.map(lambda value: isinstance(value, (Real, bool, np.bool_))).any():
+                raise ValueError("VER annual rollup requires nonempty, nonnumeric GMT interval ends.")
+            ends = pd.to_datetime(frame.GMTIntervalEnding, utc=True, format="mixed")
+            operating_starts = (ends - pd.Timedelta(5, unit="min")).dt.tz_convert("America/Chicago")
+            if ends.isna().any() or not ends.eq(ends.dt.floor("5min")).all() or not operating_starts.dt.year.eq(year).all():
+                raise ValueError("VER annual rollup interval starts must lie within its Central operating year.")
+            frame["archive_member"] = member
+            return frame.reset_index(drop=True), {**origin, "ref": f"{url}; cached_sha256={digest}; "
+                f"one exact annual-rollup member; exact repeated full CSV headers removed={removed_headers}; "
+                "GMT interval end minus five minutes checked against Central operating year; "
+                "archive filename does not guarantee complete annual coverage; category quantities not added"}
         names = sorted(name for name in archive.namelist()
                        if re.fullmatch(rf"{year}/\d{{2}}/VER-Curtailments-{year}\d{{4}}\.csv", name))
         if not names or len(names) != len(set(names)) or len(names) > 366:
@@ -475,11 +538,11 @@ def read_cached_generation_archive(year: int) -> tuple[pd.DataFrame, dict]:
     The returned raw table retains ALL fuel columns for separate carbon accounting.
     Do not use a normalized wind/solar-only table as a complete grid fuel mix.
     """
-    if isinstance(year, bool) or not isinstance(year, int) or not 2019 <= year <= 2024:
-        raise ValueError("Historical generation reader supports declared 2019..2024 archive years.")
+    if isinstance(year, bool) or not isinstance(year, int) or not 2019 <= year <= 2025:
+        raise ValueError("Historical generation reader supports declared 2019..2025 archive years.")
     path = ROOT / f"data/raw/spp/evidence/genmix_{year}.parquet"
     cached = pd.read_parquet(path)
-    if len(cached) != 1 or not {"request_url", "content", "source_json"}.issubset(cached.columns):
+    if len(cached) != 1 or not cached.columns.is_unique or not {"request_url", "content", "source_json"}.issubset(cached.columns):
         raise ValueError("Invalid cached historical-generation document.")
     row = cached.iloc[0]
     url = f"https://portal.spp.org/file-browser-api/download/generation-mix-historical?path=/GenMix_{year}.csv"
@@ -492,12 +555,83 @@ def read_cached_generation_archive(year: int) -> tuple[pd.DataFrame, dict]:
     digest = hashlib.sha256(row.content).hexdigest()
     if manifest.get("sha256") != digest:
         raise ValueError("Cached generation bytes do not match their source fingerprint.")
-    frame = pd.read_csv(io.BytesIO(row.content))
+    stream = io.BytesIO(row.content)
+    _archive_csv_header(stream)
+    frame = pd.read_csv(stream)
     if frame.empty:
         raise ValueError("Cached generation CSV is empty.")
     return frame, {**origin, "ref": f"{origin['ref']}; cached_sha256={digest}; "
                                   "GMT MKT Interval treated as observation time by existing generation normalizer; "
-                                  "left-closed hourly bins require 12 distinct five-minute observations"}
+                                  "left-closed hourly bins require 12 distinct five-minute observations; "
+                                  + GENMIX_SOURCE_QUALIFICATION["text"] + "; " + GENMIX_SOURCE_QUALIFICATION["source"]["ref"]}
+
+
+def read_cached_monthly_load(year: int = 2025) -> tuple[pd.DataFrame, dict]:
+    """Read all twelve explicit 2025 monthly load evidence records, without I/O writes.
+
+    Returns raw MarketHour + seventeen component columns for the existing
+    pipeline.prepare.normalize_legacy_load producer. It does not aggregate,
+    fill gaps, pick revisions, or fetch. Exact duplicate/conflicting source rows
+    are retained so the shared normalizer can report and handle them as before.
+    Timestamp interpretation matches that normalizer and installed gridstatus:
+    MarketHour is UTC hour ending; its start belongs to the named Central month.
+    Twelve files do not imply twelve complete months. Publication vintage and
+    correspondence to any local data-center connection remain unestablished.
+    """
+    if isinstance(year, bool) or not isinstance(year, int) or year != 2025:
+        raise ValueError("Monthly evidence reader is reviewed for exactly the 2025 legacy load archive.")
+    columns = ["MarketHour", *LOAD_AREAS]
+    frames, origins = [], {}
+    for month in range(1, 13):
+        key = f"{year}_{month:02d}"
+        path = ROOT / f"data/raw/spp/evidence/hourly_load_{key}.parquet"
+        cached = pd.read_parquet(path)
+        if len(cached) != 1 or not cached.columns.is_unique or not {"request_url", "content", "source_json"}.issubset(cached.columns):
+            raise ValueError("Invalid cached monthly-load evidence record.")
+        row = cached.iloc[0]
+        url = f"https://portal.spp.org/file-browser-api/download/hourly-load?path=/{year}/HOURLY_LOAD-{year}{month:02d}.csv"
+        manifest = json.loads(row.source_json)
+        if not isinstance(manifest, dict) or row.request_url != url or manifest.get("requested_url") != url or manifest.get("ref") != url:
+            raise ValueError("Monthly load cache must identify its exact month and SPP archive URL.")
+        origin = source({name: manifest.get(name) for name in ("source_type", "ref")})
+        if not isinstance(row.content, (bytes, bytearray)) or len(row.content) > 5_000_000:
+            raise ValueError("Cached monthly load must contain bounded CSV bytes.")
+        digest = hashlib.sha256(row.content).hexdigest()
+        if manifest.get("sha256") != digest:
+            raise ValueError("Cached monthly-load bytes do not match their source fingerprint.")
+        stream = io.BytesIO(row.content)
+        _archive_csv_header(stream)
+        frame = pd.read_csv(stream)
+        frame.columns = frame.columns.str.strip()
+        if frame.empty or set(frame.columns) != set(columns):
+            raise ValueError("Monthly load requires MarketHour and exactly the seventeen reviewed component areas.")
+        if frame.MarketHour.map(lambda value: isinstance(value, (Real, bool, np.bool_))).any():
+            raise ValueError("Monthly MarketHour values cannot be numeric or boolean.")
+        ends = pd.to_datetime(frame.MarketHour, utc=True, format="mixed")
+        starts = (ends - pd.Timedelta(1, unit="h")).dt.tz_convert("America/Chicago")
+        if (ends.isna().any() or not ends.eq(ends.dt.floor("h")).all()
+                or not starts.dt.strftime("%Y-%m").eq(f"{year}-{month:02d}").all()):
+            raise ValueError("Monthly load interval starts disagree with their Central operating month.")
+        # Validate raw components; leave missingness and values unchanged for the
+        # shared all-components-required sum and conflicting-revision treatment.
+        for name in LOAD_AREAS:
+            if frame[name].map(lambda value: isinstance(value, (bool, np.bool_))).any():
+                raise ValueError("Monthly load components cannot be boolean.")
+            numeric = pd.to_numeric(frame[name], errors="raise")
+            if np.isinf(numeric).any() or numeric.lt(0).any():
+                raise ValueError("Monthly load components must be finite nonnegative values or missing.")
+        frames.append(frame[columns].assign(_interval_end=ends))
+        origins[key] = {**origin, "ref": f"{url}; cached_sha256={digest}"}
+    result = pd.concat(frames, ignore_index=True).sort_values("_interval_end", kind="stable").drop(columns="_interval_end").reset_index(drop=True)
+    kinds = {item["source_type"] for item in origins.values()}
+    kind = "assumption" if "assumption" in kinds else "model" if "model" in kinds else "data"
+    origin = {"source_type": kind, "ref": "; ".join(item["ref"] for item in origins.values()) + "; "
+              "all twelve named monthly evidence files; MarketHour parsed as UTC interval end per "
+              "pipeline.prepare.normalize_legacy_load and gridstatus.SPP._handle_market_end_to_interval; "
+              "minus one hour checked against each Central operating month; no gap filling or revision selection"}
+    result.attrs = {"monthly_sources": origins, "source": origin,
+                    "next_step": "pipeline.prepare.normalize_legacy_load; sum requires all seventeen components"}
+    return result, origin
 
 
 def read_cached_historical_wind_inputs(
@@ -659,12 +793,17 @@ WIND_CLASSIFIER_SPLITS = {
     "calibration": ("2024-09-01T00:00:00+00:00", "2024-10-01T00:00:00+00:00"),
     "test": ("2024-10-01T00:00:00+00:00", "2025-01-01T00:00:00+00:00"),
 }
-WIND_CLASSIFIER_LIMITATION = (
+WIND_CLASSIFIER_LEGACY_LIMITATION = (
     "Historical replay of reported SPP-system wind-curtailment occurrence, not a verified live forecast. "
     "Publication and revision timestamps for lagged actuals are unverified. A positive target means at least "
     "one reported five-minute event within a completely evaluable hour, not sixty minutes of curtailment, "
     "site deliverability or absorbable energy. One 2024 autumn holdout does not establish other-year or site skill. "
     "Event probability is not the product's model-confidence estimate."
+)
+WIND_CLASSIFIER_LIMITATION = (
+    WIND_CLASSIFIER_LEGACY_LIMITATION.replace("lagged actuals", "lagged reported inputs")
+    + " Historical GenMix inputs include Self dispatch targets; metered generation and exact interval semantics "
+      "are not established. See the attached source qualification."
 )
 
 
@@ -722,8 +861,8 @@ def prepare_wind_classifier_features(hourly, *, sources, target_timestamps=None)
 
     Input rows declare the common SPP_SYSTEM footprint. At target start t the
     features are hourly wind/load observations for [t-1h,t) and [t-24h,t-23h).
-    These are historical actuals, not verified as-of-published observations.
-    A missing current-hour actual does not prevent prediction if its lag inputs
+    These are historical reported inputs, not verified as-of-published meter readings.
+    A missing current-hour input does not prevent prediction if its lag inputs
     exist. Supply target_timestamps to request such hours or future intervals.
     No interpolation, current-hour values, target labels or price features enter.
     """
@@ -816,7 +955,7 @@ def _validate_wind_classifier_bundle(bundle):
     if (manifest.get("status") != "research_only_no_production_promotion"
             or manifest.get("target_method") != "reported_system_wind_curtailment_any_category_v1"
             or manifest.get("split_bounds") != expected_splits
-            or manifest.get("limitation") != WIND_CLASSIFIER_LIMITATION
+            or manifest.get("limitation") not in (WIND_CLASSIFIER_LEGACY_LIMITATION, WIND_CLASSIFIER_LIMITATION)
             or type(manifest.get("calibration_minimum_per_class")) is not int
             or manifest["calibration_minimum_per_class"] != 20):
         raise ValueError("Wind classifier manifest does not preserve the predeclared experiment or honesty framing.")
@@ -891,14 +1030,17 @@ def predict_wind_event_classifier(bundle, hourly, *, sources, target_timestamps=
         roles = {"train": "training_period", "calibration": "calibration_period", "test": "heldout_2024_autumn"}
         period_role = next((roles[name] for name, (start, end) in WIND_CLASSIFIER_SPLITS.items()
                             if pd.Timestamp(start) <= stamp < pd.Timestamp(end)), "outside_evaluated_period")
+        row_origin = {**origin, "ref": f"{origin['ref']}; target_timestamp_utc={stamp.isoformat()}; "
+                      f"query_observations_sha256={features.attrs['feature_input_sha256']}"}
         def probability(value, reason):
-            return sourced(float(value), origin) if np.isfinite(value) else sourced(None, {
-                "source_type": "assumption", "ref": f"unavailable: {reason}; {origin['ref']}"})
+            return sourced(float(value), row_origin) if np.isfinite(value) else sourced(None, {
+                "source_type": "assumption", "ref": f"unavailable: {reason}; {row_origin['ref']}"})
         result.append({"timestamp_utc": stamp.isoformat(), "location_id": "SPP_SYSTEM",
                        "raw_probability": probability(first, "missing exact-time lag observations"),
                        "calibrated_probability": probability(second, "calibration not fitted" if bundle["calibrator"] is None else "missing exact-time lag observations"),
                        "forecast_asof_verified": False,
                        "target_period_role": period_role, "limitation": WIND_CLASSIFIER_LIMITATION,
+                       "source_qualification": GENMIX_SOURCE_QUALIFICATION,
                        "period_role_basis": "Calendar period only; does not assert this row was used in fitting or evaluation.",
                        "feature_input_sha256": features.attrs["feature_input_sha256"],
                        "input_sources": features.attrs["sources"], "model_id": bundle["model_id"]})
@@ -1027,13 +1169,19 @@ def fit_wind_event_classifier(hourly, labels, *, sources, seed=2026, calibrate=T
     y_test = test.wind_curtailment_event.astype(int).to_numpy()
     baseline = float(y_train.mean())
     model_origin = _wind_prediction_source(bundle)
+    label_digest = _wind_frame_digest(targets)
+    test_digest = _wind_frame_digest(test[fit_columns])
+    model_origin["ref"] += (f"; evaluation_window=[{WIND_CLASSIFIER_SPLITS['test'][0]}, {WIND_CLASSIFIER_SPLITS['test'][1]}); "
+                            f"observations_sha256={features.attrs['feature_input_sha256']}; "
+                            f"labels_sha256={label_digest}; evaluation_cohort_sha256={test_digest}")
     report = {"schema_version": WIND_CLASSIFIER_SCHEMA, "model_id": bundle["model_id"],
               "status": "research_only_no_production_promotion", "forecast_asof_verified": False,
               "limitation": WIND_CLASSIFIER_LIMITATION, "calibration_status": cal_status,
+              "source_qualification": GENMIX_SOURCE_QUALIFICATION,
               "cohorts": counts, "input_sources": input_sources, "policy_source": policy,
               "data_manifest": {"hourly_observations_sha256": features.attrs["feature_input_sha256"],
-                                "labels_sha256": _wind_frame_digest(targets),
-                                "test_cohort_sha256": _wind_frame_digest(test[fit_columns]),
+                                "labels_sha256": label_digest,
+                                "test_cohort_sha256": test_digest,
                                 "outside_fixed_windows": sourced(int((joined.timestamp_utc.lt(pd.Timestamp(WIND_CLASSIFIER_SPLITS["train"][0])) | joined.timestamp_utc.ge(pd.Timestamp(WIND_CLASSIFIER_SPLITS["test"][1]))).sum()), count_origin)},
               "training_event_rate": sourced(baseline, count_origin),
               "test_metrics": {"raw": _wind_classifier_metrics(y_test, raw, model_origin),
@@ -1052,3 +1200,99 @@ def fit_wind_event_classifier(hourly, labels, *, sources, seed=2026, calibrate=T
     # Also rejects accidental numpy scalars, timestamps, NaNs or infinity in public results.
     report, prediction_rows = json.loads(json.dumps((report, prediction_rows), sort_keys=True, allow_nan=False))
     return bundle, report, prediction_rows
+
+
+def evaluate_wind_event_classifier(
+    bundle, hourly, labels, *, sources, baseline_probability,
+    start_utc, end_exclusive_utc,
+):
+    """Evaluate frozen JSON parameters on an explicitly declared later window.
+
+    No estimator fits, threshold selection or model promotion occur here. The
+    supplied constant baseline is separately sourced; its origin is the caller's
+    declaration, not an inferred training-prevalence guarantee. The requested
+    UTC calendar grid includes missing label hours, so a partial provider archive
+    cannot silently become complete-year coverage. Counts of missing targets
+    and missing lags overlap; excluded_hours counts their union.
+    """
+    _validate_wind_classifier_bundle(bundle)
+    bounds = _wind_hour_index([start_utc, end_exclusive_utc])
+    start, end = bounds[0], bounds[1]
+    if start < pd.Timestamp(WIND_CLASSIFIER_SPLITS["test"][1]) or end <= start:
+        raise ValueError("Independent replay must follow all fixed 2024 experiment windows.")
+    if end - start > pd.Timedelta(366, unit="D"):
+        raise ValueError("Declare at most one calendar year per independent replay.")
+    if not isinstance(baseline_probability, Mapping) or set(baseline_probability) != {"value", "source_type", "ref"}:
+        raise ValueError("The supplied constant baseline requires value, source_type and ref.")
+    baseline = finite_number(baseline_probability["value"], "baseline probability", minimum=0, maximum=1)
+    baseline_origin = source({key: baseline_probability[key] for key in ("source_type", "ref")})
+    targets, label_origin = _wind_classifier_labels(labels)
+    times = pd.date_range(start, end, freq="h", inclusive="left")
+    features = prepare_wind_classifier_features(hourly, sources=sources, target_timestamps=times)
+    rows = predict_wind_event_classifier(bundle, hourly, sources=sources, target_timestamps=times)
+    target_lookup = targets.set_index("timestamp_utc").wind_curtailment_event.reindex(times)
+    supplied = times.isin(targets.timestamp_utc)
+    known_target = target_lookup.notna().to_numpy()
+    raw = np.array([row["raw_probability"]["value"] for row in rows], dtype=float)
+    calibrated = np.array([row["calibrated_probability"]["value"] for row in rows], dtype=float)
+    known_features = np.isfinite(raw)
+    eligible = known_target & known_features
+    empirical_sources = {**features.attrs["sources"], "evaluation_labels": label_origin}
+    metric_origin = _wind_prediction_source(bundle, input_sources=empirical_sources)
+    label_digest = _wind_frame_digest(targets)
+    evaluated = features.loc[eligible, ["timestamp_utc", *WIND_CLASSIFIER_FEATURES]].copy()
+    evaluated["wind_curtailment_event"] = target_lookup.iloc[np.flatnonzero(eligible)].to_numpy()
+    cohort_digest = _wind_frame_digest(evaluated)
+    replay_reference = (f"evaluation_window=[{start.isoformat()}, {end.isoformat()}); "
+                        f"observations_sha256={features.attrs['feature_input_sha256']}; "
+                        f"labels_sha256={label_digest}; evaluation_cohort_sha256={cohort_digest}")
+    metric_origin["ref"] += "; " + replay_reference
+    empirical_kind = "assumption" if any(origin["source_type"] == "assumption" for origin in empirical_sources.values()) else "data"
+    coverage_origin = {"source_type": empirical_kind, "ref": "Exact requested UTC grid, observed VER completeness and exact-lag availability; "
+                       + "; ".join(origin["ref"] for origin in empirical_sources.values()) + "; " + replay_reference}
+    policy = {"source_type": "assumption", "ref": f"Declared independent historical replay window [{start.isoformat()}, {end.isoformat()}); "
+              "same frozen model and all eligible rows, no fitting or selection; missing-target and missing-lag counts may overlap"}
+    counts = {
+        "requested_hours": sourced(len(times), policy),
+        "supplied_label_hours": sourced(int(supplied.sum()), coverage_origin),
+        "missing_label_hours": sourced(int((~supplied).sum()), coverage_origin),
+        "unknown_supplied_target_hours": sourced(int((supplied & ~known_target).sum()), coverage_origin),
+        "missing_lag_hours": sourced(int((~known_features).sum()), coverage_origin),
+        "eligible_hours": sourced(int(eligible.sum()), coverage_origin),
+        "excluded_hours": sourced(int((~eligible).sum()), coverage_origin),
+        "positive_hours": sourced(int(target_lookup.iloc[np.flatnonzero(eligible)].sum()), coverage_origin),
+    }
+    counts["negative_hours"] = sourced(counts["eligible_hours"]["value"] - counts["positive_hours"]["value"], coverage_origin)
+    y = target_lookup.iloc[np.flatnonzero(eligible)].astype(int).to_numpy()
+    combined_baseline_origin = {
+        "source_type": "assumption" if "assumption" in {metric_origin["source_type"], baseline_origin["source_type"]} else "model",
+        "ref": f"Caller-supplied constant probability {baseline!r} ({baseline_origin['ref']}); {metric_origin['ref']}",
+    }
+    metrics = {
+        "raw": _wind_classifier_metrics(y, raw[eligible], metric_origin),
+        "calibrated": _wind_classifier_metrics(y, calibrated[eligible], metric_origin,
+            unavailable=bundle["manifest"]["calibration_status"] if bundle["calibrator"] is None else None),
+        "supplied_constant_baseline": _wind_classifier_metrics(y, np.full(len(y), baseline), combined_baseline_origin),
+    }
+    report = {
+        "schema_version": "spp-wind-event-independent-replay-v1", "model_id": bundle["model_id"],
+        "status": "research_only_no_production_promotion", "forecast_asof_verified": False,
+        "start_utc": start.isoformat(), "end_exclusive_utc": end.isoformat(),
+        "limitation": WIND_CLASSIFIER_LIMITATION, "policy_source": policy,
+        "source_qualification": GENMIX_SOURCE_QUALIFICATION,
+        "coverage": counts, "input_sources": empirical_sources,
+        "baseline_probability": sourced(baseline, baseline_origin), "metrics": metrics,
+        "data_manifest": {"hourly_observations_sha256": features.attrs["feature_input_sha256"],
+                          "labels_sha256": label_digest, "evaluation_cohort_sha256": cohort_digest},
+        "interpretation": "Frozen historical replay, no automatic selection between raw and calibrated results. "
+                          "Metrics use the identical eligible rows. Missing calendar hours remain explicit; "
+                          "the supplied baseline's claimed origin must be verified separately.",
+    }
+    for index, row in enumerate(rows):
+        target = target_lookup.iloc[index]
+        row["observed_event"] = {"value": bool(target), **label_origin} if known_target[index] else {
+            "value": None, "source_type": "assumption", "ref": "unavailable: "
+            + ("incomplete supplied VER hour" if supplied[index] else "no supplied VER hour") + "; " + label_origin["ref"],
+        }
+        row["evaluated"] = bool(eligible[index])
+    return json.loads(json.dumps((report, rows), sort_keys=True, allow_nan=False))

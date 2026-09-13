@@ -50,7 +50,7 @@ WIND_OPERATIONAL_CO2_FACTOR = {
 
 
 def _source(source: Mapping) -> dict:
-    if not isinstance(source, Mapping) or source.get("source_type") not in {"data", "model", "assumption"}:
+    if not isinstance(source, Mapping) or not isinstance(source.get("source_type"), str) or source["source_type"] not in {"data", "model", "assumption"}:
         raise ValueError("Every input requires data, model, or assumption provenance")
     ref = source.get("ref")
     if not isinstance(ref, str) or not ref.strip():
@@ -59,6 +59,22 @@ def _source(source: Mapping) -> dict:
         word in ref.lower() for word in ("placeholder", "mock://", "illustrative")
     ):
         raise ValueError("Placeholder references must remain assumptions")
+    # Only our exact derived-provenance format has traversable input semantics.
+    # Other JSON references remain opaque citations, never interpreted or fetched.
+    if ref.lstrip().startswith("{"):
+        try:
+            nested = json.loads(ref)
+        except ValueError:
+            nested = None
+        recognized = (isinstance(nested, dict) and set(nested) == {"method", "inputs"}
+                      and isinstance(nested["method"], str) and isinstance(nested["inputs"], list)
+                      and all(isinstance(item, dict) and {"source_type", "ref"}.issubset(item)
+                              for item in nested["inputs"]))
+        if recognized:
+            rank = {"data": 0, "model": 1, "assumption": 2}
+            for item in nested["inputs"]:
+                if rank[_source(item)["source_type"]] > rank[source["source_type"]]:
+                    raise ValueError("Derived provenance cannot upgrade a nested input source type")
     return {"source_type": source["source_type"], "ref": ref}
 
 
@@ -220,11 +236,13 @@ def normalize_spp_generation_archive(raw: pd.DataFrame, *, generation_source: Ma
     is NOT independently verified as interval start/end; timing_source must be an
     explicit assumption. Each hourly fuel requires all 12 distinct five-minute
     observations and both Market/Self components. Mean combined MW times one hour
-    gives MWh under that convention; no partial-hour extrapolation occurs.
+    gives a scenario MWh approximation under that convention, not verified
+    metered energy; no partial-hour extrapolation occurs. SPP describes Self
+    columns as dispatch targets (see the source reader's qualification).
 
     The ten published fuels are always retained, as are any additional named
-    Market/Self fuels. Only Gas Self aliases Natural Gas Self. Load is demand and
-    is excluded, never used as the generation denominator. Missing components or
+    Market/Self fuels. Only Gas Self aliases Natural Gas Self. GenMix Load is the
+    short-term load forecast and is excluded, never a generation denominator. Missing components or
     samples produce unknown generation. Signed components may offset within a
     fuel/sample, but any negative combined sample makes that fuel-hour unknown:
     negative net generation needs a reviewed accounting rule, never a zero clamp.
@@ -388,7 +406,7 @@ def fuel_mix_intensity(frame: pd.DataFrame, factors: Mapping[str, Mapping], *, e
             "boundary": BOUNDARY,
             "status": "missing_generation" if missing_generation else "missing_factors" if missing else "no_generation" if total == 0 else "available",
             "intensity_kg_co2_per_mwh": _derived(intensity, sources, "generation-weighted average; not marginal dispatch intensity", modeled=True),
-            "generation_mwh": _derived(None if missing_generation else total, list(fuels.values()), "complete fuel universe generation MWh; null if a required fuel row is absent"),
+            "generation_mwh": _derived(None if missing_generation else total, [*fuels.values(), coverage_source], "complete fuel universe generation MWh; null if a required fuel row is absent"),
             "reported_generation_mwh": _derived(total if observed else None, list(fuels.values()), "sum of reported complete fuel generation MWh; may be incomplete; null if none are known"),
             "known_generation_mwh": _derived(known if observed else None, sources, "generation MWh with supplied fuel factors; null if no generation is known"),
             "factor_coverage_fraction": _derived(known / total if total and not missing_generation else None, sources, "known generation MWh / all generation MWh"),

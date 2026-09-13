@@ -744,3 +744,96 @@ def test_generation_unit_is_checked_if_supplied():
     frame.loc[0, "unit"] = "MW"
     with pytest.raises(ValueError, match="energy in MWh"):
         archive_intensity(frame)
+
+
+def test_complete_generation_total_traces_the_declared_universe_that_controls_missingness():
+    frame = mix([(HOURS[0], "wind", 70.)])
+    factors = {"wind": factor(0.)}
+    complete = fuel_mix_intensity(frame, factors, expected_fuels=["wind"], application_source=POLICY)[0]
+    incomplete = fuel_mix_intensity(frame, factors, expected_fuels=["wind", "coal"], application_source=POLICY)[0]
+    assert complete["generation_mwh"]["value"] == 70.
+    assert incomplete["generation_mwh"]["value"] is None
+    assert complete["generation_mwh"]["ref"] != incomplete["generation_mwh"]["ref"]
+    assert "coal" in incomplete["generation_mwh"]["ref"]
+    assert POLICY["ref"] in incomplete["generation_mwh"]["ref"]
+    assert incomplete["generation_mwh"]["source_type"] == "assumption"
+    # The sum of supplied observations does not depend on declaring completeness.
+    assert incomplete["reported_generation_mwh"]["value"] == 70.
+    assert incomplete["reported_generation_mwh"]["source_type"] == "data"
+
+
+@pytest.mark.parametrize("parent,child", [("data", "model"), ("data", "assumption"), ("model", "assumption")])
+def test_recognized_nested_provenance_cannot_upgrade_a_descendant(parent, child):
+    leaf = datum(25., child, "authored audit descendant")
+    original = datum(25., parent, json.dumps({"method": "authored derived quantity", "inputs": [leaf]}))
+    with pytest.raises(ValueError, match="upgrade"):
+        wind_carbon(original, selection_source={"source_type": "data", "ref": "authored observed selection"})
+
+
+def test_nested_source_guard_applies_to_all_accounting_input_positions():
+    leaf = datum(10., "assumption", "authored scenario descendant")
+    nested = json.dumps({"method": "authored derived input", "inputs": [leaf]})
+    authored = datum(10., "data", nested)
+    frame = mix()
+    frame.loc[0, ["source_type", "ref"]] = ["data", nested]
+    bad_factor = {**factor(1000.), "ref": nested}
+    observations = intensity()
+    observations[0]["intensity_kg_co2_per_mwh"] = authored
+    cap = limits()
+    cap[HOURS[0]]["removable_mwh"] = authored
+    schedule = moves()
+    schedule[0]["mwh"] = authored
+    for call in (
+        lambda: calculate(frame),
+        lambda: calculate(mix(), {"coal": bad_factor, "wind": factor(0.)}),
+        lambda: fuel_mix_intensity(mix(), {}, expected_fuels=["coal", "wind"], application_source=authored),
+        lambda: shift(records=observations),
+        lambda: shift(cap=cap),
+        lambda: shift(schedule=schedule),
+        lambda: shift_carbon(intensity(), moves(), selection_source=authored, hourly_limits=limits()),
+        lambda: wind_carbon(authored, selection_source=POLICY),
+        lambda: wind_carbon(datum(10.), selection_source=authored),
+        lambda: wind_carbon(datum(10.), selection_source=POLICY, factor={**factor(0.), "ref": nested}),
+        lambda: normalize_spp_generation_archive(archive(), generation_source=authored, timing_source=TIMING_SOURCE),
+    ):
+        with pytest.raises(ValueError, match="upgrade"):
+            call()
+
+
+def test_nested_source_guard_reaches_multiple_levels_and_preserves_valid_assumptions():
+    leaf = datum(25., "assumption", "authored original capacity assumption")
+    inner = datum(25., "data", json.dumps({"method": "authored inner", "inputs": [leaf]}))
+    outer = datum(25., "data", json.dumps({"method": "authored outer", "inputs": [inner]}))
+    with pytest.raises(ValueError, match="upgrade"):
+        wind_carbon(outer, selection_source=POLICY)
+    inner["source_type"] = "assumption"
+    outer = datum(25., "assumption", json.dumps({"method": "authored outer", "inputs": [inner]}))
+    original = deepcopy(outer)
+    result = wind_carbon(outer, selection_source={"source_type": "data", "ref": "authored observed selection"})
+    assert result["wind_operational_co2_kg"]["source_type"] == "assumption"
+    assert outer in json.loads(result["wind_operational_co2_kg"]["ref"])["inputs"]
+    assert outer == original
+
+
+@pytest.mark.parametrize("opaque", [
+    '{"different_format":{"source_type":"assumption","ref":"authored citation"}}',
+    '{"method":"other schema","inputs":[1,2]}',
+    '{"method":"other schema","inputs":[],"extra":"not the derived format"}',
+    '{not valid JSON; original source citation}',
+])
+def test_other_json_citation_formats_stay_opaque_and_are_preserved(opaque):
+    origin = datum(25., "data", opaque)
+    result = wind_carbon(origin, selection_source={"source_type": "data", "ref": "authored observed selection"})
+    assert result["wind_operational_co2_kg"]["source_type"] == "data"
+    assert origin in json.loads(result["wind_operational_co2_kg"]["ref"])["inputs"]
+
+
+def test_legitimate_data_calculations_keep_data_provenance_with_verified_scope():
+    observed_scope = {"source_type": "data", "ref": "authored verified observation scope"}
+    result = fuel_mix_intensity(mix(), {"coal": factor(1000.), "wind": factor(0.)},
+                                expected_fuels=["coal", "wind"], application_source=observed_scope)[0]
+    assert result["generation_mwh"]["source_type"] == "data"
+    assert result["reported_generation_mwh"]["source_type"] == "data"
+    assert result["intensity_kg_co2_per_mwh"]["source_type"] == "model"
+    nested = datum(25., "data", json.dumps({"method": "authored derived metered energy", "inputs": [datum(25.)]}))
+    assert wind_carbon(nested, selection_source=observed_scope)["wind_operational_co2_kg"]["source_type"] == "data"
