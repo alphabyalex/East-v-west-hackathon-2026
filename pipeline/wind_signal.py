@@ -664,14 +664,12 @@ def _complete_hourly_power(raw: pd.DataFrame, value_column: str, *, nonnegative=
     names = ["Interval Start", "Interval End", value_column]
     if not set(names).issubset(raw.columns) or raw.empty:
         raise ValueError(f"Cached observations require nonempty {names}.")
-    frame = raw[names].drop_duplicates().copy()
+    frame = raw[names].copy()
     for name in names[:2]:
         parsed = [pd.Timestamp(value) for value in frame[name]]
         if any(pd.isna(value) or value.tzinfo is None for value in parsed):
             raise ValueError("Cached interval timestamps require explicit timezones.")
         frame[name] = pd.to_datetime(parsed, utc=True)
-    if frame.duplicated("Interval Start").any():
-        raise ValueError("Conflicting interval revisions must be reconciled before screening.")
     duration = (frame["Interval End"] - frame["Interval Start"]).dt.total_seconds()
     if not duration.isin([300., 3600.]).all():
         raise ValueError("Only complete five-minute or hourly source intervals are supported.")
@@ -689,6 +687,10 @@ def _complete_hourly_power(raw: pd.DataFrame, value_column: str, *, nonnegative=
         raise ValueError("Negative net wind observations must be reconciled before hourly averaging.")
     frame["duration"] = duration
     frame["timestamp_utc"] = hour
+    # Validate every raw value before reconciling equivalent canonical intervals.
+    frame = frame.drop_duplicates()
+    if frame.duplicated("Interval Start").any():
+        raise ValueError("Conflicting interval revisions must be reconciled before screening.")
     rows = []
     for stamp, group in frame.groupby("timestamp_utc", sort=True):
         if group.duration.nunique() != 1:
