@@ -414,7 +414,7 @@ def prepare_wind_curtailment_labels(
         if selected.empty:
             raise ValueError("VER observations contain no explicitly selected SPP BAA rows.")
     frame = selected[["GMTIntervalEnding", *VER_WIND_COLUMNS]].copy()
-    if frame.GMTIntervalEnding.map(lambda value: isinstance(value, (Real, bool, np.bool_))).any():
+    if any(isinstance(value, (Real, bool, np.bool_)) for value in frame.GMTIntervalEnding):
         raise ValueError("GMT interval-end timestamps cannot be numeric or boolean.")
     ends = _archive_gmt_times(frame.GMTIntervalEnding)
     if ends.isna().any() or not ends.eq(ends.dt.floor("5min")).all():
@@ -422,7 +422,7 @@ def prepare_wind_curtailment_labels(
     frame["timestamp_utc"] = ends - pd.Timedelta(5, unit="min")
     frame = frame.drop(columns="GMTIntervalEnding")
     for name in VER_WIND_COLUMNS:
-        if frame[name].map(lambda value: isinstance(value, (bool, np.bool_))).any():
+        if any(isinstance(value, (bool, np.bool_)) for value in frame[name]):
             raise ValueError("VER quantities cannot be boolean.")
         frame[name] = _numeric_observations(frame[name], "VER quantities").astype(float)
         if np.isinf(frame[name]).any() or frame[name].lt(0).any():
@@ -677,7 +677,7 @@ def _complete_hourly_power(raw: pd.DataFrame, value_column: str, *, nonnegative=
     hour = frame["Interval Start"].dt.floor("h")
     if (frame["Interval End"] > hour + pd.Timedelta(1, unit="h")).any():
         raise ValueError("Source intervals cannot cross UTC-hour boundaries.")
-    if frame[value_column].map(lambda value: isinstance(value, (bool, np.bool_))).any():
+    if any(isinstance(value, (bool, np.bool_)) for value in frame[value_column]):
         raise ValueError("Cached numeric observations cannot be booleans.")
     frame[value_column] = _numeric_observations(frame[value_column], value_column).astype(float)
     if np.isinf(frame[value_column]).any():
@@ -721,7 +721,7 @@ def prepare_wind_inputs(
     required = {"timestamp_utc", "location_id", "load_mw"}
     if not required.issubset(system_load.columns) or system_load.empty:
         raise ValueError("System load requires nonempty canonical hourly observations.")
-    if not system_load.location_id.map(lambda value: isinstance(value, str) and bool(value.strip())).all():
+    if not all(isinstance(value, str) and bool(value.strip()) for value in system_load.location_id):
         raise ValueError("Every system-load footprint must have a nonempty name.")
     if system_load.location_id.nunique(dropna=False) != 1:
         raise ValueError("Provide one system load footprint, not individual-zone load rows.")
@@ -744,7 +744,7 @@ def prepare_wind_inputs(
         if not set(components).issubset(checked.columns):
             raise ValueError("Historical generation requires both wind components.")
         for name in components:
-            if checked[name].map(lambda value: isinstance(value, (bool, np.bool_))).any():
+            if any(isinstance(value, (bool, np.bool_)) for value in checked[name]):
                 raise ValueError("Historical wind observations cannot be booleans.")
             checked[name] = _numeric_observations(checked[name], name).astype(float)
             if np.isinf(checked[name]).any():
@@ -1127,7 +1127,7 @@ def _wind_observations(hourly, sources):
     frame = hourly[["timestamp_utc", *columns]].copy()
     frame["timestamp_utc"] = _wind_hour_index(frame.timestamp_utc)
     for name in columns:
-        if frame[name].map(lambda value: isinstance(value, (bool, np.bool_))).any():
+        if any(isinstance(value, (bool, np.bool_)) for value in frame[name]):
             raise ValueError("Wind classifier actual observations cannot be boolean.")
         frame[name] = _numeric_observations(frame[name], name).astype(float)
         if np.isinf(frame[name]).any() or frame[name].lt(0).any():
@@ -1182,7 +1182,7 @@ def _wind_classifier_labels(labels):
         frame[name] = [int(value) for value in values]
     if frame.evaluable_five_minute_samples.gt(frame.observed_five_minute_samples).any():
         raise ValueError("VER evaluable samples cannot exceed observed samples.")
-    if not frame.wind_curtailment_event.map(lambda value: isinstance(value, (bool, np.bool_)) or value is None or value is pd.NA or isinstance(value, Real) and np.isnan(value)).all():
+    if not all(isinstance(value, (bool, np.bool_)) or value is None or value is pd.NA or isinstance(value, Real) and np.isnan(value) for value in frame.wind_curtailment_event):
         raise ValueError("VER hourly targets must be nullable Booleans, not numeric or inferred rule targets.")
     frame["wind_curtailment_event"] = frame.wind_curtailment_event.astype("boolean")
     complete = frame.observed_five_minute_samples.eq(12) & frame.evaluable_five_minute_samples.eq(12)
