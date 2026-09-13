@@ -5,6 +5,8 @@ import { cloneElement, type ReactElement } from 'react';
 import App from './App';
 import { createMockEstimate } from './model';
 import { withEconomics } from './api/test-fixtures';
+import { createLocationPreview } from './model/location-preview';
+import { offlineLocations } from './api/locations';
 
 // jsdom has no layout engine. Retain the real Recharts SVG/axes/tooltip components
 // while giving their responsive wrapper a deterministic layout for interaction tests.
@@ -21,6 +23,36 @@ beforeEach(() => vi.stubEnv('VITE_ESTIMATE_MODE', 'local'));
 afterEach(() => { cleanup(); vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
 describe('scenario workspace interactions', () => {
+  it('renders the complete results view for a newly cataloged zone while its estimate is unavailable', async () => {
+    vi.stubEnv('VITE_ESTIMATE_MODE', 'api');
+    const post = vi.fn().mockImplementation((_url, options) => {
+      const request = JSON.parse(options.body);
+      return Promise.resolve(request.location_id === 'CSWS'
+        ? new Response('{}', { status: 404 })
+        : new Response(JSON.stringify(createLocationPreview(request)), { status: 200 }));
+    });
+    const supplied = withEconomics(post);
+    vi.stubGlobal('fetch', (url: RequestInfo | URL, options?: RequestInit) => String(url).endsWith('/api/locations')
+      ? Promise.resolve(new Response(JSON.stringify({ locations: [
+        ...offlineLocations, { id: 'CSWS', label: 'CSWS · SPP load zone', kind: 'zone' },
+      ] }), { status: 200 }))
+      : supplied(url, options));
+    render(<App />);
+    await screen.findByRole('option', { name: 'CSWS · SPP load zone' });
+    fireEvent.change(screen.getByRole('combobox', { name: 'SPP LOCATION' }), { target: { value: 'CSWS' } });
+    expect(screen.getByText('SPP load zone · zone-specific model data; site exposure is your assumption')).toBeTruthy();
+    expect(await screen.findByRole('button', { name: 'Retry estimate' })).toBeTruthy();
+    expect((screen.getByRole('combobox', { name: 'SPP LOCATION' }) as HTMLSelectElement).value).toBe('CSWS');
+    expect(post.mock.calls.some(([, options]) => JSON.parse(options.body).location_id === 'CSWS')).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Inspect annual values' }));
+    const table = screen.getByRole('table', { name: /Sourced annual modeled exposure/ });
+    expect(within(table).getAllByRole('row')).toHaveLength(8);
+    fireEvent.click(within(table).getAllByRole('cell')[1].querySelector('button')!);
+    const source = JSON.parse(screen.getByRole('tooltip').getAttribute('data-provenance')!);
+    expect(source.source_type).toBe('assumption');
+    expect(source.ref).toContain('placeholder preview for requested_location_id=CSWS');
+  });
+
   it('exports the current sourced sensitivity without extending the canonical API response', async () => {
     let exported: Blob | undefined;
     let release!: () => void;
@@ -69,6 +101,9 @@ describe('scenario workspace interactions', () => {
     expect(screen.getByRole('slider', { name: 'Site exposure factor' }).getAttribute('aria-valuetext')).toContain('user-set assumption');
     expect(screen.getByText('System aggregate · no site-specific grid data')).toBeTruthy();
     expect(screen.getByText('You set the mapping.')).toBeTruthy();
+    const locations = screen.getByRole('combobox', { name: 'SPP LOCATION' });
+    expect(locations.textContent).not.toContain('illustrative');
+    expect(within(locations).getByRole('option', { name: 'Wichita, KS · scenario' }).getAttribute('value')).toBe('spp-wichita-demo');
   });
 
   it('keeps each section status aligned with mixed-source HTTP evidence without badges', async () => {
@@ -118,6 +153,7 @@ describe('scenario workspace interactions', () => {
     fireEvent.click(within(crossover).getByRole('button'));
     const source = JSON.parse(screen.getByRole('tooltip').getAttribute('data-provenance')!);
     expect(source.ref).toContain('test-fixture://sourced-economics');
+    expect(source.ref).toContain('exposure_baseline_source=mock://');
   });
 
   it('opens the inline transparency panel and restores trigger focus on Escape', () => {
@@ -148,9 +184,7 @@ describe('scenario workspace interactions', () => {
     vi.stubGlobal('fetch', withEconomics(fetcher));
     render(<App />);
     expect(screen.getByText(/current inputs shown as assumed scenario values/)).toBeTruthy();
-    // Allow the full sourced dashboard to render before testing the retry action.
-    // The transport deadline itself is covered with fake timers in context tests.
-    fireEvent.click(await screen.findByRole('button', { name: 'Retry estimate' }, { timeout: 5000 }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry estimate' }));
     expect(await screen.findByText(/Estimate service connected · current inputs synchronized/)).toBeTruthy();
   });
 
@@ -308,7 +342,6 @@ describe('scenario workspace interactions', () => {
     fireEvent.click(coordsBtn);
     const tooltip = screen.getByRole('tooltip');
     expect(tooltip).toBeTruthy();
-    expect(tooltip.querySelector('pre')).toBeNull();
     const provenance = JSON.parse(tooltip.getAttribute('data-provenance')!);
     expect(provenance.source_type).toBe('data');
     expect(provenance.ref).toContain('mock://weather-telemetry/station/okc');

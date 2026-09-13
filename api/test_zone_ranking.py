@@ -143,3 +143,9 @@ def test_unreadable_rankings_return_503_without_exposing_file_path(client, ranki
     response = client.get("/api/zone-rankings")
     assert response.status_code == 503
     assert response.json()["detail"] == "Zone rankings manifest could not be read"
+
+def test_api_zone_rankings_missing_manifest_is_unavailable(client, tmp_path, monkeypatch):
+    monkeypatch.setattr(zone_ranking, "ROOT_DIR", tmp_path)
+    response = client.get("/api/zone-rankings")
+    assert response.status_code == 503
+    assert response.json() == {"detail": "Zone rankings JSON manifest is missing; provide a reviewed rankings artifact."}

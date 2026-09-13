@@ -1,4 +1,4 @@
-"""Standalone composition of precomputed grid-impact scenarios; no API wiring.
+"""Offline grid-impact composition and read-only snapshot serving.
 
 ``compose_grid_impact(location_id, wind_summary=..., carbon_shift=...,
 shift_coverage=...)`` accepts one ``summarize_wind`` record and one
@@ -48,7 +48,11 @@ location returns sourced unavailable values. The entire envelope and unique
 location identifiers are checked, then only the selected location is composed.
 Malformed selected data raises; other locations' payloads are validated when
 selected. Offline producers should validate all records before publishing them.
-This module does not register a route or modify the /api/estimate contract.
+This module does not modify the /api/estimate contract. api.main registers the
+additive GET /api/grid-impact/{location_id} route through read_live_grid_impact.
+It serves the unchanged grid-impact-v1 result, including all evidence and nulls.
+The response is a fixed, explicitly sourced offline capacity scenario; it does
+not inherit load size, flexibility or site_exposure from an estimate request.
 
 Demo read path: compile_grid_impact_snapshot(location_id, path, ...) runs offline
 and publishes an immutable single-location snapshot. read_grid_impact_snapshot
@@ -99,9 +103,18 @@ These commands reject missing files/locations instead of publishing a fallback.
 Valid unavailable observations and partial-year nulls remain valid. Compilation
 refuses existing destinations; checking performs no writes or recomputation.
 Neither command fetches, trains, or changes the canonical estimate endpoint.
-Runtime artifacts are ignored by git: transfer reviewed snapshots or their full
-prepared envelopes separately, and compare sender-provided file hashes. Passing
-check establishes structural integrity, not authenticity or complete coverage.
+The selected live_v1 snapshot bundle is committed with the API wiring. Other
+research artifacts remain ignored and require separate transfer. Compare file
+hashes; check establishes structural integrity, not authenticity or coverage.
+FLUXLINE_GRID_IMPACT_DIR can select a different already-compiled bundle directory.
+Files are named <exact_location_id>.snapshot.json. Missing snapshots raise for
+HTTP 404; valid unavailable snapshots return 200 with sourced nulls; malformed
+files fail as HTTP 503. Six reviewed network-load point associations are listed
+below; no string-based aliases or hub-to-zone mappings are inferred. For these
+zone requests only, the live response adds location_mapping with the source
+point, Pnode, relationship, scope and mapping source. Each scalar retains its
+original point provenance plus the mapping and reference-scenario assumption.
+Stored snapshots keep their exact identity and unchanged grid-impact-v1 schema.
 """
 from __future__ import annotations
 
@@ -112,6 +125,7 @@ import json
 import hashlib
 import math
 import os
+import re
 from pathlib import Path
 import tempfile
 import threading
@@ -123,6 +137,30 @@ from pipeline.wind_signal import finite_number, source, wind_scenario_mwh
 
 
 DEFAULT_PATH = Path(__file__).resolve().parents[1] / "data/processed/grid_impact_by_location.json"
+LIVE_SNAPSHOT_DIRECTORY = Path(__file__).resolve().parents[1] / "data/processed/grid_impact/live_v1"
+LIVE_LOCATION_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$"
+# SPP Integrated Marketplace Protocols v38, 6.7.3(1), printed p679:
+# AAAA_AAAA denotes the legacy area's network-load settlement location.
+# https://www.spp.org/documents/39052/integrated%20marketplace%20protocols%2038.pdf
+# CSWS is explicitly linked to AEPM_CSWS via aggregate CSWS_LA in SPP's
+# Markets UI Guide v21, Query Settlement Locations, printed p36.
+# All six Location/Pnode pairs were checked in all 12 official 2025 monthly
+# price files; sources/hashes are in the committed evidence file below.
+# This establishes a within-area market reference, not geographic coordinates,
+# equivalence to all zone load, site deliverability or a zone-wide emissions sum.
+ZONE_SETTLEMENT_POINTS = {
+    "CSWS": "AEPM_CSWS", "LES": "LES_LES", "OKGE": "OKGE_OKGE",
+    "OPPD": "OPPD_OPPD", "SPS": "SPS_SPS", "WFEC": "WFEC_WFEC",
+}
+ZONE_MAPPING_REF = (
+    "data/processed/grid_impact/live_v1/zone_mapping_evidence.json; "
+    "sha256=daf3fc27f105421a0c992f1a45e02a67f2e4566be4d4514415b5a0042eea5bed; "
+    "SPP Integrated Marketplace Protocols v38 section 6.7.3(1), printed p679; "
+    "https://www.spp.org/documents/39052/integrated%20marketplace%20protocols%2038.pdf#page=679; "
+    "SPP Markets UI Guide v21, Query Settlement Locations, printed p36 (CSWS_LA=AEPM_CSWS); "
+    "https://www.spp.org/documents/66792/integrated%20marketplace%20market%20user%20interface%20guide%20v21.0%2020230612.pdf; "
+    "exact Location/Pnode pairs verified in all twelve official 2025 monthly settlement-price files"
+)
 COUNT_KEYS = ("observed_hours", "evaluable_hours", "unknown_hours", "missing_interval_hours")
 UNITS = {
     "wind_absorption_mwh_in_observed_hours": "MWh",
@@ -870,6 +908,73 @@ def read_grid_impact_snapshot(location_id, path, *, cache=None, required=False):
     if cache is not None:
         cache._put(key, result, len(content))
     return deepcopy(result)
+
+
+def _zone_reference_result(result, zone_id):
+    """Attach a reviewed association without recalculating or losing point evidence.
+
+    Only the live HTTP view gains optional location_mapping metadata. The input
+    is a validated defensive copy, so immutable snapshots/cache entries stay exact.
+    """
+    point = ZONE_SETTLEMENT_POINTS[zone_id]
+    if result["location_id"] != point:
+        raise ValueError("Zone reference must retain its reviewed settlement point")
+    evidence = _Evidence()
+    evidence.nodes = deepcopy(result["evidence"])
+    mapping = {
+        "requested_location_id": zone_id, "source_location_id": point,
+        "pnode": f"{zone_id}_LA",
+        "relationship": "network_load_settlement_location_within_settlement_area",
+        "scope": "point_reference_scenario_not_zone_total_or_site_deliverability",
+    }
+    ref = evidence.register({"method": "documented settlement-area association", **mapping,
+                             "inputs": [{"source_type": "data", "ref": ZONE_MAPPING_REF}]})
+    mapping["source"] = {"source_type": "data", "ref": ref}
+    assumption = {"source_type": "assumption", "ref":
+        "Use the documented within-area network-load settlement point as the selected zone's scenario reference; "
+        "not a measurement of the whole zone or a specific site's recoverable energy/emissions"}
+    result["location_id"] = zone_id
+    result["location_mapping"] = mapping
+    for field in UNITS:
+        original = result[field]
+        result[field] = evidence.derive(original["value"], [original, mapping["source"], assumption],
+            "unchanged settlement-point scenario quantity exposed through a documented zone reference")
+    return evidence.finish(result)
+
+
+def read_live_grid_impact(location_id, *, cache=None):
+    """Read exact snapshots, or an explicitly reviewed within-zone point reference.
+
+    The configured directory is local deployment configuration, not user input.
+    Direct zone quantities take priority. Only wholly unavailable/missing zone
+    output may use a listed point, and only within its reviewed 2025 period.
+    Unknown IDs raise FileNotFoundError; malformed files raise ValueError/OSError.
+    Missing/unsupported mapped evidence stays unavailable, with no hub fallback.
+    """
+    location_id = _location(location_id)
+    if re.fullmatch(LIVE_LOCATION_PATTERN, location_id) is None:
+        raise ValueError("Unsupported grid-impact location identifier")
+    directory = Path(os.environ.get("FLUXLINE_GRID_IMPACT_DIR", LIVE_SNAPSHOT_DIRECTORY)).resolve()
+    path = directory / f"{location_id}.snapshot.json"
+    if path.resolve().parent != directory:
+        raise ValueError("Grid-impact snapshot must remain inside its configured directory")
+    point = ZONE_SETTLEMENT_POINTS.get(location_id)
+    result = read_grid_impact_snapshot(location_id, path, cache=cache, required=point is None)
+    if point is None or any(result[field]["value"] is not None for field in UNITS):
+        return result
+    point_path = directory / f"{point}.snapshot.json"
+    if point_path.resolve().parent != directory:
+        raise ValueError("Grid-impact snapshot must remain inside its configured directory")
+    try:
+        reference = read_grid_impact_snapshot(point, point_path, cache=cache, required=True)
+    except FileNotFoundError:
+        return result
+    coverage = reference["coverage"]["wind"]
+    if (coverage["status"] == "unavailable"
+            or _hour(coverage["period_start_utc"]) < _hour("2025-01-01T00:00:00Z")
+            or _hour(coverage["period_end_exclusive_utc"]) > _hour("2026-01-01T00:00:00Z")):
+        return result
+    return _zone_reference_result(reference, location_id)
 
 
 def read_wind_scenario(location_id, path, *, flexible_load_mw, available_fraction, cache=None):

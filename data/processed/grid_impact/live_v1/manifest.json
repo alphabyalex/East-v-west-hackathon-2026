@@ -1,0 +1,142 @@
+{
+  "availability": "The 21 original catalog snapshots remain immutable sourced-null records. The live resolver now exposes six reviewed point scenarios for CSWS, LES, OKGE, OPPD, SPS and WFEC. Fifteen catalog choices remain unavailable. Annual and shifted-carbon values remain null in every served scenario.",
+  "price_evidence": {
+    "path": "cheap_power_v1.json",
+    "sha256": "28809ff68bbc7605f47f676b7442d6e0d2bbfb76204b8472a3e5dea01a6e3249",
+    "schema_version": "grid-power-v1",
+    "scope": "Observed 2025 month/UTC-hour price bins for the eight supplied settlement points, bound to exact snapshot hashes. Existing six reviewed zone mappings apply. No new zone or site mapping. Include this companion file when transferring the serving bundle.",
+    "compile": "python -m api.grid_power --directory <new directory containing the reviewed point snapshots>; reads only the pinned cached hourly input offline"
+  },
+  "exposure_catalog": {
+    "path": "data/processed/exposure_by_location.parquet",
+    "sha256": "1abaafa021c4c98339de67110dda107f806647b1d5281abbd66e8093385215b0"
+  },
+  "files": {
+    "AEPM_CSWS.snapshot.json": {
+      "location_id": "AEPM_CSWS",
+      "sha256": "8249833ef44f8dae015a698639ff67513e778155ae5e8923e198bd4581f48362"
+    },
+    "CSWS.snapshot.json": {
+      "location_id": "CSWS",
+      "sha256": "d14f1be157a0caf1dd78bc10f4ec8a19f46d2d0db41d8f83697ea579d2941e25"
+    },
+    "EDE.snapshot.json": {
+      "location_id": "EDE",
+      "sha256": "bdfe3505dee423c00dd2161381d9b284a7ee72f16cc259c0b008b10d236017f9"
+    },
+    "GRDA.snapshot.json": {
+      "location_id": "GRDA",
+      "sha256": "0da596d32be8dadd5b98c7ec84a048002cd2a5d9307f9521de14658c1a7b103c"
+    },
+    "INDN.snapshot.json": {
+      "location_id": "INDN",
+      "sha256": "5b5217605e498b3352fc3c47dfa03b330a65037f668be36c40f376097146a521"
+    },
+    "KACY.snapshot.json": {
+      "location_id": "KACY",
+      "sha256": "7518f592e96c4e2365454349301db1eb39660a286d0c1a8101e0f52dfeb94911"
+    },
+    "KCPL.snapshot.json": {
+      "location_id": "KCPL",
+      "sha256": "bdaeba73583cd50afb8d4ac238a9852909b51951ef65002168a169ee58e4a4c0"
+    },
+    "LES.snapshot.json": {
+      "location_id": "LES",
+      "sha256": "6a7a61ec66f626807d22cdbd48d9342919ccc2de9e930c29cbe7ac714965de38"
+    },
+    "LES_LES.snapshot.json": {
+      "location_id": "LES_LES",
+      "sha256": "401aab8779c8ffeffc331b834315eda9b4de83bb0c6680791e90d0be613ef27f"
+    },
+    "MPS.snapshot.json": {
+      "location_id": "MPS",
+      "sha256": "9eaa30d6299b1c2d8d7868585f77065f56698efc33faa1d6a66476ffcc3e5be2"
+    },
+    "NPPD.snapshot.json": {
+      "location_id": "NPPD",
+      "sha256": "d5a9dde7e6bfb4bb632ee56fbd3918e90310ebd59a3c430ece29c8118ec01935"
+    },
+    "OKGE.snapshot.json": {
+      "location_id": "OKGE",
+      "sha256": "ff1fed42fee37cb09ee14ba6250835fab8a598a575bfdf2215bcc3a4f9ea47da"
+    },
+    "OKGE_OKGE.snapshot.json": {
+      "location_id": "OKGE_OKGE",
+      "sha256": "ace9ed934becb59e4d65c1f708743a57d173d6dba0e40a8ecdce4d4fccf04a91"
+    },
+    "OPPD.snapshot.json": {
+      "location_id": "OPPD",
+      "sha256": "4b32cbc539f70cb2d7c8e3d1dc75e0c77f20b358520e3c5f494f104588c7e378"
+    },
+    "OPPD_OPPD.snapshot.json": {
+      "location_id": "OPPD_OPPD",
+      "sha256": "3091ceb421866a8b7f1f9b26aec6d95be06951ff218075027294142b5003c3b6"
+    },
+    "SECI.snapshot.json": {
+      "location_id": "SECI",
+      "sha256": "0f8fc7eff43b51c5bfc3bf5049c3c14768608b6516fc72c8e67fc06e9fef5b40"
+    },
+    "SPPNORTH_HUB.snapshot.json": {
+      "location_id": "SPPNORTH_HUB",
+      "sha256": "d7394cac2f7ee106c2d721b541470b8eeb22b1e6412707f872528e402ddf62d7"
+    },
+    "SPPSOUTH_HUB.snapshot.json": {
+      "location_id": "SPPSOUTH_HUB",
+      "sha256": "afd9c6e19d700505c5f5f7d782f4919f7b1eba90218ecc597c98ba3fd952ac90"
+    },
+    "SPP_SYSTEM.snapshot.json": {
+      "location_id": "SPP_SYSTEM",
+      "sha256": "1d869673d953f4c2ad902ac835959896a5d0e03e77534e96d44c886734a96512"
+    },
+    "SPRM.snapshot.json": {
+      "location_id": "SPRM",
+      "sha256": "f1469d51480ba3e1c3b2fa5b0c2ebd968715d8a91b8139a1d014dfc1360177d7"
+    },
+    "SPS.snapshot.json": {
+      "location_id": "SPS",
+      "sha256": "fd8a66af69094feb8f9e77c8cc9a4be1046b719f747b3ca9ec8bdcdf80505375"
+    },
+    "SPS_SPS.snapshot.json": {
+      "location_id": "SPS_SPS",
+      "sha256": "d2b7b082b95ba5da15f2931fe3042c1bb2a908dd279e15698dc62b8ac3441b14"
+    },
+    "WAUE.snapshot.json": {
+      "location_id": "WAUE",
+      "sha256": "5d59f690521592959cc98c5aee16f7128b8d3c1dc308786c62c60a798ad30eea"
+    },
+    "WFEC.snapshot.json": {
+      "location_id": "WFEC",
+      "sha256": "a4d20dac58a8ae5c3caefa47b88e82f0a33ae6ba19c4b13fc2ddedbd3be0331e"
+    },
+    "WFEC_WFEC.snapshot.json": {
+      "location_id": "WFEC_WFEC",
+      "sha256": "1621831ebd5103486ccc825f10f49e9b1316bdfe5201bf54701607659cee292e"
+    },
+    "WR.snapshot.json": {
+      "location_id": "WR",
+      "sha256": "f5ba0eeebd1091316039013192d9bb8a9f58ee8a10a076f2a19046182027b9db"
+    },
+    "spp-lincoln-demo.snapshot.json": {
+      "location_id": "spp-lincoln-demo",
+      "sha256": "bea1d0620cb006d229386cb919c20b5998eb284835db4f5aed4456065ac226db"
+    },
+    "spp-oklahoma-city-demo.snapshot.json": {
+      "location_id": "spp-oklahoma-city-demo",
+      "sha256": "4b87c6a28d8a2c2b2ca0a71a6915e88855bc0a542a976b2f9648f95a1ba87585"
+    },
+    "spp-wichita-demo.snapshot.json": {
+      "location_id": "spp-wichita-demo",
+      "sha256": "a85ea5cc52de33090190db253469ac7b835d451f8e22e6a7be47271c3255c837"
+    }
+  },
+  "scenario_scope": "Fixed 2025 historical scenarios: 100 MW flexible load and 0.5 upward availability, both assumptions. No estimate request inputs are inferred. Six documented within-zone network-load settlement references are exposed with explicit location_mapping metadata; not zone-wide totals or site deliverability.",
+  "schema_version": "grid-impact-live-bundle-v1",
+  "wind_source_bundle": {
+    "manifest_sha256": "06d24b2fec992f574ada8d51c8b275208e8de93dff3b70a7f79ba64813fb13fe",
+    "path": "data/processed/grid_impact/handoff_2025_review_v1"
+  },
+  "zone_mapping_evidence": {
+    "path": "zone_mapping_evidence.json",
+    "sha256": "daf3fc27f105421a0c992f1a45e02a67f2e4566be4d4514415b5a0042eea5bed"
+  }
+}

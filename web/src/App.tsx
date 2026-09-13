@@ -1,17 +1,19 @@
 import { Component, lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, Check, ChevronDown, CircleHelp, Download, MapPin, RotateCcw, SlidersHorizontal, Unplug, Zap, CloudSun } from 'lucide-react';
+import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, Check, ChevronDown, CircleHelp, Download, RotateCcw, SlidersHorizontal, Unplug, Zap, CloudSun } from 'lucide-react';
 import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { ScenarioProvider, useScenario } from './ScenarioContext';
 import { ScenarioComparison } from './components/ScenarioComparison';
 import { ZoneLeaderboard } from './components/ZoneLeaderboard';
-import { LocationSearchField, LocationConnection, LocationResultPanels } from './components/LocationEstimate';
 import { Sourced, SourceInfo, SourcedTick } from './components/Sourced';
 import { TransparencyPanel } from './components/TransparencyPanel';
 import { SensitivityPanel } from './components/SensitivityPanel';
+import { LocationField } from './components/LocationField';
+import { GridImpactPanel } from './components/GridImpactPanel';
 import { ConfidenceBadge, type ConfidenceEstimate } from './components/ConfidenceBadge';
 import { isMockSource } from './components/MockLabel';
 import { useChangeMotion } from './hooks/useChangeMotion';
-import { deriveScenario, mockResponse, toEstimateRequest, type ScenarioInputs, type Source, type SourcedValue } from './model';
+import { adaptEstimateResponse, deriveScenario, toEstimateRequest, type ScenarioInputs, type Source, type SourcedValue } from './model';
+import { createLocationPreview } from './model/location-preview';
 
 const ExposureSurface = lazy(() => import('./components/ExposureSurface'));
 class SurfaceBoundary extends Component<{ children: ReactNode; onUnavailable: () => void }, { failed: boolean }> {
@@ -75,14 +77,11 @@ function NumberField({ name, label, unit, min, max, step = 1, icon, compact = fa
 }
 
 function Header() {
-  const { inputs, result, sensitivity, reset, mode, status, location } = useScenario();
+  const { inputs, result, sensitivity, reset, mode, status } = useScenario();
   const [exported, setExported] = useState(false);
   useEffect(() => { if (exported) { const timer = setTimeout(() => setExported(false), 2400); return () => clearTimeout(timer); } }, [exported]);
   function exportScenario() {
-    const payload = location.enabled
-      ? { response_origin: 'location_estimator', query: location.query, request: inputs, result: location.result }
-      : { mode, status, response_origin: status === 'api' ? 'api' : 'local_mock', request: toEstimateRequest(inputs), response: result.canonical_response, local_assumptions: result.inputs, result, sensitivity };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify({ mode, status, response_origin: status === 'api' ? 'api' : 'local_mock', request: toEstimateRequest(inputs), response: result.canonical_response, local_assumptions: result.inputs, result, sensitivity }, null, 2)], { type: 'application/json' });
     const href = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = href;
@@ -93,20 +92,19 @@ function Header() {
   }
   return <>
     <header className="app-header">
-      <a href="/" className="brand" aria-label="Fluxline home"><span className="brand-mark" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 2V16M15 2V16M3 9H15M7 5V13M11 5V13" stroke="currentColor" strokeWidth="1.3" /></svg></span>Fluxline<span className="brand-divider" /><span className="brand-subtitle">INTERCONNECTION RISK</span></a>
-      <div className="header-status"><span className="status-dot" />{location.enabled ? location.result ? 'LOCATION ESTIMATE' : location.busy ? 'ESTIMATE PENDING' : 'LOCATION SELECTED' : status === 'api' ? 'API CONNECTED' : status === 'loading' ? 'API PENDING' : status === 'fallback' ? 'LOCAL FALLBACK' : 'LOCAL WORKSPACE'}</div>
+      <a href="/" className="brand" aria-label="Fluxline home"><span className="brand-mark" aria-hidden="true"><img className="brand-image" src="/fluxline-mark.svg" width="48" height="48" alt="" /></span>fluxline<span className="brand-divider" /><span className="brand-subtitle">INTERCONNECTION RISK</span></a>
+      <div className="header-status" data-connected={status === 'api'}><span className="status-dot" />{status === 'api' ? 'ESTIMATE SERVICE CONNECTED' : status === 'loading' ? 'ESTIMATE PENDING' : status === 'fallback' ? 'ASSUMED SCENARIO' : 'SCENARIO WORKSPACE'}</div>
     </header>
     <div className="workspace-heading">
       <div><div className="eyebrow breadcrumb">SPP <span>/</span> SCENARIO ANALYSIS</div><h1>Flexible connection analysis</h1><p>Earlier grid access, modeled interruption exposure, and the cost of waiting.</p></div>
-      <div className="workspace-actions"><button className="button button-quiet" onClick={reset}><RotateCcw size={14} />Reset</button><button className="button" onClick={exportScenario} disabled={location.enabled && !location.result}>{exported ? <Check size={14} /> : <Download size={14} />}{exported ? 'Exported' : 'Export scenario'}</button><span className="sr-only" role="status">{exported ? 'Scenario JSON exported.' : ''}</span></div>
+      <div className="workspace-actions"><button className="button button-quiet" onClick={reset}><RotateCcw size={14} />Reset</button><button className="button" onClick={exportScenario}>{exported ? <Check size={14} /> : <Download size={14} />}{exported ? 'Exported' : 'Export scenario'}</button><span className="sr-only" role="status">{exported ? 'Scenario JSON exported.' : ''}</span></div>
     </div>
     <EstimateConnection />
   </>;
 }
 
 function EstimateConnection() {
-  const { mode, status, error, retry, chooseMode, modeNote, location } = useScenario();
-  if (location.enabled) return <LocationConnection />;
+  const { mode, status, error, retry, chooseMode, modeNote } = useScenario();
   const message = status === 'api'
     ? 'Estimate service connected · current inputs synchronized.'
     : status === 'loading'
@@ -172,7 +170,7 @@ const getTelemetryAscii = (locationId: string) => {
 }
 
 function Inputs() {
-  const { inputs, update, sourceFor, location: estimateLocation } = useScenario();
+  const { inputs } = useScenario();
   const [showTelemetry, setShowTelemetry] = useState(false);
 
   const stations = telemetryStations[inputs.location_id] || [];
@@ -181,9 +179,7 @@ function Inputs() {
   return <div className="inputs-wrapper">
     <section className="inputs-bar" aria-label="Connection inputs">
       <div className="location-field">
-        <div className="field-label"><label htmlFor="location"><MapPin size={13} />SPP LOCATION</label><SourceInfo value={estimateLocation.enabled ? estimateLocation.query : inputs.location_id} source={estimateLocation.enabled ? { source_type: 'assumption', ref: 'user://location-query' } : sourceFor('location_id')} label="Location provenance" /></div>
-        <div className="select-wrap"><select id="location" value={estimateLocation.enabled ? 'custom-location' : inputs.location_id} onChange={event => { const custom = event.target.value === 'custom-location'; estimateLocation.activate(custom); if (custom) setShowTelemetry(false); else update('location_id', event.target.value); }}><option value="custom-location">Choose a city or coordinates</option>{mockResponse.locations.map(location => <option key={location.id} value={location.id}>{location.label}</option>)}</select><ChevronDown size={15} /></div>
-        {estimateLocation.enabled ? <LocationSearchField /> : <><span className="field-note">{inputs.location_id === 'SPP_SYSTEM' ? 'System aggregate · no site-specific grid data' : 'Illustrative node · no site-specific grid data'}</span>
+        <LocationField />
         <button
           type="button"
           className="telemetry-toggle-btn"
@@ -193,7 +189,7 @@ function Inputs() {
         >
           <Activity size={10} aria-hidden="true" />
           {showTelemetry ? 'Hide telemetry details' : 'Inspect climate telemetry'}
-        </button></>}
+        </button>
       </div>
       <NumberField name="load_mw" label="LOAD SIZE" unit="MW" min={1} max={2000} icon={<Zap size={13} />} />
       <NumberField name="contract_years" label="CONTRACT TERM" unit="years" min={1} max={7} icon={<Activity size={13} />} />
@@ -201,7 +197,7 @@ function Inputs() {
       <NumberField name="vpp_solar_homes" label="VPP ORCHESTRATION" unit="solar homes" min={0} max={10000} icon={<CloudSun size={13} className="text-teal" />} />
     </section>
     
-    {showTelemetry && !estimateLocation.enabled && <section id="telemetry-drawer" className="telemetry-drawer" aria-label="Climate telemetry nodes">
+    {showTelemetry && <section id="telemetry-drawer" className="telemetry-drawer" aria-label="Climate telemetry nodes">
       <div className="telemetry-drawer-header">
         <div>
           <span className="eyebrow text-teal">MODEL TEMPERATURE CORRELATION</span>
@@ -249,10 +245,8 @@ function Inputs() {
 }
 
 function ExposureControl() {
-  const { inputs, result, update, sourceFor, location } = useScenario();
-  const locationBreakEven = location.result?.economics.break_even_hours;
-  const regionalHours = location.result?.exposure.regional_expected_hours;
-  const crossover = location.enabled ? { value: locationBreakEven != null && regionalHours ? locationBreakEven / regionalHours : null, ...(location.result?.economic_source ?? { source_type: 'assumption' as const, ref: 'user://location-estimate-pending' }) } : result.economics.break_even_site_exposure;
+  const { inputs, result, update, sourceFor } = useScenario();
+  const crossover = result.economics.break_even_site_exposure;
   const crossoverSources = [crossover, result.annual_exposure.p50];
   const marker = crossover.value !== null && crossover.value >= 0 && crossover.value <= 1 ? crossover.value : null;
   return <section className="exposure-control" aria-labelledby="exposure-label">
@@ -266,10 +260,10 @@ function ExposureControl() {
         <span className="slider-progress" style={{ width: `calc(10px + (100% - 20px) * ${inputs.site_exposure})` }} aria-hidden="true" />
         <input type="range" min={0} max={1} step={0.01} value={inputs.site_exposure} onChange={event => update('site_exposure', Number(event.target.value))}
           aria-label="Site exposure factor" aria-describedby="exposure-explanation" aria-valuetext={`${inputs.site_exposure.toFixed(2)}, user-set assumption`} />
-        {marker !== null && <span className="break-even-marker" style={{ left: `calc(10px + (100% - 20px) * ${marker})` }} title={location.enabled ? 'Expected cost crossover under current assumptions' : `${crossoverSources.some(isMockSource) ? 'Mock ' : ''}Median cost crossover under current assumptions`} />}
+        {marker !== null && <span className="break-even-marker" style={{ left: `calc(10px + (100% - 20px) * ${marker})` }} title={`${crossoverSources.some(isMockSource) ? 'Assumed ' : ''}Median cost crossover under current assumptions`} />}
       </div>
       <div className="slider-endpoints"><span><Sourced value={0} source={uiSource('site_exposure/min')} format={v => v.toFixed(1)} animate={false} /> No exposure</span><span>Full modeled exposure <Sourced value={1} source={uiSource('site_exposure/max')} format={v => v.toFixed(1)} animate={false} /></span></div>
-      <div className="slider-caption" id="exposure-explanation"><span className="tiny-diamond" />{marker !== null ? <span>{location.enabled ? 'Expected' : 'Median'} cost crossover at <Value datum={crossover as SourcedValue} format={fixed} /></span> : <span>{location.enabled && !location.result ? 'Estimate this location to calculate the cost crossover' : 'No cost crossover within this slider range'}</span>}</div>
+      <div className="slider-caption" id="exposure-explanation"><span className="tiny-diamond" />{marker !== null ? <span>Median cost crossover at <Value datum={crossover as SourcedValue} format={fixed} /></span> : <span>No cost crossover within this slider range</span>}</div>
     </div>
   </section>;
 }
@@ -304,7 +298,7 @@ function ExposurePanel() {
     return () => query.removeEventListener('change', sync);
   }, []);
   const data: ChartRow[] = result.annual_series.map(row => ({ year: row.year.value, band: [row.p50.value, row.p90.value], median: row.p50.value, upper: row.p99.value, original: row }));
-  const baseline = deriveScenario({ ...inputs, site_exposure: 1 });
+  const baseline = adaptEstimateResponse(createLocationPreview({ ...toEstimateRequest(inputs), site_exposure: 1 }, inputs), inputs);
   const maximum = Math.ceil(Math.max(...baseline.annual_series.map(row => row.p99.value), ...result.annual_series.map(row => row.p99.value)) / 100) * 100;
   const yTicks = Array.from({ length: 5 }, (_, i) => maximum * i / 4);
   const showFallback = () => { setSurfaceUnavailable(true); setView('fan'); };
@@ -331,9 +325,9 @@ function ExposurePanel() {
             <XAxis dataKey="year" tickLine={false} axisLine={{ stroke: 'var(--border-strong)' }} interval="preserveStartEnd" minTickGap={35} height={30} tick={<SourcedTick source={uiSource('contract_year; ordinal year in selected contract')} axis="x" />} />
             <YAxis domain={[0, maximum]} ticks={yTicks} axisLine={false} tickLine={false} width={44} tick={<SourcedTick source={uiSource('axis/hours_per_year; chart scale, not an observation')} axis="y" />} />
             <Tooltip content={({ active, payload }) => <FanTooltip active={active} row={payload?.[0]?.payload as ChartRow | undefined} confidence={result.confidence} />} cursor={{ stroke: 'var(--text-muted)', strokeDasharray: '3 4' }} wrapperStyle={{ pointerEvents: 'auto', zIndex: 30 }} />
-            <Area type="linear" dataKey="band" stroke="var(--teal)" strokeOpacity={0.65} fill="var(--teal)" fillOpacity={0.12} activeDot={false} animationDuration={320} animationEasing="ease-out" isAnimationActive={!reducedMotion} />
+            <Area type="linear" dataKey="band" stroke="var(--chart-secondary)" strokeOpacity={0.65} fill="var(--chart-secondary)" fillOpacity={0.12} activeDot={false} animationDuration={320} animationEasing="ease-out" isAnimationActive={!reducedMotion} />
             <Line type="linear" dataKey="median" stroke="var(--text-primary)" strokeWidth={2} dot={data.length === 1 ? { r: 3 } : false} activeDot={{ r: 4, fill: 'var(--text-primary)', stroke: 'var(--bg-base)', strokeWidth: 2 }} animationDuration={320} animationEasing="ease-out" isAnimationActive={!reducedMotion} />
-            <Line type="linear" dataKey="upper" stroke="var(--teal)" strokeWidth={1} strokeDasharray="4 4" dot={data.length === 1 ? { r: 3 } : false} activeDot={{ r: 3 }} animationDuration={320} animationEasing="ease-out" isAnimationActive={!reducedMotion} />
+            <Line type="linear" dataKey="upper" stroke="var(--chart-secondary)" strokeWidth={1} strokeDasharray="4 4" dot={data.length === 1 ? { r: 3 } : false} activeDot={{ r: 3 }} animationDuration={320} animationEasing="ease-out" isAnimationActive={!reducedMotion} />
           </ComposedChart>
         </ResponsiveContainer>
       </div>
@@ -373,12 +367,12 @@ function EconomicsPanel() {
       <div className="flow-connector"><ArrowDownRight size={14} /><span>Net exposure × compute density</span></div>
       <div className="economics-row"><div><span className="economics-label">Net interruptible load</span><span className="economics-detail">Flexible load − VPP support</span></div><span><Value datum={e.net_interruptible_mw} /> <small>MW</small></span></div>
       <div className="flow-connector"><ArrowDownRight size={14} /><span>Modeled exposure × compute density</span></div>
-      <div className="economics-row loss-row"><div><span className="economics-label">Modeled interruption cost</span><span className="economics-detail">Annual equivalent</span></div><span className="text-amber"><Value datum={e.annual_loss_usd} format={money} /> <small>/yr</small></span></div>
+      <div className="economics-row loss-row"><div><span className="economics-label">Modeled interruption cost</span><span className="economics-detail">Annual equivalent</span></div><span className="metric-emphasis"><Value datum={e.annual_loss_usd} format={money} /> <small>/yr</small></span></div>
     </div>
     <div className="economics-quantiles"><table><caption>ANNUAL COST SCENARIOS · USD / YEAR</caption><thead><tr>{([50, 90, 99] as const).map(percentile => <th key={percentile}><Percentile value={percentile} /></th>)}</tr></thead><tbody><tr>{(['p50', 'p90', 'p99'] as const).map(key => <td key={key}><Value datum={e.annual_loss_by_quantile[key]} format={money} /></td>)}</tr></tbody></table></div>
     <div className="term-ledger">
       <div className="ledger-heading">OVER YOUR <Sourced value={inputs.contract_years} source={sourceFor('contract_years')} format={integer.format} />-YEAR TERM</div>
-      <div><span>Earlier-access contribution</span><Value datum={e.early_access_value_usd} format={signedMoney} className="text-mint" /></div>
+      <div><span>Earlier-access contribution</span><Value datum={e.early_access_value_usd} format={signedMoney} className="metric-emphasis" /></div>
       <div><span>Modeled interruption cost</span><Value datum={{ ...e.term_loss_usd, value: -e.term_loss_usd.value, ref: `${e.term_loss_usd.ref}; display_as_ledger_debit = -term_loss_usd` }} format={money} /></div>
       <div className="ledger-net"><span>Net value vs. waiting</span><Value datum={e.net_value_usd} format={signedMoney} /></div>
     </div>
@@ -391,7 +385,7 @@ function EconomicsPanel() {
 }
 
 function Assumptions() {
-  const { inputs, result, sourceFor, location } = useScenario();
+  const { inputs, result, sourceFor } = useScenario();
   return <section className="assumptions-panel" aria-labelledby="assumptions-title">
     <div className="assumptions-heading"><div className="flex items-center gap-2"><SlidersHorizontal size={14} /><h2 id="assumptions-title">Economic assumptions</h2></div><span className="eyebrow muted">EDITABLE INPUTS</span></div>
     <div className="assumption-fields">
@@ -400,15 +394,15 @@ function Assumptions() {
       <NumberField compact name="gpu_hour_value_usd" label="LOST COMPUTE VALUE" unit="$ / GPU-h" min={0} max={100} step={0.1} />
       <NumberField compact name="early_margin_usd_per_mw_year" label="EARLY OPERATING MARGIN" unit="$ / MW / yr" min={0} max={10000000} step={1000} />
     </div>
-    {location.enabled ? <div className="assumption-notes"><p><span className="note-label">VALUE OF TIME</span>Earlier contribution = total load × operating margin × earlier-access years, capped at your contract term. Expected costs apply to net interruptible load over the full term.</p><p><span className="note-label">EXPECTED BALANCE</span>The location model supplies expected exposure hours. Net value compares expected costs with earlier-access contribution; upper-tail outcomes are unavailable. This scenario excludes discounting, restart overhead, and SLA penalties.</p></div> : <div className="assumption-notes"><p><span className="note-label">VALUE OF TIME</span>Earlier contribution = total load × operating margin × earlier-access years, capped at your contract term. Losses apply to the interruptible share across the full term. The ledger follows the median path; percentile paths are comparisons, not percentiles of total contract loss.</p><p><span className="note-label">DECISION RULE</span>Compare full-term costs with earlier-access contribution, using a <Sourced value={result.decision_policy.close_call_fraction.value * 100} source={{ ...result.decision_policy.close_call_fraction, ref: `${result.decision_policy.close_call_fraction.ref}; display_percent = fraction * 100` }} format={integer.format} />% margin: “not worth it” when <Percentile value={50} /> cost exceeds it; “worth it” when <Percentile value={90} /> cost stays below it; “close call” otherwise. This scenario excludes discounting, restart overhead, and SLA penalties.</p></div>}
+    <div className="assumption-notes"><p><span className="note-label">VALUE OF TIME</span>Earlier contribution = total load × operating margin × earlier-access years, capped at your contract term. Losses apply to the interruptible share across the full term. The ledger follows the median path; percentile paths are comparisons, not percentiles of total contract loss.</p><p><span className="note-label">DECISION RULE</span>Compare full-term costs with earlier-access contribution, using a <Sourced value={result.decision_policy.close_call_fraction.value * 100} source={{ ...result.decision_policy.close_call_fraction, ref: `${result.decision_policy.close_call_fraction.ref}; display_percent = fraction * 100` }} format={integer.format} />% margin: “not worth it” when <Percentile value={50} /> cost exceeds it; “worth it” when <Percentile value={90} /> cost stays below it; “close call” otherwise. This scenario excludes discounting, restart overhead, and SLA penalties.</p></div>
     {inputs.firm_wait_years > inputs.contract_years && <p className="assumption-notice">Earlier-access contribution is capped at <Sourced value={inputs.contract_years} source={sourceFor('contract_years')} /> years for this contract.</p>}
     <div className="honesty-note"><CircleHelp size={15} /><p><strong>A scenario, not a site forecast.</strong> Public grid data can establish system stress; local transmission headroom determines whether a specific site would be curtailed. A flexible share does not establish eligibility for a particular tariff.</p></div>
   </section>;
 }
 
 function Workspace() {
-  const { sensitivity, location } = useScenario();
-  return <div className="app-shell"><a className="skip-link" href="#main">Skip to analysis</a><Header /><main id="main"><Inputs /><ExposureControl />{location.enabled ? <LocationResultPanels /> : <><div className="results-grid"><ExposurePanel /><EconomicsPanel /></div><SensitivityPanel sensitivity={sensitivity} /></>}<Assumptions /><ScenarioComparison /><ZoneLeaderboard /></main><footer><span className="flex items-center gap-2"><Unplug size={12} />{location.enabled ? 'HISTORICAL LOCATION COMPARISON' : 'NO LIVE GRID FETCHES'}</span><span>Every number has a source. Click a value or its info control.</span></footer></div>;
+  const { sensitivity } = useScenario();
+  return <div className="app-shell"><a className="skip-link" href="#main">Skip to analysis</a><Header /><main id="main"><Inputs /><ExposureControl /><div className="results-grid"><ExposurePanel /><EconomicsPanel /></div><GridImpactPanel /><SensitivityPanel sensitivity={sensitivity} /><Assumptions /><ScenarioComparison /><ZoneLeaderboard /></main><footer><span className="flex items-center gap-2"><Unplug size={12} />NO LIVE GRID FETCHES</span><span>Every number has a source. Click a value or its info control.</span></footer></div>;
 }
 
 export default function App() { return <ScenarioProvider><Workspace /></ScenarioProvider>; }

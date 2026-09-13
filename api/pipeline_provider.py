@@ -299,7 +299,13 @@ def get_pipeline_location(location_id: str) -> LocationEstimate:
         logger.exception("Invalid pipeline artifact provenance")
         raise PipelineDataError(f"Precomputed artifact provenance is invalid: {error}") from error
     if readiness_issue:
-        return _placeholder(location_id, f"model_version={data.model_version}; {readiness_issue}")
+        reason = f"model_version={data.model_version}; {readiness_issue}"
+        try:
+            return _placeholder(location_id, reason)
+        except LocationNotFoundError as error:
+            # The real reader already found this location. An absent authored
+            # fallback must not turn insufficient annual coverage into a 404.
+            raise PipelineDataError(f"Precomputed location {location_id} exists, but {reason}") from error
     return LocationEstimate(
         by_year=tuple(BaselineYear(**row.model_dump()) for row in data.by_year),
         confidence=Confidence(

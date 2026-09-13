@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
-import { ChevronLeft, ChevronRight, Minus, Plus, RotateCcw, RotateCw } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { BaselineYear, Source } from '../model';
 import { Sourced, SourceInfo } from './Sourced';
+import { SurfaceCameraControls } from './SurfaceCameraControls';
 import { ConfidenceBadge, type ConfidenceEstimate } from './ConfidenceBadge';
 import { useChangeMotion } from '../hooks/useChangeMotion';
 import { QUANTILES, type SurfaceQuantile } from './exposure-surface/geometry';
@@ -58,13 +59,7 @@ export default function ExposureSurface({ rows, maximumHours, confidence, onUnav
   }
 
   return <div className="surface-view">
-    <div className="surface-toolbar"><span>Drag to rotate · inspect nearest supplied point</span><div className="surface-camera-controls" role="group" aria-label="Surface camera">
-      <button aria-label="Rotate surface left" title="Rotate left" onClick={() => controller.current?.rotate(-0.15)}><RotateCcw size={13} /></button>
-      <button aria-label="Rotate surface right" title="Rotate right" onClick={() => controller.current?.rotate(0.15)}><RotateCw size={13} /></button>
-      <button aria-label="Zoom out" title="Zoom out" onClick={() => controller.current?.zoom(1 / 1.1)}><Minus size={13} /></button>
-      <button aria-label="Zoom in" title="Zoom in" onClick={() => controller.current?.zoom(1.1)}><Plus size={13} /></button>
-      <button className="surface-reset" onClick={() => controller.current?.reset()}>Reset view</button>
-    </div></div>
+    <div className="surface-toolbar"><span>Drag to rotate · inspect nearest supplied point</span><SurfaceCameraControls controller={() => controller.current} /></div>
     <div className="surface-axis-key"><span>BASE: YEAR × PERCENTILE</span><span>HEIGHT: MODELED EXPOSURE · H/YR</span></div>
     <div className="surface-stage" role="group" tabIndex={0} aria-label="Interactive modeled exposure quantile surface" aria-describedby="surface-keyboard-help" onKeyDown={keyboard}>
       <div className="surface-canvas" ref={host} />
