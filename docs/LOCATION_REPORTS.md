@@ -1,5 +1,7 @@
 # Choose your own location
 
+The default **Learn stress signs across areas** approach now adds comparison across four load areas and explanations of the parameters raising/lowering each prediction. See [Learning stress signs](WARNING_SIGNS.md) for the new expected-hours output and its limits. Select **SPP-wide annual scenarios** for the original P50/P90/P99 workflow described below.
+
 Open `Open ML Workspace.cmd` in the repository, or visit http://127.0.0.1:8765 while the workspace is running.
 
 1. In **Explore your location**, enter any US city and state, such as `Wichita, KS`, or coordinates such as `37.6872, -97.3301` (latitude first). Coordinates allow parcels and rural locations; there is no fixed list of supported cities. Street addresses are not geocoded directly.

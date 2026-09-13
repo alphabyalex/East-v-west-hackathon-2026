@@ -1,0 +1,715 @@
+{
+  "source_type": "model",
+  "status": "research_transfer_exposure",
+  "model_version": "spp_regional_cc7d60f6ff429cb1e0cb",
+  "created_utc": "2026-09-13T06:01:37.111569+00:00",
+  "confidence": {
+    "level": "Low"
+  },
+  "local_report": "data/processed/workbench/sites/20260913T055700_162cbca3",
+  "report_sha256": "a577fb235083197825fb962c7b0a4afe5fc7a5a395fd1bfc7a236a024dfe9c14",
+  "location": {
+    "name": "Wichita, Kansas",
+    "latitude": 37.69224,
+    "longitude": -97.33754,
+    "weight": 1.0,
+    "geonames_id": 4281730
+  },
+  "assumptions": {
+    "load_mw": 100.0,
+    "conditional_share": 1.0,
+    "site_exposure": 1.0,
+    "years": 7,
+    "confirm_spp": false
+  },
+  "reference_areas": [
+    {
+      "area": "SPS",
+      "weather_point": {
+        "name": "Amarillo, Texas",
+        "latitude": 35.222,
+        "longitude": -101.8313,
+        "weight": 1.0,
+        "geonames_id": 5516233
+      },
+      "threshold_mw": 5114.478499999999,
+      "reference_end_exclusive": "2022-01-01T00:00:00Z",
+      "quantile": 0.95,
+      "target_source_type": "assumption",
+      "target": "This area's own load >= its training-reference 95th percentile; not physical overload or cutoff.",
+      "known_area_load_hours": 52588,
+      "weather_mapping_source_type": "assumption",
+      "weather_sha256": "2924834a10210b1df18d277449509e2bdeb1827361db092bb1f9209ec287b5c9",
+      "mapping_refs": [
+        "https://spp.org/documents/56732/20180330_tariff%20revisions%20to%20implement%20a%20set%20of%20resource%20adequacy%20policies_er18-1268-000.pdf",
+        "https://www.spp.org/Documents/37741/RSC%20Materials%2020160425%20PGD.pdf"
+      ]
+    },
+    {
+      "area": "OKGE",
+      "weather_point": {
+        "name": "Oklahoma City, Oklahoma",
+        "latitude": 35.46756,
+        "longitude": -97.51643,
+        "weight": 1.0,
+        "geonames_id": 4544349
+      },
+      "threshold_mw": 5531.591,
+      "reference_end_exclusive": "2022-01-01T00:00:00Z",
+      "quantile": 0.95,
+      "target_source_type": "assumption",
+      "target": "This area's own load >= its training-reference 95th percentile; not physical overload or cutoff.",
+      "known_area_load_hours": 52588,
+      "weather_mapping_source_type": "assumption",
+      "weather_sha256": "bb84c073dd8daadbbecfa8e1b8c8615bf53711a26d7f0a9a2f69984cdc0a9427",
+      "mapping_refs": [
+        "https://spp.org/documents/56732/20180330_tariff%20revisions%20to%20implement%20a%20set%20of%20resource%20adequacy%20policies_er18-1268-000.pdf",
+        "https://www.spp.org/Documents/37741/RSC%20Materials%2020160425%20PGD.pdf"
+      ]
+    },
+    {
+      "area": "LES",
+      "weather_point": {
+        "name": "Lincoln, Nebraska",
+        "latitude": 40.8,
+        "longitude": -96.66696,
+        "weight": 1.0,
+        "geonames_id": 5072006
+      },
+      "threshold_mw": 583.8162500000001,
+      "reference_end_exclusive": "2022-01-01T00:00:00Z",
+      "quantile": 0.95,
+      "target_source_type": "assumption",
+      "target": "This area's own load >= its training-reference 95th percentile; not physical overload or cutoff.",
+      "known_area_load_hours": 52588,
+      "weather_mapping_source_type": "assumption",
+      "weather_sha256": "165dd876a354bd9bf75d039e6e2762f7513a7562265c1fc2fc92b125bd711f9b",
+      "mapping_refs": [
+        "https://spp.org/documents/56732/20180330_tariff%20revisions%20to%20implement%20a%20set%20of%20resource%20adequacy%20policies_er18-1268-000.pdf",
+        "https://www.spp.org/Documents/37741/RSC%20Materials%2020160425%20PGD.pdf"
+      ]
+    },
+    {
+      "area": "OPPD",
+      "weather_point": {
+        "name": "Omaha, Nebraska",
+        "latitude": 41.25626,
+        "longitude": -95.94043,
+        "weight": 1.0,
+        "geonames_id": 5074472
+      },
+      "threshold_mw": 2038.40875,
+      "reference_end_exclusive": "2022-01-01T00:00:00Z",
+      "quantile": 0.95,
+      "target_source_type": "assumption",
+      "target": "This area's own load >= its training-reference 95th percentile; not physical overload or cutoff.",
+      "known_area_load_hours": 52588,
+      "weather_mapping_source_type": "assumption",
+      "weather_sha256": "3cd3bb7436a47b7edf6a33c1eae2ddd3a328c34e3f82c0270bd9b60090a37630",
+      "mapping_refs": [
+        "https://spp.org/documents/56732/20180330_tariff%20revisions%20to%20implement%20a%20set%20of%20resource%20adequacy%20policies_er18-1268-000.pdf",
+        "https://www.spp.org/Documents/37741/RSC%20Materials%2020160425%20PGD.pdf"
+      ]
+    }
+  ],
+  "cross_area_validation": [
+    {
+      "area": "SPS",
+      "excluded_areas": [
+        "SPS"
+      ],
+      "training_areas": [
+        "LES",
+        "OKGE",
+        "OPPD"
+      ],
+      "training_end": "2022-08-06 16:00:00+00:00",
+      "calibration_end": "2023-10-20 15:00:00+00:00",
+      "test_start": "2023-10-21 16:00:00+00:00",
+      "test_end": "2025-01-01 05:00:00+00:00",
+      "brier_skill": 0.67643520931038,
+      "expected_proxy_hours": 762.5889415805759,
+      "observed_proxy_hours": 760,
+      "n_hours": 10427,
+      "model_brier": 0.0219560137726115,
+      "baseline_brier": 0.06785662224192014
+    },
+    {
+      "area": "OKGE",
+      "excluded_areas": [
+        "OKGE"
+      ],
+      "training_areas": [
+        "LES",
+        "OPPD",
+        "SPS"
+      ],
+      "training_end": "2022-08-06 16:00:00+00:00",
+      "calibration_end": "2023-10-20 15:00:00+00:00",
+      "test_start": "2023-10-21 16:00:00+00:00",
+      "test_end": "2025-01-01 05:00:00+00:00",
+      "brier_skill": 0.7744960869708585,
+      "expected_proxy_hours": 849.2045707419799,
+      "observed_proxy_hours": 1168,
+      "n_hours": 10427,
+      "model_brier": 0.02318712240217903,
+      "baseline_brier": 0.10282359224153506
+    },
+    {
+      "area": "LES",
+      "excluded_areas": [
+        "LES",
+        "OPPD"
+      ],
+      "training_areas": [
+        "OKGE",
+        "SPS"
+      ],
+      "training_end": "2022-08-06 16:00:00+00:00",
+      "calibration_end": "2023-10-20 15:00:00+00:00",
+      "test_start": "2023-10-21 16:00:00+00:00",
+      "test_end": "2025-01-01 05:00:00+00:00",
+      "brier_skill": 0.6502238500983241,
+      "expected_proxy_hours": 386.8456334883188,
+      "observed_proxy_hours": 520,
+      "n_hours": 10427,
+      "model_brier": 0.01658930733292649,
+      "baseline_brier": 0.04742835478516714
+    },
+    {
+      "area": "OPPD",
+      "excluded_areas": [
+        "LES",
+        "OPPD"
+      ],
+      "training_areas": [
+        "OKGE",
+        "SPS"
+      ],
+      "training_end": "2022-08-06 16:00:00+00:00",
+      "calibration_end": "2023-10-20 15:00:00+00:00",
+      "test_start": "2023-10-21 16:00:00+00:00",
+      "test_end": "2025-01-01 05:00:00+00:00",
+      "brier_skill": 0.2713735615094278,
+      "expected_proxy_hours": 302.51241108977695,
+      "observed_proxy_hours": 1181,
+      "n_hours": 10427,
+      "model_brier": 0.07552143709497317,
+      "baseline_brier": 0.10364904854595164
+    }
+  ],
+  "cross_area_brier_skill": 0.573424612181868,
+  "estimates": {
+    "scored_period_expected_hours": 633.9938891562166,
+    "scored_hours": 10430,
+    "unscored_hours": 72,
+    "annual_expected_hours": 631.0056989752204,
+    "member_annual_min": 623.1152185256301,
+    "member_annual_max": 637.3345421283,
+    "months": [
+      {
+        "month": 1,
+        "scored_hours": 750,
+        "calendar_hours": 750,
+        "mean_probability": 0.008794484184148967,
+        "stationary_expected_hours": 6.543096233006831
+      },
+      {
+        "month": 2,
+        "scored_hours": 696,
+        "calendar_hours": 696,
+        "mean_probability": 0.00046047960362245694,
+        "stationary_expected_hours": 0.309442293634291
+      },
+      {
+        "month": 3,
+        "scored_hours": 720,
+        "calendar_hours": 744,
+        "mean_probability": 0.0004251740548499797,
+        "stationary_expected_hours": 0.3163294968083846
+      },
+      {
+        "month": 4,
+        "scored_hours": 696,
+        "calendar_hours": 720,
+        "mean_probability": 0.0005207450244062528,
+        "stationary_expected_hours": 0.3749364175725017
+      },
+      {
+        "month": 5,
+        "scored_hours": 744,
+        "calendar_hours": 744,
+        "mean_probability": 0.003592743188602645,
+        "stationary_expected_hours": 2.673000932320369
+      },
+      {
+        "month": 6,
+        "scored_hours": 720,
+        "calendar_hours": 720,
+        "mean_probability": 0.19441169851536272,
+        "stationary_expected_hours": 139.9764229310611
+      },
+      {
+        "month": 7,
+        "scored_hours": 744,
+        "calendar_hours": 744,
+        "mean_probability": 0.27124292830834795,
+        "stationary_expected_hours": 201.8047386614109
+      },
+      {
+        "month": 8,
+        "scored_hours": 744,
+        "calendar_hours": 744,
+        "mean_probability": 0.28206794883201725,
+        "stationary_expected_hours": 209.85855393102082
+      },
+      {
+        "month": 9,
+        "scored_hours": 720,
+        "calendar_hours": 720,
+        "mean_probability": 0.0858241014895141,
+        "stationary_expected_hours": 61.793353072450095
+      },
+      {
+        "month": 10,
+        "scored_hours": 992,
+        "calendar_hours": 992,
+        "mean_probability": 0.008867698349015254,
+        "stationary_expected_hours": 6.5975675716673665
+      },
+      {
+        "month": 11,
+        "scored_hours": 1416,
+        "calendar_hours": 1440,
+        "mean_probability": 0.0004322000632090251,
+        "stationary_expected_hours": 0.3111840455104987
+      },
+      {
+        "month": 12,
+        "scored_hours": 1488,
+        "calendar_hours": 1488,
+        "mean_probability": 0.0006009050924155172,
+        "stationary_expected_hours": 0.4470733887571448
+      }
+    ],
+    "annual_method": "Stationary 365-day comparison: sum(monthly mean probability x calendar-month hours); not an outcome percentile or future-date forecast.",
+    "uncertainty": "Ensemble min/max is model disagreement, not a P90/P99 interval. No annual tail quantiles are inferred for an unobserved query-area target.",
+    "assumed_site_annual_hours": 631.0056989752204,
+    "conditional_annual_mwh": 63100.569897522044,
+    "assumed_site_term_hours": 4417.039892826543
+  },
+  "input_hashes": {
+    "model": "dc676afc2b88744528bc9383ea36b84e64c813295499b895cb9248e5426d94b9",
+    "card": "4cfa92e793828c83f084c1359a3023b86e56fdb1710d56dc00e180bd19eea010",
+    "query_weather": "d1a25f591bbbc3dab9651c10ca80e0c8f3b1f6625f072352b40aed006695cfe6",
+    "predictions": "36fc1e414b9bc134e838ab56198c451ef658db925689e42a4f7b06c628f99c63"
+  },
+  "warning_signs": {
+    "explanation_code_sha256": "da732ee8ecf175cd27456b1e99f47b84f5a4c4dc65ae272217a5f7f93db8181a",
+    "method": "Exact LightGBM tree contributions multiplied by each fitted sigmoid slope; intercept added to its baseline. Grouped calibrated log-odds contributions explain each member, not additive ensemble probability changes.",
+    "ref": "https://lightgbm.readthedocs.io/en/stable/pythonapi/lightgbm.Booster.html#lightgbm.Booster.predict",
+    "comparison_policy": "High/low means training 90th/10th percentile. Support label requires >=100 matched area-hours across >=20 distinct days; correlated areas/hours are not independent evidence.",
+    "similarity_policy": "Training-only standardized temperature, SPP load, ramp, net load and wind; RMS distance <=0.75; at most one example per area/day. These are illustrative analogues, not independent trials or a confidence interval.",
+    "patterns": [
+      {
+        "pattern": "High temperature with high demand",
+        "criteria": [
+          {
+            "feature": "temperature_c_lag_1h",
+            "operator": ">=",
+            "value": 28.7,
+            "training_quantile": 0.9
+          },
+          {
+            "feature": "load_mw_lag_1h",
+            "operator": ">=",
+            "value": 39330.51750000002,
+            "training_quantile": 0.9
+          }
+        ],
+        "matched_area_hours": 2854,
+        "distinct_days": 113,
+        "distinct_areas": 4,
+        "stress_fraction": 0.8594954449894885,
+        "baseline_fraction": 0.08700968639110003,
+        "difference_percentage_points": 77.24857585983884,
+        "support": "Observed association"
+      },
+      {
+        "pattern": "Cold temperature with high demand",
+        "criteria": [
+          {
+            "feature": "temperature_c_lag_1h",
+            "operator": "<=",
+            "value": -2.0,
+            "training_quantile": 0.1
+          },
+          {
+            "feature": "load_mw_lag_1h",
+            "operator": ">=",
+            "value": 39330.51750000002,
+            "training_quantile": 0.9
+          }
+        ],
+        "matched_area_hours": 563,
+        "distinct_days": 10,
+        "distinct_areas": 4,
+        "stress_fraction": 0.3285968028419183,
+        "baseline_fraction": 0.08700968639110003,
+        "difference_percentage_points": 24.158711645081826,
+        "support": "Limited historical support"
+      },
+      {
+        "pattern": "High and rapidly rising demand",
+        "criteria": [
+          {
+            "feature": "load_mw_lag_1h",
+            "operator": ">=",
+            "value": 39330.51750000002,
+            "training_quantile": 0.9
+          },
+          {
+            "feature": "load_change_1h",
+            "operator": ">=",
+            "value": 1414.0539999999974,
+            "training_quantile": 0.9
+          }
+        ],
+        "matched_area_hours": 1188,
+        "distinct_days": 93,
+        "distinct_areas": 4,
+        "stress_fraction": 0.7390572390572391,
+        "baseline_fraction": 0.08700968639110003,
+        "difference_percentage_points": 65.2047552666139,
+        "support": "Observed association"
+      },
+      {
+        "pattern": "High demand with low wind",
+        "criteria": [
+          {
+            "feature": "load_mw_lag_1h",
+            "operator": ">=",
+            "value": 39330.51750000002,
+            "training_quantile": 0.9
+          },
+          {
+            "feature": "wind_mw_lag_1h",
+            "operator": "<=",
+            "value": 3555.7625,
+            "training_quantile": 0.1
+          }
+        ],
+        "matched_area_hours": 396,
+        "distinct_days": 19,
+        "distinct_areas": 4,
+        "stress_fraction": 0.7702020202020202,
+        "baseline_fraction": 0.08749033255993813,
+        "difference_percentage_points": 68.27116876420821,
+        "support": "Limited historical support"
+      },
+      {
+        "pattern": "High demand after wind and solar",
+        "criteria": [
+          {
+            "feature": "net_load_lag_1h",
+            "operator": ">=",
+            "value": 31754.56963333341,
+            "training_quantile": 0.9
+          }
+        ],
+        "matched_area_hours": 3408,
+        "distinct_days": 109,
+        "distinct_areas": 4,
+        "stress_fraction": 0.6173708920187794,
+        "baseline_fraction": 0.08749033255993813,
+        "difference_percentage_points": 52.98805594588413,
+        "support": "Observed association"
+      }
+    ],
+    "example_hours": [
+      {
+        "timestamp_utc": "2024-08-26T20:00:00+00:00",
+        "probability": 0.9777612612517897,
+        "prior_temperature_c": 34.5,
+        "prior_spp_load_mw": 50887.832,
+        "confidence": "Low",
+        "drivers": [
+          {
+            "factor": "Temperature and demand together",
+            "direction": "Raises model risk",
+            "mean_log_odds_contribution": 6.004552300840735,
+            "member_direction_agreement": 1.0,
+            "missing_input_count": 0
+          },
+          {
+            "factor": "SPP system demand",
+            "direction": "Raises model risk",
+            "mean_log_odds_contribution": 2.025289086155451,
+            "member_direction_agreement": 1.0,
+            "missing_input_count": 0
+          },
+          {
+            "factor": "Local temperature",
+            "direction": "Raises model risk",
+            "mean_log_odds_contribution": 1.5675793565080645,
+            "member_direction_agreement": 1.0,
+            "missing_input_count": 0
+          },
+          {
+            "factor": "Demand after wind and solar",
+            "direction": "Raises model risk",
+            "mean_log_odds_contribution": 0.3677271706612336,
+            "member_direction_agreement": 1.0,
+            "missing_input_count": 0
+          },
+          {
+            "factor": "Season and time of day",
+            "direction": "Raises model risk",
+            "mean_log_odds_contribution": 0.15309677650714684,
+            "member_direction_agreement": 1.0,
+            "missing_input_count": 0
+          },
+          {
+            "factor": "SPP solar generation",
+            "direction": "Raises model risk",
+            "mean_log_odds_contribution": 0.11684103077199356,
+            "member_direction_agreement": 0.9333333333333333,
+            "missing_input_count": 0
+          },
+          {
+            "factor": "Demand rising or falling",
+            "direction": "Raises model risk",
+            "mean_log_odds_contribution": 0.09743330477307212,
+            "member_direction_agreement": 1.0,
+            "missing_input_count": 0
+          },
+          {
+            "factor": "SPP wind generation",
+            "direction": "Raises model risk",
+            "mean_log_odds_contribution": 0.052084190586171024,
+            "member_direction_agreement": 0.8666666666666667,
+            "missing_input_count": 0
+          }
+        ],
+        "similar_training_hours": [
+          {
+            "area": "OKGE",
+            "timestamp_utc": "2021-07-29T20:00:00+00:00",
+            "observed_stress_proxy": 1,
+            "distance_rms": 0.12161639251494526,
+            "prior_temperature_c": 34.2,
+            "prior_spp_load_mw": 49955.993
+          },
+          {
+            "area": "OPPD",
+            "timestamp_utc": "2021-07-29T20:00:00+00:00",
+            "observed_stress_proxy": 1,
+            "distance_rms": 0.12684509842774794,
+            "prior_temperature_c": 33.5,
+            "prior_spp_load_mw": 49955.993
+          },
+          {
+            "area": "LES",
+            "timestamp_utc": "2021-07-29T20:00:00+00:00",
+            "observed_stress_proxy": 1,
+            "distance_rms": 0.14076846620189545,
+            "prior_temperature_c": 36.4,
+            "prior_spp_load_mw": 49955.993
+          }
+        ]
+      },
+      {
+        "timestamp_utc": "2024-07-31T19:00:00+00:00",
+        "probability": 0.9776038479784641,
+        "prior_temperature_c": 34.2,
+        "prior_spp_load_mw": 51839.634,
+        "confidence": "Low",
+        "drivers": [
+          {
+            "factor": "Temperature and demand together",
+            "direction": "Raises model risk",
+            "mean_log_odds_contribution": 6.028455258709135,
+            "member_direction_agreement": 1.0,
+            "missing_input_count": 0
+          },
+          {
+            "factor": "SPP system demand",
+            "direction": "Raises model risk",
+            "mean_log_odds_contribution": 2.0704447123408136,
+            "member_direction_agreement": 1.0,
+            "missing_input_count": 0
+          },
+          {
+            "factor": "Local temperature",
+            "direction": "Raises model risk",
+            "mean_log_odds_contribution": 1.5884010089381104,
+            "member_direction_agreement": 1.0,
+            "missing_input_count": 0
+          },
+          {
+            "factor": "Demand after wind and solar",
+            "direction": "Raises model risk",
+            "mean_log_odds_contribution": 0.3392174570688495,
+            "member_direction_agreement": 1.0,
+            "missing_input_count": 0
+          },
+          {
+            "factor": "Season and time of day",
+            "direction": "Raises model risk",
+            "mean_log_odds_contribution": 0.14412325532026196,
+            "member_direction_agreement": 1.0,
+            "missing_input_count": 0
+          },
+          {
+            "factor": "SPP solar generation",
+            "direction": "Raises model risk",
+            "mean_log_odds_contribution": 0.13310350178905728,
+            "member_direction_agreement": 0.9333333333333333,
+            "missing_input_count": 0
+          },
+          {
+            "factor": "Demand rising or falling",
+            "direction": "Raises model risk",
+            "mean_log_odds_contribution": 0.08674272474897407,
+            "member_direction_agreement": 1.0,
+            "missing_input_count": 0
+          },
+          {
+            "factor": "SPP wind generation",
+            "direction": "Lowers model risk",
+            "mean_log_odds_contribution": -0.012649790755929612,
+            "member_direction_agreement": 0.7333333333333333,
+            "missing_input_count": 0
+          }
+        ],
+        "similar_training_hours": [
+          {
+            "area": "SPS",
+            "timestamp_utc": "2019-07-19T19:00:00+00:00",
+            "observed_stress_proxy": 1,
+            "distance_rms": 0.27854587652700763,
+            "prior_temperature_c": 34.4,
+            "prior_spp_load_mw": 48986.987
+          },
+          {
+            "area": "OPPD",
+            "timestamp_utc": "2019-07-19T19:00:00+00:00",
+            "observed_stress_proxy": 1,
+            "distance_rms": 0.27885322205220675,
+            "prior_temperature_c": 33.8,
+            "prior_spp_load_mw": 48986.987
+          },
+          {
+            "area": "OKGE",
+            "timestamp_utc": "2019-07-19T19:00:00+00:00",
+            "observed_stress_proxy": 1,
+            "distance_rms": 0.2796966808442992,
+            "prior_temperature_c": 34.9,
+            "prior_spp_load_mw": 48986.987
+          }
+        ]
+      },
+      {
+        "timestamp_utc": "2024-07-15T22:00:00+00:00",
+        "probability": 0.9775745630019868,
+        "prior_temperature_c": 38.6,
+        "prior_spp_load_mw": 54011.34300000001,
+        "confidence": "Low",
+        "drivers": [
+          {
+            "factor": "Temperature and demand together",
+            "direction": "Raises model risk",
+            "mean_log_odds_contribution": 5.94056819737318,
+            "member_direction_agreement": 1.0,
+            "missing_input_count": 0
+          },
+          {
+            "factor": "SPP system demand",
+            "direction": "Raises model risk",
+            "mean_log_odds_contribution": 2.0915421471672144,
+            "member_direction_agreement": 1.0,
+            "missing_input_count": 0
+          },
+          {
+            "factor": "Local temperature",
+            "direction": "Raises model risk",
+            "mean_log_odds_contribution": 1.592669113322987,
+            "member_direction_agreement": 1.0,
+            "missing_input_count": 0
+          },
+          {
+            "factor": "Demand after wind and solar",
+            "direction": "Raises model risk",
+            "mean_log_odds_contribution": 0.36711126262739396,
+            "member_direction_agreement": 1.0,
+            "missing_input_count": 0
+          },
+          {
+            "factor": "Demand rising or falling",
+            "direction": "Raises model risk",
+            "mean_log_odds_contribution": 0.12947969200673617,
+            "member_direction_agreement": 1.0,
+            "missing_input_count": 0
+          },
+          {
+            "factor": "SPP solar generation",
+            "direction": "Raises model risk",
+            "mean_log_odds_contribution": 0.1285290391710957,
+            "member_direction_agreement": 0.9333333333333333,
+            "missing_input_count": 0
+          },
+          {
+            "factor": "Season and time of day",
+            "direction": "Raises model risk",
+            "mean_log_odds_contribution": 0.12162671598294444,
+            "member_direction_agreement": 1.0,
+            "missing_input_count": 0
+          },
+          {
+            "factor": "SPP wind generation",
+            "direction": "Raises model risk",
+            "mean_log_odds_contribution": 1.922494170278367e-05,
+            "member_direction_agreement": 0.4,
+            "missing_input_count": 0
+          }
+        ],
+        "similar_training_hours": [
+          {
+            "area": "OKGE",
+            "timestamp_utc": "2022-08-05T22:00:00+00:00",
+            "observed_stress_proxy": 1,
+            "distance_rms": 0.22717615414888953,
+            "prior_temperature_c": 39.3,
+            "prior_spp_load_mw": 51757.567
+          },
+          {
+            "area": "LES",
+            "timestamp_utc": "2022-08-05T22:00:00+00:00",
+            "observed_stress_proxy": 1,
+            "distance_rms": 0.2335897548297583,
+            "prior_temperature_c": 37.0,
+            "prior_spp_load_mw": 51757.567
+          },
+          {
+            "area": "SPS",
+            "timestamp_utc": "2022-08-05T22:00:00+00:00",
+            "observed_stress_proxy": 1,
+            "distance_rms": 0.2492027182519365,
+            "prior_temperature_c": 35.8,
+            "prior_spp_load_mw": 51757.567
+          }
+        ]
+      }
+    ]
+  },
+  "limitations": [
+    "These are transferred regional high-demand-proxy estimates, not observed or predicted actual data-center cutoffs.",
+    "The four reference areas have separate measured load histories and proxy labels; individual facilities do not supply interruption labels.",
+    "Predictors are local representative weather plus shared SPP load/wind/solar and their histories. Local load at the query point, reserves, outages and local constraints are unavailable.",
+    "The model is tested with entire reference areas excluded from fitting and calibration; these tests do not validate every possible new point or site contract.",
+    "Stationary estimates use 2019-2024 inputs and the late-2023/2024 scoring window; no load-growth, climate or real-time forecast is made.",
+    "Confidence remains Low. Site-exposure and conditional-load settings are user assumptions; facility MW only scales energy.",
+    "The excluded OPPD test estimated 302.5 high-demand-proxy hours against 1,181 observed; ranking skill does not establish calibrated transferred hour totals."
+  ],
+  "reproduce": "Open the local ML workspace, search Wichita, Kansas, select Learn stress signs across areas, use the recorded assumptions, then Scan data & generate report. Raw archives and models are ignored local caches, not bundled in Git."
+}

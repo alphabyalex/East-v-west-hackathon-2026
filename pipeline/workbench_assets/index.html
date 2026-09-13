@@ -22,6 +22,7 @@
             <button id="site-search-submit" type="submit">Find location</button>
           </form>
           <form id="site-report-form">
+            <label for="site-method">Model approach</label><select id="site-method"><option value="site-transfer">Learn stress signs across areas</option><option value="site-report">SPP-wide annual scenarios</option></select>
             <label for="site-scan-select">Saved location search</label><select id="site-scan-select"></select>
             <label for="site-candidate">Choose the intended location</label><select id="site-candidate" required></select>
             <label for="site-load">Data-center load (MW)</label><input id="site-load" type="number" min="0.001" max="10000" step="any" value="100" required>
@@ -33,7 +34,7 @@
             <label class="check-label"><input id="site-confirm-spp" type="checkbox"> If the utility lookup is inconclusive, I confirm this point belongs to the historical SPP footprint (2019–2024).</label>
             <p class="hint">This optional assertion is saved as your assumption. The model cannot yet assess newly joined SPP territories or other grids.</p>
             <button id="site-report-submit" type="submit">Scan data &amp; generate report</button>
-            <p class="hint">Checks the utility map, collects local historical temperature, combines SPP load and wind/solar generation, fits the model and simulates exposure. First run may take several minutes; repeat runs reuse cached data and models.</p>
+            <p class="hint">The across-area model learns from four areas' separate high-demand histories and tests on withheld areas. It transfers those relationships using your local weather and shared SPP data. First preparation may take several minutes; subsequent runs reuse the fitted model. Site cutoffs and local constraints are unobserved.</p>
           </form>
         </section>
         <section class="panel"><div class="section-title"><span class="step">01</span><h2>Prepare an area</h2></div>
@@ -63,10 +64,20 @@
           <p class="hint">Select a location to estimate possible exposure under historical SPP stress conditions. These are modeled scenarios, not a forecast of actual site cutoff dates.</p>
           <label for="site-report-select">Saved location report</label><select id="site-report-select"></select>
           <p id="site-report-summary" role="status">Find a location and generate its report to begin.</p>
+          <button id="site-signals-submit" type="button" class="secondary">Explain this saved model's warning signs</button>
+          <section id="signal-panel" hidden>
+            <h3>Signs associated with high demand</h3><p class="hint">Comparison cutoffs come from training data. Frequencies below come from later held-out hours and refer to high-demand proxies. Confidence: Low.</p>
+            <div id="signal-patterns" class="table-scroll"></div>
+            <label for="signal-hour">Inspect a high-scoring historical hour (UTC)</label><select id="signal-hour"></select>
+            <p id="signal-summary"></p><div id="signal-drivers" class="table-scroll"></div>
+            <p class="hint">Directions explain the fitted model relative to its learned baseline. They are associations, not causal effects or actual cutoff rules. Missing histories can affect a model score; they are not evidence of low generation. Reserves, outages and local constraints are unavailable in this fitted model.</p>
+            <h3>Similar historical conditions</h3><div id="signal-analogues" class="table-scroll"></div>
+            <p class="hint">Training examples from similar weather and grid conditions; nearby hours/areas can be correlated. They do not count as independent evidence.</p>
+          </section>
           <div id="site-annual-table" class="table-scroll"></div>
           <nav id="site-downloads" aria-label="Download location report"></nav>
           <details><summary>Analyzed report and assumptions</summary><pre id="site-report-text"></pre></details>
-          <details><summary>Highest historical hours with local conditions (UTC)</summary><p class="hint">Probabilities refer to the SPP high-demand proxy. Weather and grid conditions shown are from the preceding hour, as used by the model.</p><div id="site-hour-table" class="table-scroll"></div></details>
+          <details><summary id="site-extra-title">Highest historical hours with local conditions (UTC)</summary><p id="site-extra-note" class="hint">Probabilities refer to the SPP high-demand proxy. Weather and grid conditions shown are from the preceding hour, as used by the model.</p><div id="site-hour-table" class="table-scroll"></div></details>
           <details><summary>Data sources, coverage and model evaluation</summary><pre id="site-report-data"></pre></details>
         </section>
         <section class="panel data-panel"><div class="section-title"><span class="step">DATA</span><h2>Historical observations</h2><span class="tag">CACHED DATA</span></div>

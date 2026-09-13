@@ -170,10 +170,17 @@ class Workspace:
             identifier = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%S") + "_" + uuid.uuid4().hex[:8]
             job_dir = self.home / "jobs" / identifier
             commands = []
-            if kind in {"site-scan", "site-report"}:
+            if kind in {"site-scan", "site-report", "site-transfer", "site-signals"}:
                 from pipeline.site import validate_query, validate_assumptions
                 if kind == "site-scan":
                     request = {"kind": kind, "query": validate_query(data.get("query"))}
+                elif kind == "site-signals":
+                    saved_id = data.get("report", "")
+                    saved = self.site_record(saved_id, "site_report.json")
+                    if saved.get("status") != "research_modeled_exposure":
+                        raise ValueError("Select a completed system report to explain, or generate a regional comparison.")
+                    self.run(saved["model_run"])
+                    request = {"kind": kind, "source_dir": str(self.resolve(saved_id))}
                 else:
                     scan = self.site_record(data.get("scan", ""), "scan.json")
                     index = data.get("candidate")

@@ -111,7 +111,8 @@ class SiteTests(unittest.TestCase):
         write_json(path, request)
         with patch("pipeline.ingest.fetch_utility_territories", return_value=({"features": []}, {})), \
              patch("pipeline.site.prepare_area_model", return_value=(self.root, True, {})) as fit, \
-             patch("pipeline.site.analyzed_report", return_value={}) as report, patch("pipeline.site.write_report"):
+             patch("pipeline.site.analyzed_report", return_value={}) as report, patch("pipeline.site.write_report"), \
+             patch("pipeline.signals.explain_saved_run", return_value={}):
             run_site_job(path, self.root / "out")
         fit.assert_called_once()
         self.assertTrue(report.call_args.args[3]["confirm_spp"])

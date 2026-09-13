@@ -6,6 +6,7 @@ let state = {datasets: [], runs: [], job: null};
 let pollTimer, dataVersion = 0, runVersion = 0, submitting = false;
 let activeRun = null;
 let scanVersion = 0, siteReportVersion = 0;
+let activeSiteReport = null;
 
 async function request(path, options = {}) {
   const response = await fetch(path, {...options, signal: AbortSignal.timeout(20000)});
@@ -38,6 +39,7 @@ function buttons() {
   const busy = submitting || state.job?.status === "running";
   $("site-search-submit").disabled = busy;
   $("site-report-submit").disabled = busy || !$("site-scan-select").value || !$("site-candidate").options.length;
+  $("site-signals-submit").disabled = busy || activeSiteReport?.status !== "research_modeled_exposure" || !!activeSiteReport?.warning_signs;
   $("weather-submit").disabled = busy || !$("weather-dataset").value;
   $("train-submit").disabled = busy || !$("train-dataset").value || !$("evidence").files.length || $("label-ref").value.trim().length < 5;
   $("hours-submit").disabled = busy || !activeRun;
@@ -73,7 +75,7 @@ async function refresh(preferredDataset = "", preferredRun = "") {
   jobView();
   const completed = state.job?.status === "succeeded" ? state.job : null;
   options("site-scan-select", (state.site_scans || []).map(row => ({id: row.id, label: row.name})), completed?.kind === "site-scan" ? completed.result_id : "");
-  options("site-report-select", (state.site_reports || []).map(row => ({id: row.id, label: row.name + " · " + row.id.split("/").pop()})), completed?.kind === "site-report" ? completed.result_id : "");
+  options("site-report-select", (state.site_reports || []).map(row => ({id: row.id, label: row.name + " · " + row.id.split("/").pop()})), ["site-report", "site-transfer", "site-signals"].includes(completed?.kind) ? completed.result_id : "");
   await Promise.all([showDataset(), showRun(), showSiteScan(), showSiteReport()]);
   if (state.job?.status === "running") pollTimer = setTimeout(pollJob, 1500);
 }
@@ -226,9 +228,12 @@ function siteTable(id, headers, rows) {
 async function showSiteReport() {
   const version = ++siteReportVersion, id = $("site-report-select").value;
   $("site-annual-table").replaceChildren(); $("site-hour-table").replaceChildren(); $("site-downloads").replaceChildren();
+  activeSiteReport = null; $("signal-panel").hidden = true; buttons();
   if (!id) return;
   const report = await request(`/api/site-report?id=${encodeURIComponent(id)}`);
   if (version !== siteReportVersion) return;
+  activeSiteReport = report; buttons();
+  if (report.warning_signs) showSignalPatterns();
   $("site-report-text").textContent = report.markdown;
   const {markdown, ...details} = report;
   $("site-report-data").textContent = JSON.stringify(details, null, 2);
@@ -237,7 +242,18 @@ async function showSiteReport() {
     link.href = `/api/site-download?id=${encodeURIComponent(id)}&file=${encodeURIComponent(name)}`;
     $("site-downloads").append(link);
   }
+  if (report.status === "research_transfer_exposure") {
+    $("site-extra-title").textContent = "How well the model performed on areas excluded from training";
+    $("site-extra-note").textContent = "Each listed area was excluded from fitting and calibration. Lower Brier scores are better; compare the model with its baseline. Hours refer to the held-out historical period, not one annual forecast.";
+    const value = report.estimates, fmt = n => Number(n).toLocaleString("en-US", {maximumFractionDigits: 1});
+    $("site-report-summary").textContent = `${report.location.name}: ${fmt(value.annual_expected_hours)} expected regional proxy hours per stationary comparison year; ${fmt(value.assumed_site_annual_hours)} assumed site hours at ${Math.round(report.assumptions.site_exposure * 100)}% exposure. Confidence: Low. Learned from four areas with separate load histories. Local cutoff records and query-area load are unavailable. No P50/P90/P99 outcome quantiles are inferred for this transferred estimate.`;
+    siteTable("site-annual-table", ["Expected proxy h/year", "Assumed site h/year", "Conditional MWh/year", `${report.assumptions.years}-year assumed site h`], [[value.annual_expected_hours, value.assumed_site_annual_hours, value.conditional_annual_mwh, value.assumed_site_term_hours].map(fmt)]);
+    siteTable("site-hour-table", ["Area excluded from training", "Model Brier", "Baseline Brier", "Expected proxy h", "Observed proxy h"], report.cross_area_validation.map(row => [row.area, row.metrics.brier_score.toFixed(4), row.baseline.brier_score.toFixed(4), fmt(row.expected_proxy_hours), row.observed_proxy_hours]));
+    return;
+  }
   if (report.status !== "research_modeled_exposure") { $("site-report-summary").textContent = report.message; return; }
+  $("site-extra-title").textContent = "Highest historical hours with local conditions (UTC)";
+  $("site-extra-note").textContent = "Probabilities refer to the SPP high-demand proxy. Weather and grid conditions shown are from the preceding hour, as used by the model.";
   const fmt = value => value === null ? "Unknown" : Number(value).toLocaleString("en-US", {maximumFractionDigits: 1});
   const first = report.scenario.annual[0];
   $("site-report-summary").textContent = `${report.location.name}: year-one assumed site exposure P50 ${fmt(first.site_p50_hours)} h, P90 ${fmt(first.site_p90_hours)} h, P99 ${fmt(first.site_p99_hours)} h. Confidence: Low. Site-exposure assumption: ${Math.round(report.assumptions.site_exposure * 100)}%. Grid target: high SPP demand. ${report.model_reused ? "Reused this location's fitted model." : "Fitted using this location's weather."} Historical inputs: 2019–2024; no future-date forecast.`;
@@ -247,8 +263,29 @@ async function showSiteReport() {
 $("site-search-form").addEventListener("submit", event => { event.preventDefault(); submit({kind: "site-scan", query: $("site-query").value}); });
 $("site-report-form").addEventListener("submit", event => {
   event.preventDefault();
-  submit({kind: "site-report", scan: $("site-scan-select").value, candidate: Number($("site-candidate").value), load_mw: Number($("site-load").value), conditional_share: Number($("site-conditional").value) / 100, site_exposure: Number($("report-exposure").value), years: Number($("site-years").value), confirm_spp: $("site-confirm-spp").checked});
+  submit({kind: $("site-method").value, scan: $("site-scan-select").value, candidate: Number($("site-candidate").value), load_mw: Number($("site-load").value), conditional_share: Number($("site-conditional").value) / 100, site_exposure: Number($("report-exposure").value), years: Number($("site-years").value), confirm_spp: $("site-confirm-spp").checked});
 });
+function showSignalPatterns() {
+  const signs = activeSiteReport.warning_signs;
+  $("signal-panel").hidden = false;
+  const pct = n => n === null ? "Unknown" : `${(n * 100).toFixed(1)}%`;
+  const fmt = n => Number(n).toLocaleString("en-US", {maximumFractionDigits: 1});
+  const labels = {temperature_c_lag_1h: ["Temperature", "°C"], load_mw_lag_1h: ["SPP load", "MW"], load_change_1h: ["Hourly load increase", "MW"], net_load_lag_1h: ["SPP load minus wind/solar", "MW"], wind_mw_lag_1h: ["SPP wind generation", "MW"]};
+  siteTable("signal-patterns", ["Combination", "Prior-hour comparison rule", "Held-out stress frequency", "Baseline comparison", "Area-hours / days"], signs.patterns.map(row => [row.pattern, row.criteria.map(c => `${labels[c.feature]?.[0] || c.feature} ${c.operator} ${fmt(c.value)} ${labels[c.feature]?.[1] || ""}`).join(" and "), pct(row.stress_fraction), row.difference_percentage_points === null ? "Unknown" : `${row.difference_percentage_points >= 0 ? "+" : ""}${fmt(row.difference_percentage_points)} percentage points; baseline ${pct(row.baseline_fraction)}`, `${row.matched_area_hours} / ${row.distinct_days} (${row.support})`]));
+  options("signal-hour", signs.hours.map((row, i) => ({id: String(i), label: `${row.timestamp_utc} · proxy probability ${pct(row.probability)}`})));
+  showSignalHour();
+}
+function showSignalHour() {
+  const row = activeSiteReport?.warning_signs?.hours[Number($("signal-hour").value)];
+  if (!row) return;
+  const fmt = n => n === null ? "Unknown" : Number(n).toLocaleString("en-US", {maximumFractionDigits: 1});
+  $("signal-summary").textContent = `Previous hour: ${fmt(row.prior_temperature_c)} °C local temperature and ${fmt(row.prior_spp_load_mw)} MW SPP load. Proxy probability ${(row.probability * 100).toFixed(1)}%. Confidence: Low. Factors are ordered by contribution magnitude.`;
+  siteTable("signal-drivers", ["Factor", "Effect on this model prediction", "Models agreeing on direction", "Input coverage"], row.drivers.map(item => [item.factor, item.direction, `${Math.round(item.member_direction_agreement * 100)}%`, item.missing_input_count ? `${item.missing_input_count} missing history values` : "Complete history"]));
+  siteTable("signal-analogues", ["Reference area", "Hour UTC", "Prior °C", "Prior SPP MW", "Recorded high-demand proxy"], row.similar_training_hours.map(item => [item.area, item.timestamp_utc, fmt(item.prior_temperature_c), fmt(item.prior_spp_load_mw), item.observed_stress_proxy ? "Yes" : "No"]));
+  if (!row.similar_training_hours.length) $("signal-analogues").textContent = "No close complete training examples within the comparison distance. Treat this hour as weakly supported.";
+}
+$("signal-hour").addEventListener("change", showSignalHour);
+$("site-signals-submit").addEventListener("click", () => submit({kind: "site-signals", report: $("site-report-select").value}));
 $("report-exposure").addEventListener("input", () => { $("report-exposure-value").textContent = `${Math.round(Number($("report-exposure").value) * 100)}%`; });
 $("site-scan-select").addEventListener("change", () => showSiteScan().catch(e => error(e.message)));
 $("site-report-select").addEventListener("change", () => showSiteReport().catch(e => error(e.message)));

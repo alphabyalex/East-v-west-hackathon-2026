@@ -20,7 +20,7 @@ TEMPERATURE_FEATURE_POLICY = {
 }
 
 
-def build_features(labeled: pd.DataFrame, policy: dict) -> tuple[pd.DataFrame, list[str]]:
+def build_features(labeled: pd.DataFrame, policy: dict, *, require_target: bool = True) -> tuple[pd.DataFrame, list[str]]:
     excluded = set(LABEL_COLUMNS[policy["label_method"]])
     signals = [column for column in OBSERVATIONS if column in labeled and column not in excluded]
     pieces = []
@@ -61,15 +61,16 @@ def build_features(labeled: pd.DataFrame, policy: dict) -> tuple[pd.DataFrame, l
         if {"available_reserves_mw", "required_reserves_mw"}.issubset(signals):
             features["reserve_margin_lag_1h"] = (group.available_reserves_mw - group.required_reserves_mw).shift(1)
         feature_names = list(features.columns)
-        features["target"] = group["target"]
+        features["target"] = group["target"] if "target" in group else np.nan
         features["location_id"] = location
         features["timestamp_utc"] = timeline
         # Other sensors may be missing; LightGBM handles missing predictors.
         # Core load history and the label must be observed to score this hour.
-        features = features.dropna(subset=["target", "load_mw_lag_1h", "load_mw_mean_24h"])
+        features = features.dropna(subset=(["target"] if require_target else []) + ["load_mw_lag_1h", "load_mw_mean_24h"])
         pieces.append(features)
     result = pd.concat(pieces, ignore_index=True).sort_values(["timestamp_utc", "location_id"])
     if result.empty:
         raise ValueError("No usable labeled hours after checking observed labels and 24 hours of load history.")
-    result["target"] = result["target"].astype(int)
+    if require_target:
+        result["target"] = result["target"].astype(int)
     return result.reset_index(drop=True), feature_names
