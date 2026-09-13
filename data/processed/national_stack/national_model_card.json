@@ -1,0 +1,18 @@
+{
+  "architecture": "Hierarchical Stacking Ensemble",
+  "regions": [
+    "Central",
+    "South",
+    "Midwest",
+    "Northeast",
+    "West",
+    "Northwest"
+  ],
+  "base_learners": [
+    "LightGBM",
+    "XGBoost"
+  ],
+  "meta_learner": "LogisticRegression",
+  "trials": 10000,
+  "status": "Production-grade national coverage"
+}

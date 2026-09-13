@@ -38,11 +38,11 @@ function Decision({ endpoint, label }: { endpoint: SensitivityEndpoint; label: s
 
 function TornadoBar({ x = 0, y = 0, width = 0, height = 0, payload }: { x?: number; y?: number; width?: number; height?: number; payload?: ChartRow }) {
   if (!payload) return null
-  return <g data-sensitivity-bar={payload.original.key}>
+  return <g className="sensitivity-bar" data-sensitivity-bar={payload.original.key}>
     <title>{JSON.stringify({ low: payload.original.low, high: payload.original.high, source: payload.original.source })}</title>
     {width === 0
-      ? <line x1={x} x2={x} y1={y} y2={y + height} stroke="var(--teal)" strokeWidth={2} />
-      : <rect x={x} y={y} width={width} height={height} fill="var(--teal)" fillOpacity={0.6} stroke="var(--teal)" />}
+      ? <line x1={x} x2={x} y1={y} y2={y + height} stroke="var(--chart-primary)" strokeWidth={2} />
+      : <rect x={x} y={y} width={width} height={height} fill="var(--chart-primary)" fillOpacity={0.22} stroke="var(--chart-secondary)" />}
   </g>
 }
 
@@ -58,7 +58,7 @@ function SensitivityTooltip({ active, row }: { active?: boolean; row?: ChartRow 
         <Decision endpoint={endpoint} label={`${row.label} ${bound} decision`} />
       </div>
     })}
-    <small><MockLabel sources={[row.original.source]} children="Mock sensitivity" /> Exact values and sources are available below.</small>
+    <small><MockLabel sources={[row.original.source]} children="Assumed sensitivity" /> Exact values and sources are available below.</small>
   </div>
 }
 
@@ -109,7 +109,7 @@ export function SensitivityPanel({ sensitivity }: { sensitivity: SensitivityResu
     <div className="sensitivity-body">
       <div className="sensitivity-intro">
         <p>Which assumptions move the decision? Bars span the low and high input scenarios, ordered by the largest dollar swing. Earlier-access contribution stays fixed.</p>
-        <div className="sensitivity-baseline"><span>Current contract comparison · <Sourced value={50} source={percentileSource} animate={false}>p50</Sourced> path</span><strong><Datum datum={sensitivity.baseline.net_value_usd.p50} label="Current sensitivity contract comparison" format={compactDollars} /></strong><span><Sourced value={sensitivity.baseline.decision} source={sensitivity.baseline.source} label="Current sensitivity decision" className={`sensitivity-decision sensitivity-${sensitivity.baseline.decision}`}>{decisionText(sensitivity.baseline.decision)}</Sourced> <MockLabel sources={[sensitivity.source]} children="Mock sensitivity" /></span></div>
+        <div className="sensitivity-baseline"><span>Current contract comparison · <Sourced value={50} source={percentileSource} animate={false}>p50</Sourced> path</span><strong><Datum datum={sensitivity.baseline.net_value_usd.p50} label="Current sensitivity contract comparison" format={compactDollars} /></strong><span><Sourced value={sensitivity.baseline.decision} source={sensitivity.baseline.source} label="Current sensitivity decision" className={`sensitivity-decision sensitivity-${sensitivity.baseline.decision}`}>{decisionText(sensitivity.baseline.decision)}</Sourced> <MockLabel sources={[sensitivity.source]} children="Assumed sensitivity" /></span></div>
       </div>
       <div className="sensitivity-axis-caption">CHANGE IN CONTRACT COMPARISON · USD MILLIONS</div>
       <div ref={chartRef} className="sensitivity-chart" role="group" aria-label="Break-even sensitivity tornado chart, largest swing first. Inspect ranges and decision endpoints below for exact sourced values.">
@@ -117,7 +117,7 @@ export function SensitivityPanel({ sensitivity }: { sensitivity: SensitivityResu
           <BarChart data={chartRows} layout="vertical" margin={{ top: 12, right: 35, bottom: 14, left: 4 }} accessibilityLayer>
             <CartesianGrid horizontal={false} stroke="var(--border)" />
             <XAxis type="number" domain={[-axisLimit, axisLimit]} ticks={[-axisLimit, -axisLimit / 2, 0, axisLimit / 2, axisLimit]} tickLine={false} axisLine={{ stroke: 'var(--border-strong)' }} height={30} tick={<SourcedTick source={axisSource} axis="x" />} />
-            <YAxis type="category" dataKey="label" width={136} axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 11, fontFamily: 'var(--font-sans)' }} />
+            <YAxis type="category" dataKey="label" width={136} axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 11, fontFamily: 'var(--font-heading)', fontWeight: 600, letterSpacing: '-0.03em' }} />
             <ReferenceLine x={0} stroke="var(--text-primary)" strokeDasharray="3 4" />
             <Tooltip content={({ active, payload }) => <SensitivityTooltip active={active} row={payload?.[0]?.payload as ChartRow | undefined} />} cursor={{ fill: 'var(--hover)', fillOpacity: 0.5 }} wrapperStyle={{ pointerEvents: 'auto', zIndex: 30 }} />
             <Bar dataKey="span" shape={<TornadoBar />} barSize={24} isAnimationActive={!reducedMotion} animationDuration={320} animationEasing="ease-out" />

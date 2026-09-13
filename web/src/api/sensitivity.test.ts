@@ -39,8 +39,7 @@ describe('API-backed sensitivity', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1)
     const [url, options] = fetchImpl.mock.calls[0]
     expect(url).toMatch(/\/api\/estimate$/)
-    expect(JSON.parse(options.body)).toEqual({ ...request, site_exposure: 1 })
-    expect(Object.keys(JSON.parse(options.body))).toHaveLength(5)
+    expect(JSON.parse(options.body)).toEqual({ ...request, site_exposure: 1, vpp_solar_homes: 0 })
     expect(options.signal).toBe(controller.signal)
     const site = result.rows.find(row => row.key === 'site_exposure')!
     expect(site.status).toBe('modeled')

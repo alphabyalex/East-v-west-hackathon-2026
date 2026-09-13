@@ -16,11 +16,19 @@ function restoreFullExposure(response: EstimateResponse, assumptions: EconomicsA
   Object.assign(full.modeled_exposure, unscale(response.modeled_exposure))
   full.modeled_exposure.worst_contiguous_outage_hours /= factor
   full.modeled_exposure.by_year = response.modeled_exposure.by_year.map(row => ({ year: row.year, ...unscale(row) }))
+  
   const interruptibleMw = full.inputs_echo.load_mw * full.inputs_echo.flexibility_split
+  const vppOffsetMw = (full.inputs_echo.vpp_solar_homes ?? 0) * assumptions.vpp_battery_discharge_mw_per_home.value
+  const netInterruptibleMw = Math.max(0, interruptibleMw - vppOffsetMw)
+
   for (const quantile of ['p50', 'p90', 'p99'] as const) {
-    const gpuHours = full.modeled_exposure[quantile] * interruptibleMw * full.economics.gpus_per_mw
+    const gpuHours = full.modeled_exposure[quantile] * netInterruptibleMw * full.economics.gpus_per_mw
     full.economics.lost_gpu_hours_per_year[quantile] = gpuHours
-    full.economics.annual_cost_usd[quantile] = gpuHours * assumptions.gpu_rental_price_usd_per_hour.value
+    
+    const annualLoss = gpuHours * assumptions.gpu_rental_price_usd_per_hour.value
+    const vppRevenue = full.modeled_exposure[quantile] * vppOffsetMw * assumptions.vpp_arbitrage_revenue_usd_per_mwh.value
+    full.economics.vpp_arbitrage_revenue_usd_per_year[quantile] = vppRevenue
+    full.economics.annual_cost_usd[quantile] = annualLoss - vppRevenue
   }
   const benefit = full.economics.value_of_early_connection_usd
   const tolerance = assumptions.close_call_fraction.value
@@ -47,6 +55,7 @@ export async function buildEstimateSensitivity(
     location_id: request.location_id, load_mw: request.load_mw,
     contract_years: request.term_years, flexibility_percent: request.flexibility_split * 100,
     site_exposure: request.site_exposure,
+    vpp_solar_homes: request.vpp_solar_homes ?? 0,
     firm_wait_years: assumptions.early_connection_years.value,
     gpu_per_mw: assumptions.gpus_per_mw.value,
     gpu_hour_value_usd: assumptions.gpu_rental_price_usd_per_hour.value,

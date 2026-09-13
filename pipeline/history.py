@@ -22,6 +22,8 @@ def prepare_history(start_year: int, end_year: int, area: str, out: Path) -> Non
         if not prepared.exists():
             normalize_legacy_load(raw, prepared)
         frame = read_hourly(prepared)
+        if "location_id" in frame.columns:
+            frame = frame[frame.location_id == "SPP_SYSTEM"]
         if len(frame) < 8700:
             raise ValueError(f"{year}: source is not a full annual archive.")
         inputs.append(frame)

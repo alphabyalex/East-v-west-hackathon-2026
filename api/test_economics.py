@@ -20,6 +20,7 @@ REQUEST = {
     "term_years": 7,
     "flexibility_split": 0.6,
     "site_exposure": 0.4,
+    "vpp_solar_homes": 0,
 }
 SUMMARY = {"p50": 80, "p90": 140, "p99": 220}
 PLACEHOLDER_SOURCE = Source(source_type="assumption", ref="mock://exposure; placeholder, pipeline not wired yet")

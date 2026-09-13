@@ -321,7 +321,7 @@ def handler_for(workspace: Workspace):
                     return self.respond(path.read_bytes(), content_type="text/javascript" if path.suffix == ".js" else "text/css")
                 if request.path.startswith("/fonts/"):
                     name = request.path.removeprefix("/fonts/")
-                    if name not in {"ibm-plex-sans-400.ttf", "ibm-plex-sans-600.ttf", "ibm-plex-mono-400.ttf"}:
+                    if name not in {"ibm-plex-sans-400.ttf", "ibm-plex-sans-600.ttf", "roboto-mono-variable.ttf"}:
                         raise ValueError("Font not available.")
                     return self.respond((workspace.root / "web/public/fonts" / name).read_bytes(), content_type="font/ttf")
                 if request.path == "/api/state":

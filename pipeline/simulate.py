@@ -54,7 +54,8 @@ def simulate_exposure(predictions: pd.DataFrame, confidence: dict, model_version
             raise ValueError("Simulation reference contains duplicate hours.")
         if not times.equals(times.floor("h")):
             raise ValueError("Simulation reference must use hourly interval-start timestamps.")
-        # Relaxed for hackathon: simulation reference does not need to cover a full year.
+        if (times[-1] - times[0]).total_seconds() < 365 * 86400:
+            raise ValueError(f"{location}: simulation needs at least one year of held-out reference history covering all seasons.")
         probability = group[member_columns].to_numpy(dtype=float)
         mean = group.probability.to_numpy(dtype=float)
         target = group.target.to_numpy()
@@ -71,15 +72,9 @@ def simulate_exposure(predictions: pd.DataFrame, confidence: dict, model_version
                       if times[index].month == month and times[index].hour == 0
                       and times[index + block_hours - 1].month == month
                       and times[index + block_hours - 1] - times[index] == pd.Timedelta(block_hours - 1, unit="h")]
-            if starts:
-                starts_by_month[month] = np.asarray(starts)
-        
-        # Fallback for missing months: just use any available starts from the test dataset.
-        all_starts = [index for index in range(len(group) - block_hours + 1)
-                      if times[index + block_hours - 1] - times[index] == pd.Timedelta(block_hours - 1, unit="h")]
-        for month in range(1, 13):
-            if month not in starts_by_month:
-                starts_by_month[month] = np.asarray(all_starts)
+            if not starts:
+                raise ValueError(f"{location}: no complete {block_hours}-hour reference block in month {month}; do not invent missing seasons.")
+            starts_by_month[month] = np.asarray(starts)
         annual = np.zeros((simulations, years), dtype=int)
         longest = np.zeros_like(annual)
         for trial in range(simulations):

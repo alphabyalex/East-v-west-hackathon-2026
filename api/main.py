@@ -77,3 +77,15 @@ def estimate(
         raise HTTPException(status_code=503, detail=str(error)) from error
     except AssumptionsError as error:
         raise HTTPException(status_code=503, detail="Economic assumptions are missing or invalid; check docs/ASSUMPTIONS.md") from error
+
+
+from .zone_ranking import ZoneRankingsResponse, ZoneRankingsError, load_zone_rankings
+
+@app.get("/api/zone-rankings", response_model=ZoneRankingsResponse)
+def get_zone_rankings(response: Response) -> ZoneRankingsResponse:
+    """Expose the precomputed SPP composite sustainability/fit rankings."""
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        return load_zone_rankings()
+    except ZoneRankingsError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error

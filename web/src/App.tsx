@@ -1,8 +1,9 @@
 import { Component, lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, Check, ChevronDown, CircleHelp, Download, Gauge, MapPin, RotateCcw, SlidersHorizontal, Unplug, Zap } from 'lucide-react';
+import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, Check, ChevronDown, CircleHelp, Download, Gauge, MapPin, RotateCcw, SlidersHorizontal, Unplug, Zap, CloudSun } from 'lucide-react';
 import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { ScenarioProvider, useScenario } from './ScenarioContext';
 import { ScenarioComparison } from './components/ScenarioComparison';
+import { ZoneLeaderboard } from './components/ZoneLeaderboard';
 import { Sourced, SourceInfo, SourcedTick } from './components/Sourced';
 import { TransparencyPanel } from './components/TransparencyPanel';
 import { SensitivityPanel } from './components/SensitivityPanel';
@@ -192,6 +193,7 @@ function Inputs() {
       <NumberField name="load_mw" label="LOAD SIZE" unit="MW" min={1} max={2000} icon={<Zap size={13} />} />
       <NumberField name="contract_years" label="CONTRACT TERM" unit="years" min={1} max={7} icon={<Activity size={13} />} />
       <NumberField name="flexibility_percent" label="FLEXIBILITY SPLIT" unit="% interruptible" min={0} max={100} icon={<SlidersHorizontal size={13} />} />
+      <NumberField name="vpp_solar_homes" label="VPP ORCHESTRATION" unit="solar homes" min={0} max={10000} icon={<CloudSun size={13} className="text-teal" />} />
     </section>
     
     {showTelemetry && <section id="telemetry-drawer" className="telemetry-drawer" aria-label="Climate telemetry nodes">
@@ -351,9 +353,21 @@ function EconomicsPanel() {
     {isMockSource(economicsSource) && <p className="economics-mock-note" id="economics-mock-note"><MockLabel sources={[economicsSource]} children="Mock economics" /> GPU-hours, dollars and break-even use unverified placeholder inputs.</p>}
     <div className="economics-flow">
       <div className="economics-row"><div><span className="economics-label">Interruptible capacity</span><span className="economics-detail">Load × flexibility split</span></div><span><Value datum={e.interruptible_mw} /> <small>MW</small></span></div>
+      
+      {inputs.vpp_solar_homes > 0 && <div className="sustainability-gain-block">
+        <div className="economics-row sustainability-row">
+          <div><span className="economics-label text-teal">VPP sustainability offset</span><span className="economics-detail">Residential solar + BESS dispatch</span></div>
+          <span className="text-teal">−<Value datum={e.vpp_offset_mw} /> <small>MW</small></span>
+        </div>
+        <div className="economics-row sustainability-row arbitrage">
+          <div><span className="economics-label text-teal">VPP arbitrage revenue</span><span className="economics-detail">Peak scarcity dispatch · median path</span></div>
+          <span className="text-teal">+<Value datum={e.vpp_arbitrage_revenue_usd} format={money} /> <small>/yr</small></span>
+        </div>
+      </div>}
+
+      <div className="flow-connector"><ArrowDownRight size={14} /><span>Net exposure × compute density</span></div>
+      <div className="economics-row"><div><span className="economics-label">Net interruptible load</span><span className="economics-detail">Flexible load − VPP support</span></div><span><Value datum={e.net_interruptible_mw} /> <small>MW</small></span></div>
       <div className="flow-connector"><ArrowDownRight size={14} /><span>Modeled exposure × compute density</span></div>
-      <div className="economics-row"><div><span className="economics-label">Lost GPU-hours</span><span className="economics-detail">Annual equivalent · median path</span></div><span><Value datum={e.annual_lost_gpu_hours} format={integer.format} /> <small>/yr</small></span></div>
-      <div className="flow-connector"><ArrowDownRight size={14} /><span>Lost GPU-hours × value per GPU-hour</span></div>
       <div className="economics-row loss-row"><div><span className="economics-label">Modeled interruption cost</span><span className="economics-detail">Annual equivalent</span></div><span className="text-amber"><Value datum={e.annual_loss_usd} format={money} /> <small>/yr</small></span></div>
     </div>
     <div className="economics-quantiles"><table><caption>ANNUAL COST SCENARIOS · USD / YEAR <MockLabel sources={[economicsSource]} /></caption><thead><tr>{([50, 90, 99] as const).map(percentile => <th key={percentile}><Percentile value={percentile} /></th>)}</tr></thead><tbody><tr>{(['p50', 'p90', 'p99'] as const).map(key => <td key={key}><Value datum={e.annual_loss_by_quantile[key]} format={money} /></td>)}</tr></tbody></table></div>
@@ -389,7 +403,7 @@ function Assumptions() {
 
 function Workspace() {
   const { sensitivity } = useScenario();
-  return <div className="app-shell"><a className="skip-link" href="#main">Skip to analysis</a><Header /><main id="main"><Inputs /><ExposureControl /><div className="results-grid"><ExposurePanel /><EconomicsPanel /></div><SensitivityPanel sensitivity={sensitivity} /><Assumptions /><ScenarioComparison /></main><footer><span className="flex items-center gap-2"><Unplug size={12} />NO LIVE GRID FETCHES</span><span>Every number has a source. Hover, focus, or click a value or source tag.</span></footer></div>;
+  return <div className="app-shell"><a className="skip-link" href="#main">Skip to analysis</a><Header /><main id="main"><Inputs /><ExposureControl /><div className="results-grid"><ExposurePanel /><EconomicsPanel /></div><SensitivityPanel sensitivity={sensitivity} /><Assumptions /><ScenarioComparison /><ZoneLeaderboard /></main><footer><span className="flex items-center gap-2"><Unplug size={12} />NO LIVE GRID FETCHES</span><span>Every number has a source. Hover, focus, or click a value or source tag.</span></footer></div>;
 }
 
 export default function App() { return <ScenarioProvider><Workspace /></ScenarioProvider>; }

@@ -40,11 +40,11 @@ describe('confidence provenance', () => {
   it('shows an explicit mock badge and exposes the exact assumption on focus and click', () => {
     render(<ConfidenceBadge confidence={mockConfidence} />)
     expect(screen.getByText('Confidence: Medium')).toBeTruthy()
-    expect(screen.getByText('Mock')).toBeTruthy()
-    const badge = screen.getByRole('button', { name: /Mock estimate confidence: Medium. Signal score: 0.5/ })
+    expect(screen.getByText('Assumed')).toBeTruthy()
+    const badge = screen.getByRole('button', { name: /Assumed estimate confidence: Medium. Signal score: 0.5/ })
     fireEvent.focus(badge)
     expect(readProvenance()).toEqual(mockConfidence.score)
-    expect(screen.getByRole('tooltip').textContent).toContain('Mock confidence input for interface development')
+    expect(screen.getByRole('tooltip').textContent).toContain('Assumed confidence input; no ensemble evaluation is available for this value')
     expect(screen.getByRole('tooltip').textContent).toContain('illustrative_placeholder')
     fireEvent.click(badge)
     expect(badge.getAttribute('aria-pressed')).toBe('true')
@@ -55,7 +55,7 @@ describe('confidence provenance', () => {
   it('preserves the model-provided level, unrounded score, basis and model source on hover', () => {
     render(<ConfidenceBadge confidence={modelConfidence} />)
     expect(screen.getByText('Confidence: High')).toBeTruthy()
-    expect(screen.queryByText('Mock')).toBeNull()
+    expect(screen.queryByText('Assumed')).toBeNull()
     expect(document.body.textContent).not.toContain('%')
     const badge = screen.getByRole('button', { name: /Estimate confidence: High. Signal score: 0.623456. model provenance/ })
     expect(badge.querySelector('.source-model')?.textContent).toBe('m')
@@ -72,7 +72,7 @@ describe('confidence provenance', () => {
       [field]: { ...modelConfidence[field], ref: 'mock://mixed-response' },
     }
     render(<ConfidenceBadge confidence={confidence} />)
-    expect(screen.getByText('Mock')).toBeTruthy()
+    expect(screen.getByText('Assumed')).toBeTruthy()
   })
 
   it('updates a pinned score and level when a different model result arrives', () => {
@@ -80,15 +80,15 @@ describe('confidence provenance', () => {
     fireEvent.click(screen.getByRole('button'))
     rerender(<ConfidenceBadge confidence={modelConfidence} />)
     expect(screen.getByText('Confidence: High')).toBeTruthy()
-    expect(screen.queryByText('Mock')).toBeNull()
+    expect(screen.queryByText('Assumed')).toBeNull()
     expect(readProvenance()).toEqual(modelConfidence.score)
   })
 
   it('keeps the level and mock warning visible in compact annual-value rows', () => {
     render(<ConfidenceBadge confidence={mockConfidence} compact />)
     expect(screen.getByText('Medium')).toBeTruthy()
-    expect(screen.getByText('Mock')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: /Mock estimate confidence/ }))
+    expect(screen.getByText('Assumed')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /Assumed estimate confidence/ }))
     expect(readProvenance()).toEqual(mockConfidence.score)
   })
 

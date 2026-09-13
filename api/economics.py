@@ -27,6 +27,8 @@ _UNITS = {
     "early_connection_years": "year",
     "early_margin_usd_per_mw_year": "USD/MW-year",
     "close_call_fraction": "fraction",
+    "vpp_battery_discharge_mw_per_home": "MW/home",
+    "vpp_arbitrage_revenue_usd_per_mwh": "USD/MWh",
 }
 
 
@@ -80,6 +82,8 @@ class EconomicsAssumptions(ContractModel):
     early_connection_years: AssumptionValue
     early_margin_usd_per_mw_year: AssumptionValue
     close_call_fraction: AssumptionValue
+    vpp_battery_discharge_mw_per_home: AssumptionValue
+    vpp_arbitrage_revenue_usd_per_mwh: AssumptionValue
 
     @model_validator(mode="after")
     def validate_policy(self) -> Self:
@@ -131,18 +135,31 @@ def build_economics(
 ) -> Economics:
     local = load_assumptions(assumptions_path)
     interruptible_mw = request.load_mw * request.flexibility_split
-    gpu_hours = {key: summary[key] * interruptible_mw * local.gpus_per_mw.value for key in QUANTILES}
+    
+    # Sustainability VPP Logic
+    vpp_offset_mw = request.vpp_solar_homes * local.vpp_battery_discharge_mw_per_home.value
+    net_interruptible_mw = max(0.0, interruptible_mw - vpp_offset_mw)
+    
+    gpu_hours = {key: summary[key] * net_interruptible_mw * local.gpus_per_mw.value for key in QUANTILES}
     annual_cost = {key: gpu_hours[key] * local.gpu_rental_price_usd_per_hour.value for key in QUANTILES}
+    vpp_arbitrage_revenue = {key: summary[key] * vpp_offset_mw * local.vpp_arbitrage_revenue_usd_per_mwh.value for key in QUANTILES}
+    
+    # Net annual cost subtracts VPP arbitrage revenue
+    annual_net_cost = {key: annual_cost[key] - vpp_arbitrage_revenue[key] for key in QUANTILES}
+    
     benefit = min(local.early_connection_years.value, request.term_years) * request.load_mw * local.early_margin_usd_per_mw_year.value
-    cost_per_hour = interruptible_mw * local.gpus_per_mw.value * local.gpu_rental_price_usd_per_hour.value
-    denominator = request.term_years * cost_per_hour
-    breakeven = None if cost_per_hour == 0 else benefit / denominator
-    p50_term_cost = annual_cost["p50"] * request.term_years
-    p90_term_cost = annual_cost["p90"] * request.term_years
+    cost_per_hour = net_interruptible_mw * local.gpus_per_mw.value * local.gpu_rental_price_usd_per_hour.value
+    revenue_per_hour = vpp_offset_mw * local.vpp_arbitrage_revenue_usd_per_mwh.value
+    net_cost_per_hour = cost_per_hour - revenue_per_hour
+    
+    denominator = request.term_years * net_cost_per_hour
+    breakeven = None if denominator <= 0 else benefit / denominator
+    p50_term_cost = annual_net_cost["p50"] * request.term_years
+    p90_term_cost = annual_net_cost["p90"] * request.term_years
     tolerance = local.close_call_fraction.value
     upper_threshold = benefit * (1 + tolerance)
     lower_threshold = benefit * (1 - tolerance)
-    values = [*gpu_hours.values(), *annual_cost.values(), benefit, denominator,
+    values = [*gpu_hours.values(), *annual_cost.values(), *vpp_arbitrage_revenue.values(), benefit, denominator,
               p50_term_cost, p90_term_cost, upper_threshold, lower_threshold]
     if breakeven is not None:
         values.append(breakeven)
@@ -172,8 +189,12 @@ def build_economics(
 
     return Economics.model_validate({
         "gpus_per_mw": local.gpus_per_mw.value,
+        "interruptible_mw": interruptible_mw,
+        "vpp_offset_mw": vpp_offset_mw,
+        "net_interruptible_mw": net_interruptible_mw,
         "lost_gpu_hours_per_year": gpu_hours,
-        "annual_cost_usd": annual_cost,
+        "annual_cost_usd": annual_net_cost,
+        "vpp_arbitrage_revenue_usd_per_year": vpp_arbitrage_revenue,
         "value_of_early_connection_usd": benefit,
         "breakeven_exposure_hours_per_year": breakeven,
         "decision": decision,

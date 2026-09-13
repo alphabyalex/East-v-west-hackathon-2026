@@ -13,6 +13,8 @@ const economicFields = {
   gpu_per_mw: 'gpus_per_mw',
   gpu_hour_value_usd: 'gpu_rental_price_usd_per_hour',
   early_margin_usd_per_mw_year: 'early_margin_usd_per_mw_year',
+  vpp_battery_discharge_mw_per_home: 'vpp_battery_discharge_mw_per_home',
+  vpp_arbitrage_revenue_usd_per_mwh: 'vpp_arbitrage_revenue_usd_per_mwh',
 } as const;
 const configuredMode = (): EstimateMode => import.meta.env.VITE_ESTIMATE_MODE === 'local' ? 'local' : 'api';
 
@@ -48,7 +50,11 @@ function useScenarioState(initialMode: EstimateMode) {
     }
   }, [savedScenarios]);
 
-  const request = useMemo(() => toEstimateRequest(storedInputs), [storedInputs]);
+  const request = useMemo(() => {
+    const r = toEstimateRequest(storedInputs);
+    r.vpp_solar_homes = storedInputs.vpp_solar_homes;
+    return r;
+  }, [storedInputs]);
   const transport = useEstimateTransport(request, mode);
   useEffect(() => {
     if (transport.assumptions) setServerDefaults(transport.assumptions);

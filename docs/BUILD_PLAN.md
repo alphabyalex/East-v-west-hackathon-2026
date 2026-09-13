@@ -80,8 +80,12 @@ Offline workflow output stays in `--run-dir` until publication. Publish the matc
 `model_card.json` and `simulation_metadata.json` beside
 `data/processed/exposure_by_location.parquet`. The API checks model version, explicit
 SPP data/label policy, input hashes, unscaled output, simulation settings, and
-confidence consistency before assigning model provenance. Missing companions yield
-explicit assumption placeholders; invalid or mismatched artifacts yield 503.
+confidence consistency before assigning model provenance. The model card must also
+document at least 365 days of held-out reference span (inclusive hourly endpoints)
+and at least 8,760 scored hours for the requested location, using `splits.test` and
+`test_by_location[location_id].n_hours`. Spatial rows cannot substitute for temporal
+coverage. Missing companions or missing/insufficient annual reference evidence
+yield explicit assumption placeholders; malformed or mismatched artifacts yield 503.
 
 The current experimental simulator caps annual confidence at **Low**; its score
 describes classifier agreement, not annual-tail validation. The API's
@@ -90,10 +94,20 @@ requested term, multiplied by the user's site factor, not an observed or guarant
 outage duration. These limitations travel in provenance. A system aggregate is
 never copied under a site/node identifier.
 
-Current integration attempt fetched and normalized real 2024 SPP load, but training
-is blocked by missing `event_active` evidence and the intentionally empty policy
-`label_ref`. No production exposure parquet exists; load alone does not establish
-exposure. See `docs/FROM_CODEX.md` for the exact command results.
+Latest integration (2026-09-13 UTC): main now contains a 2024 observed-event parquet
+and matching manifests, but that run has only October 20 through December 31 held-out
+history. Its producer substituted available months for missing seasons; these
+artifacts do not meet the annual reference gate and remain inactive. The strict
+simulator continues to reject insufficient seasonal history.
+
+Kristian's newer multifactor high-demand proxy code and result summaries are merged;
+its actual run artifacts remain outside Git. Obtain the matching
+`exposure_by_location.parquet`, `model_card.json`, and `simulation_metadata.json`
+from `data/processed/workbench/runs/spp_multifactor_demand_20260913` before replacing
+the canonical bundle. Preserve its `SPP_SYSTEM` ID, assumed high-demand target,
+model version, and Low annual confidence. The JSON summary is documentation, not a
+substitute for that handoff. See `docs/MULTIFACTOR_PREDICTION.md` and
+`docs/FROM_CODEX.md` for reproduction instructions and audit findings.
 
 **`data/tariffs/tariffs.json`** (from `/extract`, Claude's) — per-operator extracted
 tariff terms with citations. Alex's API reads this for the `tariff` block in section 2.

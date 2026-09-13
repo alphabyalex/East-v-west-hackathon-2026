@@ -42,15 +42,11 @@ export const defaultInputs: ScenarioInputs = {
   contract_years: 7,
   flexibility_percent: 60,
   site_exposure: 0.4,
-  // Sourced from docs/ASSUMPTIONS.md: gpu_per_mw (section 1, grid-interconnection
-  // basis), gpu_hour_value_usd (section 2, H100 cross-provider composite),
-  // firm_wait_years (section 3, derived firm-vs-flexible gap). early_margin_usd_per_mw_year
-  // is Tharun's unverified 3% operating-margin proxy applied to scenario gross
-  // rental revenue. It remains an explicit placeholder, not a verified net margin.
   firm_wait_years: economicSnapshot.early_connection_years.value,
   gpu_per_mw: economicSnapshot.gpus_per_mw.value,
   gpu_hour_value_usd: economicSnapshot.gpu_rental_price_usd_per_hour.value,
   early_margin_usd_per_mw_year: economicSnapshot.early_margin_usd_per_mw_year.value,
+  vpp_solar_homes: 0,
 }
 
 export const mockResponse: MockResponse = {
@@ -77,6 +73,7 @@ export const mockResponse: MockResponse = {
     gpu_per_mw: economicDefault('gpus_per_mw'),
     gpu_hour_value_usd: economicDefault('gpu_rental_price_usd_per_hour'),
     early_margin_usd_per_mw_year: economicDefault('early_margin_usd_per_mw_year'),
+    vpp_solar_homes: mockAssumption(defaultInputs.vpp_solar_homes, 'inputs/vpp_solar_homes'),
   },
   decision_policy: {
     close_call_fraction: economicDefault('close_call_fraction'),

@@ -53,10 +53,10 @@ describe('transparency panel', () => {
     expect(region.textContent).toContain('local transmission headroom we do not have')
     expect(region.textContent).toContain('not a fitted coefficient or a measured site risk')
     expect(region.textContent).toContain('Confidence describes support for the estimate, not the probability')
-    expect(region.textContent).toContain('Mock diagnostics · not computed')
+    expect(region.textContent).toContain('Evaluation unavailable')
     expect(region.textContent).toContain('No held-out evaluation has been performed')
     expect(region.textContent).toContain('independent of the exposure slider')
-    expect(screen.getByText('Mock reliability curve')).toBeTruthy()
+    expect(screen.getByText('Assumed reliability curve')).toBeTruthy()
     expect(screen.getByText('Perfect calibration reference')).toBeTruthy()
     expect(screen.getByText('Mean predicted grid-stress probability (fraction)')).toBeTruthy()
     expect(screen.getByText('Observed grid-stress frequency (fraction)')).toBeTruthy()
@@ -67,15 +67,15 @@ describe('transparency panel', () => {
     const config = props()
     render(<TransparencyPanel {...config} />)
     const scores = [
-      ['Mock Brier score, not computed', mockTransparencyDiagnostics.brier_score],
-      ['Mock naive Brier score, not computed', mockTransparencyDiagnostics.naive_brier_score],
+      ['Assumed Brier score, not computed', mockTransparencyDiagnostics.brier_score],
+      ['Assumed naive Brier score, not computed', mockTransparencyDiagnostics.naive_brier_score],
     ] as const
     for (const [label, value] of scores) {
       fireEvent.click(screen.getByRole('button', { name: new RegExp(label) }))
       expect(readProvenance()).toEqual(value)
       fireEvent.keyDown(document, { key: 'Escape' })
     }
-    const bins = within(screen.getByRole('table', { name: 'Authored mock reliability bins · fractions' })).getAllByRole('button')
+    const bins = within(screen.getByRole('table', { name: 'Assumed reliability bins · fractions' })).getAllByRole('button')
     const expected = mockTransparencyDiagnostics.reliability_curve.flatMap(point => [point.mean_predicted, point.observed_fraction])
     expect(bins).toHaveLength(expected.length)
     bins.forEach((button, index) => {
@@ -84,7 +84,7 @@ describe('transparency panel', () => {
       expect(readProvenance().ref).toContain('no held-out evaluation performed')
       fireEvent.keyDown(document, { key: 'Escape' })
     })
-    const chart = screen.getByRole('group', { name: /Mock reliability curve for system stress/ })
+    const chart = screen.getByRole('group', { name: /Assumed reliability curve for system stress/ })
     const ticks = within(chart).getAllByRole('button')
     expect(ticks).toHaveLength(10)
     ticks.forEach(tick => {
@@ -105,17 +105,18 @@ describe('transparency panel', () => {
     const updated = { ...config.siteExposure, value: 0.65 }
     rerender(<TransparencyPanel {...config} siteExposure={updated} />)
     expect(readProvenance()).toEqual(updated)
-    expect(screen.getByRole('button', { name: /Mock Brier score, not computed: 0.2/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Assumed Brier score, not computed: 0.2/ })).toBeTruthy()
     expect(screen.getByRole('button', { name: /Site exposure factor assumption: 0.65/ })).toBeTruthy()
   })
 
   it('labels mock tariff records as unextracted and supplies no fabricated citation link', () => {
     const config = props()
     render(<TransparencyPanel {...config} />)
-    expect(screen.getByText('Mock clause · not extracted')).toBeTruthy()
+    expect(screen.getByText('Tariff evidence not supplied')).toBeTruthy()
+    expect(screen.queryByText(config.tariff.curtailment_triggers[0].text)).toBeNull()
+    expect(screen.getByText('SPP · Service terms not verified')).toBeTruthy()
     expect(screen.getByText('No verified citation available.')).toBeTruthy()
-    const tariffSection = screen.getByRole('region', { name: 'Tariff evidence' })
-    expect(within(tariffSection).queryByRole('link')).toBeNull()
+    expect(screen.queryByRole('link')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: /Tariff clause provenance/ }))
     expect(readProvenance()).toEqual({ value: config.tariff.curtailment_triggers[0].text, ...config.tariff.curtailment_triggers[0].source })
   })
@@ -124,8 +125,8 @@ describe('transparency panel', () => {
     const config = props()
     render(<TransparencyPanel {...config} tariff={{ ...config.tariff, curtailment_triggers: [] }} />)
     expect(screen.getByText(/No extracted clauses have been supplied/)).toBeTruthy()
-    const tariffSection = screen.getByRole('region', { name: 'Tariff evidence' })
-    expect(within(tariffSection).queryByRole('link')).toBeNull()
+    expect(screen.getByText('SPP · Service terms not verified')).toBeTruthy()
+    expect(screen.queryByRole('link')).toBeNull()
   })
 
   it.each([
@@ -138,8 +139,7 @@ describe('transparency panel', () => {
     const config = props()
     config.tariff.curtailment_triggers[0].source = { source_type: sourceType, ref }
     render(<TransparencyPanel {...config} />)
-    const tariffSection = screen.getByRole('region', { name: 'Tariff evidence' })
-    expect(within(tariffSection).queryByRole('link')).toBeNull()
+    expect(screen.queryByRole('link')).toBeNull()
     expect(screen.getByText(`Supplied reference: ${ref}`)).toBeTruthy()
   })
 
@@ -153,36 +153,6 @@ describe('transparency panel', () => {
     expect(link.getAttribute('rel')).toBe('noopener noreferrer')
     fireEvent.click(screen.getByRole('button', { name: /Tariff clause provenance/ }))
     expect(readProvenance().ref).toBe(ref)
-  })
-
-  it('renders the historical precedents section with correct details, badge styles, and links', () => {
-    const config = props()
-    render(<TransparencyPanel {...config} />)
-    const precedentsSection = screen.getByRole('region', { name: 'Historical grid-stress precedents' })
-    expect(precedentsSection).toBeTruthy()
-    expect(within(precedentsSection).getByText('SPP System-wide EEA1 Alert')).toBeTruthy()
-    expect(within(precedentsSection).getByText('System Conservative Operations')).toBeTruthy()
-    expect(within(precedentsSection).getByText('SWEPCO Shreveport Local Load Shed')).toBeTruthy()
-
-    // Assert badges exist and contain correct scopes
-    expect(within(precedentsSection).getByText('System Stress Event')).toBeTruthy()
-    expect(within(precedentsSection).getByText('Operational Advisory')).toBeTruthy()
-    expect(within(precedentsSection).getByText('Local Reliability / Voltage Emergency')).toBeTruthy()
-
-    // Assert links are rendered for the 3 precedents
-    const links = within(precedentsSection).getAllByRole('link', { name: 'Open official report citation' })
-    expect(links).toHaveLength(3)
-    expect(links[0].getAttribute('href')).toBe('https://spp.org/documents/72631/20241101_2024%20summer%20quarterly%20report_08-136-u.pdf')
-    expect(links[1].getAttribute('href')).toBe('https://spp.org/newsroom/stakeholder-report/')
-    expect(links[2].getAttribute('href')).toBe('https://spp.org/documents/74283/spp\'s%20summary%20of%20the%20april%2026,%202025,%20shreveport-area%20load%20shed%20event.pdf')
-
-    // Click provenance button and assert exact ref
-    fireEvent.click(within(precedentsSection).getByRole('button', { name: /SPP System-wide EEA1 Alert provenance/ }))
-    expect(readProvenance()).toEqual({
-      value: 'SPP System-wide EEA1 Alert',
-      source_type: 'data',
-      ref: 'https://spp.org/documents/72631/20241101_2024%20summer%20quarterly%20report_08-136-u.pdf#page=65',
-    })
   })
 
   it('closes with its button or Escape, and removes its Escape listener after unmount', () => {

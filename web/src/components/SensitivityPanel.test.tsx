@@ -57,7 +57,7 @@ describe('break-even sensitivity panel', () => {
       expect(within(range).getByRole('button', { name: new RegExp(`^${row.label} low decision: ${row.low.snapshot.decision.replaceAll('_', ' ')}`) })).toBeTruthy()
       expect(within(range).getByRole('button', { name: new RegExp(`^${row.label} high decision: ${row.high.snapshot.decision.replaceAll('_', ' ')}`) })).toBeTruthy()
     }
-    expect(screen.getByText('Mock sensitivity')).toBeTruthy()
+    expect(screen.getByText('Assumed sensitivity')).toBeTruthy()
     expect(screen.getByText(/not quantiles of total contract loss/)).toBeTruthy()
   })
 

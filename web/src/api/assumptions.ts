@@ -18,6 +18,8 @@ const units = {
   early_connection_years: 'year',
   early_margin_usd_per_mw_year: 'USD/MW-year',
   close_call_fraction: 'fraction',
+  vpp_battery_discharge_mw_per_home: 'MW/home',
+  vpp_arbitrage_revenue_usd_per_mwh: 'USD/MWh',
 } as const
 
 export type EconomicsAssumptions = {

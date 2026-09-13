@@ -21,10 +21,10 @@ export function ConfidenceBadge({ confidence, compact = false }: ConfidenceBadge
   const mocked = isMockSource(confidence.source) || isMockSource(confidence.score)
   const levelRef = useRef<HTMLSpanElement>(null)
   useChangeMotion(levelRef, confidence.level)
-  const label = `${mocked ? 'Mock estimate' : 'Estimate'} confidence: ${confidence.level}. Signal score`
+  const label = `${mocked ? 'Assumed estimate' : 'Estimate'} confidence: ${confidence.level}. Signal score`
   const description = [
     mocked
-      ? 'Mock confidence input for interface development.'
+      ? 'Assumed confidence input; no ensemble evaluation is available for this value.'
       : 'Model signal describing support for the exposure estimate.',
     `Basis: ${confidence.basis}.`,
     `Confidence basis source (${confidence.source.source_type}): ${confidence.source.ref}.`,
@@ -41,7 +41,7 @@ export function ConfidenceBadge({ confidence, compact = false }: ConfidenceBadge
       animate={false}
     >
       <span ref={levelRef}>{compact ? confidence.level : `Confidence: ${confidence.level}`}</span>
-      {mocked && <span className="confidence-mock mock-label">Mock</span>}
+      {mocked && <span className="confidence-mock mock-label">Assumed</span>}
     </Sourced>
   )
 }

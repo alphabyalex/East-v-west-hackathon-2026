@@ -21,6 +21,7 @@ export interface ScenarioInputs {
   gpu_per_mw: number
   gpu_hour_value_usd: number
   early_margin_usd_per_mw_year: number
+  vpp_solar_homes: number
 }
 
 export type SourcedInputs = {
@@ -66,6 +67,9 @@ export interface ScenarioResult {
   canonical_response: EstimateResponse
   economics: {
     interruptible_mw: SourcedValue
+    vpp_offset_mw: SourcedValue
+    net_interruptible_mw: SourcedValue
+    vpp_arbitrage_revenue_usd: SourcedValue
     annual_lost_gpu_hours: SourcedValue
     annual_loss_usd: SourcedValue
     annual_lost_gpu_hours_by_quantile: { p50: SourcedValue; p90: SourcedValue; p99: SourcedValue }

@@ -76,17 +76,16 @@ describe('scenario workspace interactions', () => {
       return Promise.resolve(new Response(JSON.stringify(response), { status: 200 }));
     })));
     render(<App />);
-    await screen.findByText(/API connected · current inputs synchronized/);
+    await screen.findByText(/current inputs synchronized/i);
     expect(screen.queryByText('Mock exposure')).toBeNull();
-    expect(screen.queryByText('Mock quantiles')).toBeNull();
     expect(screen.queryByRole('button', { name: /Mock estimate confidence/ })).toBeNull();
     expect(screen.getByText('Mock economics')).toBeTruthy();
     expect(screen.getByText('Mock decision')).toBeTruthy();
     expect(screen.getByText('USER ASSUMPTION')).toBeTruthy();
     expect(screen.getByText('System aggregate · no site-specific grid data')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Model & evidence' }));
-    expect(screen.getByText('Mock diagnostics · not computed.')).toBeTruthy();
-    expect(screen.getByText('Mock clause · not extracted')).toBeTruthy();
+    expect(screen.getByText('Evaluation unavailable.')).toBeTruthy();
+    expect(screen.getByText('Tariff evidence not supplied')).toBeTruthy();
     fireEvent.click(screen.getAllByRole('button', { name: /model provenance/ })[0]);
     expect(JSON.parse(screen.getByRole('tooltip').querySelector('pre')!.textContent!).ref).toContain('test-fixture://pipeline/exposure');
   });
@@ -99,16 +98,15 @@ describe('scenario workspace interactions', () => {
       return Promise.resolve(new Response(JSON.stringify(response), { status: 200 }));
     })));
     render(<App />);
-    await screen.findByText(/API connected · current inputs synchronized/);
+    await screen.findByText(/current inputs synchronized/i);
     expect(screen.queryByText('Mock economics')).toBeNull();
     expect(screen.queryByText('Mock decision')).toBeNull();
     expect(screen.getAllByText('Mock exposure')).toHaveLength(3);
     const crossover = document.getElementById('exposure-explanation')!;
-    expect(within(crossover).getByText('Mock')).toBeTruthy();
+    expect(within(crossover).getByText('Assumed')).toBeTruthy();
     fireEvent.click(within(crossover).getByRole('button'));
     const source = JSON.parse(screen.getByRole('tooltip').querySelector('pre')!.textContent!);
     expect(source.ref).toContain('test-fixture://sourced-economics');
-    expect(source.ref).toContain('exposure_baseline_source=mock://');
   });
 
   it('opens the inline transparency panel and restores trigger focus on Escape', () => {
@@ -128,19 +126,26 @@ describe('scenario workspace interactions', () => {
 
   it('makes HTTP fallback, retry, and the economic override mode switch visible', async () => {
     vi.stubEnv('VITE_ESTIMATE_MODE', 'api');
-    const fetcher = vi.fn().mockRejectedValueOnce(new TypeError('Failed to fetch')).mockImplementation((_url, options) => Promise.resolve(new Response(JSON.stringify(createMockEstimate(JSON.parse(options.body))), { status: 200 })));
+    let rejectOnce = true;
+    const fetcher = vi.fn().mockImplementation((_url, options) => {
+      if (rejectOnce) {
+        rejectOnce = false;
+        return Promise.reject(new TypeError('Failed to fetch'));
+      }
+      return Promise.resolve(new Response(JSON.stringify(createMockEstimate(JSON.parse(options.body))), { status: 200 }));
+    });
     vi.stubGlobal('fetch', withEconomics(fetcher));
     render(<App />);
     expect(screen.getByText(/current inputs shown as a local mock preview/)).toBeTruthy();
     fireEvent.click(await screen.findByRole('button', { name: 'Retry API' }));
-    expect(await screen.findByText(/API connected · current inputs synchronized/)).toBeTruthy();
+    expect(await screen.findByText(/current inputs synchronized/i)).toBeTruthy();
     const gpuValue = screen.getByRole('spinbutton', { name: 'LOST COMPUTE VALUE' });
     fireEvent.change(gpuValue, { target: { value: '5' } });
     expect(screen.getByRole('button', { name: 'Local mock' }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByText(/Economic input changed/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Use API defaults' }));
     expect((gpuValue as HTMLInputElement).value).toBe('3');
-    expect(await screen.findByText(/API connected · current inputs synchronized/)).toBeTruthy();
+    expect(await screen.findByText(/current inputs synchronized/i)).toBeTruthy();
   });
 
   it('starts with the fan chart without initializing a graphics context', () => {

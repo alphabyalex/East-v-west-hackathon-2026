@@ -316,6 +316,44 @@ real.
     "retrieved_on": null,
     "low": 0,
     "high": 0.1
+  },
+  "vpp_battery_discharge_mw_per_home": {
+    "value": 0.005,
+    "source_type": "assumption",
+    "ref": "mock://vpp-placeholder; Tesla Powerwall 2 / Enphase residential BESS assumption: 5 kW continuous discharge over typical 2-4 hr stress window.",
+    "unit": "MW/home",
+    "source_url": null,
+    "retrieved_on": null,
+    "low": 0.003,
+    "high": 0.010
+  },
+  "vpp_arbitrage_revenue_usd_per_mwh": {
+    "value": 150.0,
+    "source_type": "assumption",
+    "ref": "mock://vpp-placeholder; Proprietary Sustainability Arbitrage Model: Peak pricing capture for distributed BESS dispatch during grid scarcity.",
+    "unit": "USD/MWh",
+    "source_url": null,
+    "retrieved_on": null,
+    "low": 50,
+    "high": 500
   }
 }
 ```
+
+## 4. Sustainability: Residential VPP & Distributed BESS Orchestration
+
+The **Fluxline** platform includes a proprietary sustainability module for orchestrating residential solar and battery energy storage systems (BESS) as a "supporting resource" to mitigate data center grid stress and curtailment risk.
+
+### 4.1. Distributed Resource Mitigation (DRM) Logic
+
+Under the CHILLS supporting-generation pathway (derived from FERC Order 195), a large load can avoid physical curtailment if it can demonstrate "insufficient available supporting capacity." Fluxline models a data center acting as a **Virtual Power Plant (VPP) Aggregator**:
+
+1.  **Telemetry-Driven Charging**: Using ERA5 temperature reanalysis and grid-load forecasts, the aggregator preemptively charges residential batteries (e.g., Tesla Powerwall, Enphase IQ) during low-LMP, low-stress periods.
+2.  **Stress-Window Dispatch**: During modeled grid-stress events (hot/cold peaks), the VPP dispatches these batteries to the grid. Each unit of residential discharge reduces the data center's **Net Interruptible Capacity** requirement.
+3.  **Sustainability Revenue Arbitrage**: Beyond reliability, the data center captures peak scarcity pricing (arbitrage) for the energy returned to the grid by its residential partners.
+
+### 4.2. Parameters and Sourcing
+
+*   **Battery Discharge per Home**: **0.005 MW** (5 kW). This represents the typical continuous discharge capacity of a modern residential BESS over a 2-4 hour stress window.
+*   **VPP Arbitrage Revenue**: **150.00 USD/MWh**. This assumption captures the premium value of distributed energy resources (DERs) during localized grid emergencies or high-LMP intervals.
+
