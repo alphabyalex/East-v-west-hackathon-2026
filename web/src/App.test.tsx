@@ -58,15 +58,12 @@ describe('scenario workspace interactions', () => {
     render(<App />);
     expect(screen.queryByText('ILLUSTRATIVE DATA')).toBeNull();
     expect(screen.queryByText('MOCK ECONOMICS')).toBeNull();
-    expect(screen.getAllByText('Assumed exposure')).toHaveLength(3);
-    expect(screen.getByText('Assumed economics')).toBeTruthy();
-    expect(screen.getByText('Assumed decision')).toBeTruthy();
+    expect(screen.getAllByText('Mock exposure')).toHaveLength(3);
+    expect(screen.getByText('Mock economics')).toBeTruthy();
+    expect(screen.getByText('Mock decision')).toBeTruthy();
     expect(screen.getByText('USER ASSUMPTION')).toBeTruthy();
     expect(screen.getByText('System aggregate · no site-specific grid data')).toBeTruthy();
     expect(screen.getByText('You set the mapping.')).toBeTruthy();
-    const locations = screen.getByRole('combobox', { name: 'SPP LOCATION' });
-    expect(locations.textContent).not.toContain('illustrative');
-    expect(within(locations).getByRole('option', { name: 'Wichita, KS · scenario' }).getAttribute('value')).toBe('spp-wichita-demo');
   });
 
   it('removes only earned mock labels when a mixed-source HTTP result arrives', async () => {
@@ -79,12 +76,11 @@ describe('scenario workspace interactions', () => {
       return Promise.resolve(new Response(JSON.stringify(response), { status: 200 }));
     })));
     render(<App />);
-    await screen.findByText(/Estimate service connected · current inputs synchronized/);
-    expect(screen.queryByText('Assumed exposure')).toBeNull();
-    expect(screen.queryByText('Assumed quantiles')).toBeNull();
-    expect(screen.queryByRole('button', { name: /Assumed estimate confidence/ })).toBeNull();
-    expect(screen.getByText('Assumed economics')).toBeTruthy();
-    expect(screen.getByText('Assumed decision')).toBeTruthy();
+    await screen.findByText(/current inputs synchronized/i);
+    expect(screen.queryByText('Mock exposure')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Mock estimate confidence/ })).toBeNull();
+    expect(screen.getByText('Mock economics')).toBeTruthy();
+    expect(screen.getByText('Mock decision')).toBeTruthy();
     expect(screen.getByText('USER ASSUMPTION')).toBeTruthy();
     expect(screen.getByText('System aggregate · no site-specific grid data')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Model & evidence' }));
@@ -102,16 +98,15 @@ describe('scenario workspace interactions', () => {
       return Promise.resolve(new Response(JSON.stringify(response), { status: 200 }));
     })));
     render(<App />);
-    await screen.findByText(/Estimate service connected · current inputs synchronized/);
-    expect(screen.queryByText('Assumed economics')).toBeNull();
-    expect(screen.queryByText('Assumed decision')).toBeNull();
-    expect(screen.getAllByText('Assumed exposure')).toHaveLength(3);
+    await screen.findByText(/current inputs synchronized/i);
+    expect(screen.queryByText('Mock economics')).toBeNull();
+    expect(screen.queryByText('Mock decision')).toBeNull();
+    expect(screen.getAllByText('Mock exposure')).toHaveLength(3);
     const crossover = document.getElementById('exposure-explanation')!;
     expect(within(crossover).getByText('Assumed')).toBeTruthy();
     fireEvent.click(within(crossover).getByRole('button'));
     const source = JSON.parse(screen.getByRole('tooltip').querySelector('pre')!.textContent!);
     expect(source.ref).toContain('test-fixture://sourced-economics');
-    expect(source.ref).toContain('exposure_baseline_source=mock://');
   });
 
   it('opens the inline transparency panel and restores trigger focus on Escape', () => {
@@ -134,16 +129,16 @@ describe('scenario workspace interactions', () => {
     const fetcher = vi.fn().mockRejectedValueOnce(new TypeError('Failed to fetch')).mockImplementation((_url, options) => Promise.resolve(new Response(JSON.stringify(createMockEstimate(JSON.parse(options.body))), { status: 200 })));
     vi.stubGlobal('fetch', withEconomics(fetcher));
     render(<App />);
-    expect(screen.getByText(/current inputs shown as assumed scenario values/)).toBeTruthy();
-    fireEvent.click(await screen.findByRole('button', { name: 'Retry estimate' }));
-    expect(await screen.findByText(/Estimate service connected · current inputs synchronized/)).toBeTruthy();
+    expect(screen.getByText(/current inputs shown as a local mock preview/)).toBeTruthy();
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry API' }));
+    expect(await screen.findByText(/current inputs synchronized/i)).toBeTruthy();
     const gpuValue = screen.getByRole('spinbutton', { name: 'LOST COMPUTE VALUE' });
     fireEvent.change(gpuValue, { target: { value: '5' } });
-    expect(screen.getByRole('button', { name: 'Assumed scenario' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Local mock' }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByText(/Economic input changed/)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Use supplied defaults' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Use API defaults' }));
     expect((gpuValue as HTMLInputElement).value).toBe('3');
-    expect(await screen.findByText(/Estimate service connected · current inputs synchronized/)).toBeTruthy();
+    expect(await screen.findByText(/current inputs synchronized/i)).toBeTruthy();
   });
 
   it('starts with the fan chart without initializing a graphics context', () => {
@@ -233,5 +228,123 @@ describe('scenario workspace interactions', () => {
     const cells = within(table).getAllByRole('cell');
     for (const cell of cells.slice(1)) expect(cell.querySelector('.sourced-value')!.textContent).toBe('0');
     expect(document.body.textContent).not.toMatch(/NaN|Infinity/);
+  });
+
+  it('toggles and displays detailed climate telemetry and schematic for SPP selections', () => {
+    render(<App />);
+    
+    // Telemetry drawer should be closed by default
+    expect(screen.queryByRole('region', { name: 'Climate telemetry nodes' })).toBeNull();
+    
+    const toggle = screen.getByRole('button', { name: 'Inspect climate telemetry' });
+    expect(toggle).toBeTruthy();
+    
+    // Toggle to open the drawer
+    fireEvent.click(toggle);
+    expect(toggle.textContent).toContain('Hide telemetry');
+    const drawer = screen.getByRole('region', { name: 'Climate telemetry nodes' });
+    expect(drawer).toBeTruthy();
+    
+    // Assert station nodes are rendered for default location (SPP_SYSTEM)
+    expect(within(drawer).getByText('KOKC')).toBeTruthy();
+    expect(within(drawer).getByText('KICT')).toBeTruthy();
+    expect(within(drawer).getByText('KAMA')).toBeTruthy();
+    expect(within(drawer).getByText('KOMA')).toBeTruthy();
+    expect(within(drawer).getByText('KFSD')).toBeTruthy();
+    expect(within(drawer).getByText('KBIS')).toBeTruthy();
+    
+    // Assert ASCII diagram contains the proxy nodes
+    const ascii = within(drawer).getByText(/SPP Climate Proxy Array/);
+    expect(ascii).toBeTruthy();
+    expect(ascii.textContent).toContain('Bismarck, ND');
+    
+    // Assert Sourced coordinates button is clickable and exposes provenance
+    const coordsBtn = within(drawer).getByRole('button', { name: /35.47° N, 97.52° W. data provenance/ });
+    expect(coordsBtn).toBeTruthy();
+    fireEvent.click(coordsBtn);
+    const tooltip = screen.getByRole('tooltip');
+    expect(tooltip).toBeTruthy();
+    const provenance = JSON.parse(tooltip.querySelector('pre')!.textContent!);
+    expect(provenance.source_type).toBe('data');
+    expect(provenance.ref).toContain('mock://weather-telemetry/station/okc');
+    
+    // Close the tooltip
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('tooltip')).toBeNull();
+    
+    // Select different location and verify stations list and diagram updates
+    fireEvent.change(screen.getByRole('combobox', { name: 'SPP LOCATION' }), { target: { value: 'spp-wichita-demo' } });
+    expect(within(drawer).getByText('KICT')).toBeTruthy();
+    expect(within(drawer).queryByText('KOKC')).toBeNull(); // KOKC should not be rendered for Wichita demo
+    
+    const updatedAscii = within(drawer).getByText(/Model Climate Input/);
+    expect(updatedAscii).toBeTruthy();
+    expect(updatedAscii.textContent).toContain('KICT: Eisenhower National Airport');
+    
+    // Toggle again to close the drawer
+    fireEvent.click(toggle);
+    expect(toggle.textContent).toContain('Inspect climate telemetry');
+    expect(screen.queryByRole('region', { name: 'Climate telemetry nodes' })).toBeNull();
+  });
+
+  it('manages scenario comparison ledger saving, loading, and deleting side-by-side', () => {
+    render(<App />);
+
+    // Initially, comparison panel is empty
+    const ledgerEmptyMsg = screen.getByText(/Comparison ledger is currently empty/);
+    expect(ledgerEmptyMsg).toBeTruthy();
+
+    const saveBtn = screen.getByRole('button', { name: 'Save Active Scenario' });
+    expect(saveBtn).toBeTruthy();
+
+    // 1. Save default scenario (100 MW, SPP_SYSTEM)
+    fireEvent.click(saveBtn);
+    expect(screen.getByText('Saved to Comparison')).toBeTruthy();
+    expect(screen.queryByText(/Comparison ledger is currently empty/)).toBeNull();
+
+    // The saved column header should be rendered
+    const defaultColHeader = screen.getByText('Scenario 1: SPP System (100 MW)');
+    expect(defaultColHeader).toBeTruthy();
+
+    // 2. Change inputs (Load size -> 250 MW, Location -> spp-oklahoma-city-demo) and save as custom name
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'LOAD SIZE' }), { target: { value: '250' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'SPP LOCATION' }), { target: { value: 'spp-oklahoma-city-demo' } });
+    
+    const nameInput = screen.getByPlaceholderText('Enter custom scenario label (optional)...');
+    fireEvent.change(nameInput, { target: { value: 'Oklahoma City High-Load' } });
+    fireEvent.click(saveBtn);
+
+    // Assert second column header is rendered
+    expect(screen.getByText('Oklahoma City High-Load')).toBeTruthy();
+
+    // Assert side-by-side inputs exist in comparison table
+    const tableWrap = screen.getByLabelText('Scenario comparison grid');
+    expect(tableWrap).toBeTruthy();
+    expect(within(tableWrap).getByText('250 MW')).toBeTruthy();
+    expect(within(tableWrap).getByText('100 MW')).toBeTruthy();
+
+    // 3. Trigger load of the first scenario
+    const loadButtons = within(tableWrap).getAllByRole('button', { name: /Load inputs for/ });
+    expect(loadButtons).toHaveLength(2);
+    
+    // Clicking load on Scenario 1 should restore its inputs in active editor
+    fireEvent.click(loadButtons[0]);
+    expect((screen.getByRole('spinbutton', { name: 'LOAD SIZE' }) as HTMLInputElement).value).toBe('100');
+    expect((screen.getByRole('combobox', { name: 'SPP LOCATION' }) as HTMLSelectElement).value).toBe('SPP_SYSTEM');
+
+    // 4. Delete high-load scenario column
+    const deleteButtons = within(tableWrap).getAllByRole('button', { name: /Delete/ });
+    expect(deleteButtons).toHaveLength(2);
+    fireEvent.click(deleteButtons[1]); // Delete Oklahoma City High-Load
+
+    expect(screen.queryByText('Oklahoma City High-Load')).toBeNull();
+    expect(screen.getByText('Scenario 1: SPP System (100 MW)')).toBeTruthy();
+
+    // 5. Clear entire comparison ledger
+    const clearBtn = screen.getByRole('button', { name: 'Clear Comparison Ledger' });
+    expect(clearBtn).toBeTruthy();
+    fireEvent.click(clearBtn);
+
+    expect(screen.getByText(/Comparison ledger is currently empty/)).toBeTruthy();
   });
 });

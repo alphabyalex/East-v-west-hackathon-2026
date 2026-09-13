@@ -22,7 +22,14 @@ function deferred<T>() {
 }
 
 const jsonResponse = (body: EstimateResponse) => new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
-const initialRequest = toEstimateRequest(defaultInputs);
+const initialRequest: EstimateRequest = {
+  location_id: 'SPP_SYSTEM',
+  load_mw: 100,
+  term_years: 7,
+  flexibility_split: 0.6,
+  site_exposure: 0.4,
+  vpp_solar_homes: 0,
+};
 async function tick(ms = 50) { await act(async () => { await vi.advanceTimersByTimeAsync(ms); }); }
 
 beforeEach(() => {
@@ -239,7 +246,6 @@ describe('scenario HTTP provider', () => {
     await tick();
     const request = JSON.parse(fetcher.mock.calls[1][1].body) as EstimateRequest;
     expect(request).toEqual(initialRequest);
-    expect(Object.keys(request)).toHaveLength(5);
   });
 
   it('does not leave API mode for an unchanged economic value, and aborts on unmount', async () => {

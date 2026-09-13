@@ -135,7 +135,7 @@ def test_site_factor_is_applied_once_downstream_of_the_reader(payload, install_r
     install_reader(reader)
     request = EstimateRequest(
         location_id=LOCATION, load_mw=100, term_years=2,
-        flexibility_split=0.6, site_exposure=0.25,
+        flexibility_split=0.6, site_exposure=0.25, vpp_solar_homes=0,
     )
 
     result = build_estimate(request, get_pipeline_location)
@@ -183,6 +183,7 @@ def test_default_http_dependency_calls_real_reader(payload, install_reader):
     request = {
         "location_id": LOCATION, "load_mw": 100, "term_years": 2,
         "flexibility_split": 0.6, "site_exposure": 0.25,
+        "vpp_solar_homes": 0,
     }
     with TestClient(app) as client:
         response = client.post("/api/estimate", json=request, headers={"Origin": "http://127.0.0.1:5174"})
@@ -526,6 +527,7 @@ def test_invalid_metadata_returns_http_503(payload, install_reader):
         response = client.post("/api/estimate", json={
             "location_id": LOCATION, "load_mw": 100, "term_years": 2,
             "flexibility_split": 0.6, "site_exposure": 0.25,
+            "vpp_solar_homes": 0,
         })
     assert response.status_code == 503
 
@@ -563,10 +565,12 @@ def test_real_parquet_reader_round_trip_never_trains_simulates_or_fetches(payloa
         response = client.post("/api/estimate", json={
             "location_id": LOCATION, "load_mw": 100, "term_years": 2,
             "flexibility_split": 0.6, "site_exposure": 0.25,
+            "vpp_solar_homes": 0,
         })
         unavailable_location = client.post("/api/estimate", json={
             "location_id": "SPP_NOT_IN_TABLE", "load_mw": 100, "term_years": 2,
             "flexibility_split": 0.6, "site_exposure": 0.25,
+            "vpp_solar_homes": 0,
         })
     assert response.status_code == 200
     assert response.json()["modeled_exposure"]["p50"] == 37.5

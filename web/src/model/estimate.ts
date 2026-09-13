@@ -1,4 +1,5 @@
 import { defaultInputs, mockResponse } from './fixture'
+import economicSnapshot from './economics-assumptions.json'
 import type { EstimateRequest, EstimateResponse, MockEconomicInputs, Quantiles } from './contract'
 import type { ScenarioInputs, ScenarioResult, Source, SourcedInputs, SourcedValue } from './types'
 
@@ -21,12 +22,14 @@ function validateRequest(request: EstimateRequest) {
 
 /** Maps UI names/percentages without leaking local mock economics into the API body. */
 export function toEstimateRequest(inputs: ScenarioInputs): EstimateRequest {
+  // Explicitly include all six canonical fields.
   const request: EstimateRequest = {
     location_id: inputs.location_id,
     load_mw: inputs.load_mw,
     term_years: inputs.contract_years,
     flexibility_split: inputs.flexibility_percent / 100,
     site_exposure: inputs.site_exposure,
+    vpp_solar_homes: inputs.vpp_solar_homes,
   }
   validateRequest(request)
   return request
@@ -38,6 +41,8 @@ function economicInputs(overrides: Partial<MockEconomicInputs>): MockEconomicInp
     gpu_per_mw: overrides.gpu_per_mw ?? defaultInputs.gpu_per_mw,
     gpu_hour_value_usd: overrides.gpu_hour_value_usd ?? defaultInputs.gpu_hour_value_usd,
     early_margin_usd_per_mw_year: overrides.early_margin_usd_per_mw_year ?? defaultInputs.early_margin_usd_per_mw_year,
+    vpp_battery_discharge_mw_per_home: overrides.vpp_battery_discharge_mw_per_home ?? economicSnapshot.vpp_battery_discharge_mw_per_home.value,
+    vpp_arbitrage_revenue_usd_per_mwh: overrides.vpp_arbitrage_revenue_usd_per_mwh ?? economicSnapshot.vpp_arbitrage_revenue_usd_per_mwh.value,
   }
   Object.entries(values).forEach(([field, value]) => assertFiniteNonNegative(value, field))
   return values
@@ -76,17 +81,30 @@ export function createMockEstimate(
   const summary = mapQuantiles((quantile) =>
     byYear.reduce((sum, row) => sum + row[quantile], 0) / byYear.length)
   const interruptibleMw = request.load_mw * request.flexibility_split
-  const lostGpuHours = mapQuantiles((quantile) => summary[quantile] * interruptibleMw * local.gpu_per_mw)
+
+  // Sustainability VPP Logic
+  const vppOffsetMw = (request.vpp_solar_homes ?? 0) * local.vpp_battery_discharge_mw_per_home
+  const netInterruptibleMw = Math.max(0, interruptibleMw - vppOffsetMw)
+
+  const lostGpuHours = mapQuantiles((quantile) => summary[quantile] * netInterruptibleMw * local.gpu_per_mw)
   const annualCost = mapQuantiles((quantile) => lostGpuHours[quantile] * local.gpu_hour_value_usd)
+  const vppArbitrageRevenue = mapQuantiles((quantile) => summary[quantile] * vppOffsetMw * local.vpp_arbitrage_revenue_usd_per_mwh)
+
+  // Net annual cost subtracts VPP arbitrage revenue
+  const annualNetCost = mapQuantiles((quantile) => annualCost[quantile] - vppArbitrageRevenue[quantile])
+
   const benefit = Math.min(local.firm_wait_years, request.term_years)
     * request.load_mw * local.early_margin_usd_per_mw_year
-  const costPerExposureHour = interruptibleMw * local.gpu_per_mw * local.gpu_hour_value_usd
+  const costPerExposureHour = netInterruptibleMw * local.gpu_per_mw * local.gpu_hour_value_usd
+  const revenuePerExposureHour = vppOffsetMw * local.vpp_arbitrage_revenue_usd_per_mwh
+  const netCostPerExposureHour = costPerExposureHour - revenuePerExposureHour
+
   const tolerance = decisionPolicy.value
   assertFiniteNonNegative(tolerance, 'close_call_fraction')
   if (tolerance >= 1) throw new RangeError('close_call_fraction must be less than 1.')
-  const decision: EstimateResponse['economics']['decision'] = annualCost.p50 * request.term_years > benefit * (1 + tolerance)
+  const decision: EstimateResponse['economics']['decision'] = annualNetCost.p50 * request.term_years > benefit * (1 + tolerance)
     ? 'not_worth_it'
-    : annualCost.p90 * request.term_years < benefit * (1 - tolerance) ? 'worth_it' : 'close_call'
+    : annualNetCost.p90 * request.term_years < benefit * (1 - tolerance) ? 'worth_it' : 'close_call'
   const economicsRef = new URLSearchParams({
     ...Object.fromEntries(Object.entries(request).map(([key, value]) => [key, String(value)])),
     ...Object.fromEntries(Object.entries(local).map(([key, value]) => [key, String(value)])),
@@ -110,11 +128,15 @@ export function createMockEstimate(
     },
     economics: {
       gpus_per_mw: local.gpu_per_mw,
+      interruptible_mw: interruptibleMw,
+      vpp_offset_mw: vppOffsetMw,
+      net_interruptible_mw: netInterruptibleMw,
       lost_gpu_hours_per_year: lostGpuHours,
-      annual_cost_usd: annualCost,
+      annual_cost_usd: annualNetCost,
+      vpp_arbitrage_revenue_usd_per_year: vppArbitrageRevenue,
       value_of_early_connection_usd: benefit,
-      breakeven_exposure_hours_per_year: costPerExposureHour === 0
-        ? null : benefit / (request.term_years * costPerExposureHour),
+      breakeven_exposure_hours_per_year: netCostPerExposureHour <= 0
+        ? null : benefit / (request.term_years * netCostPerExposureHour),
       decision,
       source: {
         source_type: 'assumption',
@@ -157,6 +179,7 @@ export function adaptEstimateResponse(
     contract_years: request.term_years,
     flexibility_percent: request.flexibility_split * 100,
     site_exposure: request.site_exposure,
+    vpp_solar_homes: request.vpp_solar_homes ?? 0,
     ...local,
     gpu_per_mw: economics.gpus_per_mw,
   }
@@ -192,23 +215,19 @@ export function adaptEstimateResponse(
     tariff: response.tariff,
     canonical_response: response,
     economics: {
-      interruptible_mw: {
-        value: request.load_mw * request.flexibility_split,
-        source_type: 'assumption',
-        ref: 'user://estimate/inputs/load_mw-times-flexibility_split',
-      },
+      interruptible_mw: sourced(economics.interruptible_mw, economics.source, 'economics/interruptible_mw'),
+      vpp_offset_mw: sourced(economics.vpp_offset_mw, economics.source, 'economics/vpp_offset_mw'),
+      net_interruptible_mw: sourced(economics.net_interruptible_mw, economics.source, 'economics/net_interruptible_mw'),
+      vpp_arbitrage_revenue_usd: sourced(economics.vpp_arbitrage_revenue_usd_per_year.p50, economics.source, 'economics/vpp_arbitrage_revenue_usd_per_year/p50'),
       annual_lost_gpu_hours: annualGpuHours.p50,
       annual_loss_usd: annualLoss.p50,
       annual_lost_gpu_hours_by_quantile: annualGpuHours,
       annual_loss_by_quantile: annualLoss,
       term_loss_usd: sourced(termLoss, economics.source, 'derived/annual_cost_usd/p50-times-term_years'),
       early_access_value_usd: sourced(economics.value_of_early_connection_usd, economics.source, 'economics/value_of_early_connection_usd'),
-      net_value_usd: sourced(economics.value_of_early_connection_usd - termLoss, economics.source, 'derived/early-benefit-minus-p50-term-cost'),
+      net_value_usd: sourced(economics.value_of_early_connection_usd - termLoss, economics.source, 'derived/net_term_value'),
       break_even_exposure_hours: sourced(breakEvenHours, economics.source, 'economics/breakeven_exposure_hours_per_year'),
-      break_even_site_exposure: sourced(breakEvenFactor, {
-        ...economics.source,
-        ref: `${economics.source.ref}; exposure_baseline_source=${exposure.source.ref}`,
-      }, 'derived/breakeven-hours-divided-by-p50-baseline'),
+      break_even_site_exposure: sourced(breakEvenFactor, economics.source, 'derived/breakeven_site_exposure'),
     },
     decision: { worth_it: 'worth it', not_worth_it: 'not worth it', close_call: 'close call' }[economics.decision] as ScenarioResult['decision'],
     decision_policy: { close_call_fraction: decisionPolicy },

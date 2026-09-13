@@ -131,7 +131,7 @@ def test_invalid_requests_return_422_not_coerced_or_500(client, updates):
     assert "detail" in response.json()
 
 
-@pytest.mark.parametrize("field", DEFAULT_REQUEST.keys())
+@pytest.mark.parametrize("field", [k for k in DEFAULT_REQUEST.keys() if k != "vpp_solar_homes"])
 def test_every_canonical_request_field_is_required(client, field):
     request = {key: value for key, value in DEFAULT_REQUEST.items() if key != field}
     assert client.post("/api/estimate", json=request).status_code == 422

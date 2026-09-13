@@ -4,7 +4,8 @@
     "load_mw": 100,
     "term_years": 7,
     "flexibility_split": 0.6,
-    "site_exposure": 0.4
+    "site_exposure": 0.4,
+    "vpp_solar_homes": 0
   },
   "modeled_exposure": {
     "unit": "hours/year",
@@ -58,7 +59,7 @@
     ],
     "source": {
       "source_type": "assumption",
-      "ref": "mock://illustrative/api/estimate/modeled_exposure?location_id=SPP_SYSTEM&load_mw=100&term_years=7&flexibility_split=0.6&site_exposure=0.4"
+      "ref": "mock://illustrative/api/estimate/modeled_exposure?location_id=SPP_SYSTEM&load_mw=100&term_years=7&flexibility_split=0.6&site_exposure=0.4&vpp_solar_homes=0"
     }
   },
   "confidence": {
@@ -72,6 +73,9 @@
   },
   "economics": {
     "gpus_per_mw": 575,
+    "interruptible_mw": 60,
+    "vpp_offset_mw": 0,
+    "net_interruptible_mw": 60,
     "lost_gpu_hours_per_year": {
       "p50": 2937428.5714285714,
       "p90": 4999542.857142857,
@@ -82,12 +86,17 @@
       "p90": 14998628.57142857,
       "p99": 23130771.42857143
     },
+    "vpp_arbitrage_revenue_usd_per_year": {
+      "p50": 0,
+      "p90": 0,
+      "p99": 0
+    },
     "value_of_early_connection_usd": 126800000,
     "breakeven_exposure_hours_per_year": 175.01725327812284,
     "decision": "worth_it",
     "source": {
       "source_type": "assumption",
-      "ref": "mock://illustrative/api/estimate/economics?location_id=SPP_SYSTEM&load_mw=100&term_years=7&flexibility_split=0.6&site_exposure=0.4&firm_wait_years=4&gpu_per_mw=575&gpu_hour_value_usd=3&early_margin_usd_per_mw_year=317000; exposure_source=mock://illustrative/api/estimate/modeled_exposure?location_id=SPP_SYSTEM&load_mw=100&term_years=7&flexibility_split=0.6&site_exposure=0.4; economic_inputs=local assumptions, defaults documented in docs/ASSUMPTIONS.md; close_call_fraction=0.05; policy_source=mock://economics-placeholder/docs/ASSUMPTIONS.md#close-call-tolerance; placeholder, unreviewed decision rule"
+      "ref": "mock://illustrative/api/estimate/economics?location_id=SPP_SYSTEM&load_mw=100&term_years=7&flexibility_split=0.6&site_exposure=0.4&vpp_solar_homes=0&firm_wait_years=4&gpu_per_mw=575&gpu_hour_value_usd=3&early_margin_usd_per_mw_year=317000&vpp_battery_discharge_mw_per_home=0.005&vpp_arbitrage_revenue_usd_per_mwh=150; exposure_source=mock://illustrative/api/estimate/modeled_exposure?location_id=SPP_SYSTEM&load_mw=100&term_years=7&flexibility_split=0.6&site_exposure=0.4&vpp_solar_homes=0; economic_inputs=local assumptions, defaults documented in docs/ASSUMPTIONS.md; close_call_fraction=0.05; policy_source=mock://economics-placeholder/docs/ASSUMPTIONS.md#close-call-tolerance; placeholder, unreviewed decision rule"
     }
   },
   "tariff": {

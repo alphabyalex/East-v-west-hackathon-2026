@@ -10,7 +10,7 @@ describe('canonical offline estimate contract', () => {
     expect(createMockEstimate(toEstimateRequest(defaultInputs))).toEqual(responseJson)
   })
 
-  it('sends exactly the five API fields, converting percent to a fraction', () => {
+  it('sends exactly the six API fields, converting percent to a fraction', () => {
     const request = toEstimateRequest({ ...defaultInputs, flexibility_percent: 35 })
     expect(request).toEqual({
       location_id: defaultInputs.location_id,
@@ -18,6 +18,7 @@ describe('canonical offline estimate contract', () => {
       term_years: 7,
       flexibility_split: 0.35,
       site_exposure: 0.4,
+      vpp_solar_homes: 0,
     })
     const response = createMockEstimate(request)
     expect(Object.keys(response)).toEqual(['inputs_echo', 'modeled_exposure', 'confidence', 'economics', 'tariff'])

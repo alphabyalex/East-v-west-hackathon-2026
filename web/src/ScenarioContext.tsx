@@ -13,8 +13,18 @@ const economicFields = {
   gpu_per_mw: 'gpus_per_mw',
   gpu_hour_value_usd: 'gpu_rental_price_usd_per_hour',
   early_margin_usd_per_mw_year: 'early_margin_usd_per_mw_year',
+  vpp_battery_discharge_mw_per_home: 'vpp_battery_discharge_mw_per_home',
+  vpp_arbitrage_revenue_usd_per_mwh: 'vpp_arbitrage_revenue_usd_per_mwh',
 } as const;
 const configuredMode = (): EstimateMode => import.meta.env.VITE_ESTIMATE_MODE === 'local' ? 'local' : 'api';
+
+export interface SavedScenario {
+  id: string
+  name: string
+  timestamp: number
+  inputs: ScenarioInputs
+  result: ReturnType<typeof deriveScenario>
+}
 
 function useScenarioState(initialMode: EstimateMode) {
   const [storedInputs, setInputs] = useState<ScenarioInputs>({ ...defaultInputs });
@@ -22,7 +32,29 @@ function useScenarioState(initialMode: EstimateMode) {
   const [mode, setMode] = useState<EstimateMode>(initialMode);
   const [modeNote, setModeNote] = useState('');
   const [serverDefaults, setServerDefaults] = useState<EconomicsAssumptions>();
-  const request = useMemo(() => toEstimateRequest(storedInputs), [storedInputs]);
+  const [savedScenarios, setSavedScenarios] = useState<SavedScenario[]>(() => {
+    try {
+      const saved = localStorage.getItem('fluxline_saved_scenarios');
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // Ignore in tests
+    }
+    return [];
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('fluxline_saved_scenarios', JSON.stringify(savedScenarios));
+    } catch {
+      // Ignore in tests
+    }
+  }, [savedScenarios]);
+
+  const request = useMemo(() => {
+    const r = toEstimateRequest(storedInputs);
+    r.vpp_solar_homes = storedInputs.vpp_solar_homes;
+    return r;
+  }, [storedInputs]);
   const transport = useEstimateTransport(request, mode);
   useEffect(() => {
     if (transport.assumptions) setServerDefaults(transport.assumptions);
@@ -63,11 +95,48 @@ function useScenarioState(initialMode: EstimateMode) {
     inputs,
     economicDefaults ?? offlineAssumptions,
   ), [transport.sensitivity, result, inputs, decisionPolicy, economicDefaults]);
+
+  function saveScenario(name?: string) {
+    const defaultLabel = `Scenario ${savedScenarios.length + 1}: ${
+      inputs.location_id === 'SPP_SYSTEM'
+        ? 'SPP System'
+        : inputs.location_id.replace('spp-', '').replace('-demo', '').toUpperCase()
+    } (${inputs.load_mw} MW)`;
+    const newScenario: SavedScenario = {
+      id: `scen_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      name: name || defaultLabel,
+      timestamp: Date.now(),
+      inputs: { ...inputs },
+      result: { ...result },
+    };
+    setSavedScenarios(prev => [...prev, newScenario]);
+  }
+
+  function deleteScenario(id: string) {
+    setSavedScenarios(prev => prev.filter(scen => scen.id !== id));
+  }
+
+  function loadScenario(id: string) {
+    const target = savedScenarios.find(scen => scen.id === id);
+    if (target) {
+      setInputs({ ...target.inputs });
+      const editedKeys = Object.keys(target.inputs).filter(key => {
+        const val = target.inputs[key as keyof ScenarioInputs];
+        const def = defaultInputs[key as keyof ScenarioInputs];
+        return val !== def;
+      });
+      setEdited(new Set(editedKeys as (keyof ScenarioInputs)[]));
+    }
+  }
+
+  function clearAllScenarios() {
+    setSavedScenarios([]);
+  }
   function update<K extends keyof ScenarioInputs>(key: K, value: ScenarioInputs[K]) {
     if (inputs[key] === value) return;
     if ((economicKeys as readonly (keyof ScenarioInputs)[]).includes(key)) {
       setMode('local');
-      setModeNote('Economic input changed. Assumed scenario values now apply your overrides; connected estimates use the supplied defaults.');
+      setModeNote('Economic input changed. Local mock mode applies your overrides; the API request does not include them.');
     }
     setInputs(previous => ({ ...previous, [key]: value }));
     setEdited(previous => new Set(previous).add(key));
@@ -76,10 +145,10 @@ function useScenarioState(initialMode: EstimateMode) {
     if (next === 'api') {
       setInputs(previous => ({ ...previous, ...Object.fromEntries(economicKeys.map(key => [key, defaultInputs[key]])) }));
       setEdited(previous => new Set([...previous].filter(key => !(economicKeys as readonly (keyof ScenarioInputs)[]).includes(key))));
-      setModeNote('Connected estimates use supplied economic assumptions, including any unverified inputs. Your economic overrides have been reset.');
+      setModeNote('API mode reads economic assumptions from the backend, including any unverified placeholders. Local overrides have been reset.');
       transport.retry();
     } else {
-      setModeNote('Assumed scenario values work offline. No connected estimate is requested.');
+      setModeNote('Local mock mode works without the backend. No estimate requests are sent.');
     }
     setMode(next);
   }
@@ -88,7 +157,25 @@ function useScenarioState(initialMode: EstimateMode) {
     setEdited(new Set());
     setModeNote('');
   }
-  return { inputs, result, sensitivity, update, reset, sourceFor, mode, chooseMode, modeNote, status: transport.status, error: transport.error, retry: transport.retry };
+  return {
+    inputs,
+    result,
+    sensitivity,
+    update,
+    reset,
+    sourceFor,
+    mode,
+    chooseMode,
+    modeNote,
+    status: transport.status,
+    error: transport.error,
+    retry: transport.retry,
+    savedScenarios,
+    saveScenario,
+    deleteScenario,
+    loadScenario,
+    clearAllScenarios,
+  };
 }
 
 const ScenarioContext = createContext<ReturnType<typeof useScenarioState> | null>(null);

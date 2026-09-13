@@ -21,6 +21,7 @@ class EstimateRequest(ContractModel):
     term_years: Annotated[int, Field(ge=1, le=7)]
     flexibility_split: Fraction
     site_exposure: Fraction
+    vpp_solar_homes: NonNegative = 0
 
 
 class Source(ContractModel):
@@ -60,8 +61,12 @@ class Confidence(ContractModel):
 
 class Economics(ContractModel):
     gpus_per_mw: NonNegative
+    interruptible_mw: NonNegative
+    vpp_offset_mw: NonNegative
+    net_interruptible_mw: NonNegative
     lost_gpu_hours_per_year: Quantiles
     annual_cost_usd: Quantiles
+    vpp_arbitrage_revenue_usd_per_year: Quantiles
     value_of_early_connection_usd: NonNegative
     # A zero interruptible load has no finite cost crossover.
     breakeven_exposure_hours_per_year: NonNegative | None

@@ -7,6 +7,7 @@ export interface EstimateRequest {
   term_years: number
   flexibility_split: number
   site_exposure: number
+  vpp_solar_homes?: number
 }
 
 export interface Quantiles<T = number> {
@@ -32,8 +33,12 @@ export interface EstimateResponse {
   }
   economics: {
     gpus_per_mw: number
+    interruptible_mw: number
+    vpp_offset_mw: number
+    net_interruptible_mw: number
     lost_gpu_hours_per_year: Quantiles
     annual_cost_usd: Quantiles
+    vpp_arbitrage_revenue_usd_per_year: Quantiles
     value_of_early_connection_usd: number
     /** No finite threshold exists when cost per exposure hour is zero. */
     breakeven_exposure_hours_per_year: number | null
@@ -49,4 +54,7 @@ export interface EstimateResponse {
 
 /** Local mock controls are not extra fields on the canonical API request. */
 export type MockEconomicInputs = Pick<ScenarioInputs,
-  'firm_wait_years' | 'gpu_per_mw' | 'gpu_hour_value_usd' | 'early_margin_usd_per_mw_year'>
+  'firm_wait_years' | 'gpu_per_mw' | 'gpu_hour_value_usd' | 'early_margin_usd_per_mw_year'> & {
+  vpp_battery_discharge_mw_per_home: number
+  vpp_arbitrage_revenue_usd_per_mwh: number
+}

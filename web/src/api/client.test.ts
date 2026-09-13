@@ -3,7 +3,7 @@ import type { EstimateRequest, EstimateResponse } from '../model/contract'
 import { EstimateClientError, postEstimate, validateEstimateResponse } from './client'
 
 const request: EstimateRequest = {
-  location_id: 'SPP_SPS_HUB', load_mw: 100, term_years: 2, flexibility_split: 0.6, site_exposure: 0.3,
+  location_id: 'SPP_SPS_HUB', load_mw: 100, term_years: 2, flexibility_split: 0.6, site_exposure: 0.3, vpp_solar_homes: 0,
 }
 
 function fixture(): EstimateResponse {
@@ -23,8 +23,12 @@ function fixture(): EstimateResponse {
     },
     economics: {
       gpus_per_mw: 1000,
+      interruptible_mw: 60,
+      vpp_offset_mw: 0,
+      net_interruptible_mw: 60,
       lost_gpu_hours_per_year: { p50: 1800000, p90: 5400000, p99: 9000000 },
       annual_cost_usd: { p50: 1800000, p90: 5400000, p99: 9000000 },
+      vpp_arbitrage_revenue_usd_per_year: { p50: 0, p90: 0, p99: 0 },
       value_of_early_connection_usd: 10000000,
       breakeven_exposure_hours_per_year: 100,
       decision: 'close_call',

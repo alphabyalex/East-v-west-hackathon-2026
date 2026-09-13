@@ -67,7 +67,7 @@ function quantiles(value: unknown, path: string) {
   return row
 }
 
-const inputFields = ['location_id', 'load_mw', 'term_years', 'flexibility_split', 'site_exposure'] as const
+const inputFields = ['location_id', 'load_mw', 'term_years', 'flexibility_split', 'site_exposure', 'vpp_solar_homes'] as const
 
 /** Reject before JSON serialization can turn non-finite input into null. */
 function validateRequest(request: EstimateRequest) {
@@ -80,12 +80,15 @@ function validateRequest(request: EstimateRequest) {
   if (typeof request.location_id !== 'string' || request.location_id.trim().length === 0) {
     reject('location_id', 'must be a nonempty string')
   }
-  for (const field of ['load_mw', 'term_years', 'flexibility_split', 'site_exposure'] as const) {
-    if (typeof request[field] !== 'number' || !Number.isFinite(request[field])) {
+  for (const field of ['load_mw', 'term_years', 'flexibility_split', 'site_exposure', 'vpp_solar_homes'] as const) {
+    if (typeof request[field] !== 'number' || !Number.isFinite(request[field] as number)) {
       reject(field, 'must be a finite number')
     }
   }
   if (request.load_mw <= 0) reject('load_mw', 'must be positive')
+  if (request.vpp_solar_homes !== undefined && (request.vpp_solar_homes < 0 || !Number.isInteger(request.vpp_solar_homes))) {
+    reject('vpp_solar_homes', 'must be a nonnegative integer')
+  }
   if (!Number.isInteger(request.term_years) || request.term_years < 1 || request.term_years > 7) {
     reject('term_years', 'must be an integer between 1 and 7')
   }
@@ -107,9 +110,12 @@ export function validateEstimateResponse(raw: unknown, request?: EstimateRequest
   }
   fraction(echo.flexibility_split, 'inputs_echo.flexibility_split')
   fraction(echo.site_exposure, 'inputs_echo.site_exposure')
+  if (echo.vpp_solar_homes !== undefined) number(echo.vpp_solar_homes, 'inputs_echo.vpp_solar_homes')
   if (request) {
     for (const field of inputFields) {
-      if (echo[field] !== request[field]) invalid(`inputs_echo.${field}`, 'must match the submitted request')
+      const echoVal = echo[field] ?? (field === 'vpp_solar_homes' ? 0 : undefined);
+      const reqVal = request[field] ?? (field === 'vpp_solar_homes' ? 0 : undefined);
+      if (echoVal !== reqVal) invalid(`inputs_echo.${field}`, 'must match the submitted request')
     }
   }
 
@@ -198,6 +204,9 @@ export async function postEstimate(
     term_years: request.term_years,
     flexibility_split: request.flexibility_split,
     site_exposure: request.site_exposure,
+  }
+  if (request.vpp_solar_homes !== undefined) {
+    submitted.vpp_solar_homes = request.vpp_solar_homes
   }
   const response = await fetchImpl(apiUrl('/api/estimate'), {
     method: 'POST',
