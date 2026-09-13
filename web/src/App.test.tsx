@@ -58,12 +58,15 @@ describe('scenario workspace interactions', () => {
     render(<App />);
     expect(screen.queryByText('ILLUSTRATIVE DATA')).toBeNull();
     expect(screen.queryByText('MOCK ECONOMICS')).toBeNull();
-    expect(screen.getAllByText('Mock exposure')).toHaveLength(3);
-    expect(screen.getByText('Mock economics')).toBeTruthy();
-    expect(screen.getByText('Mock decision')).toBeTruthy();
+    expect(screen.getAllByText('Assumed exposure')).toHaveLength(3);
+    expect(screen.getByText('Assumed economics')).toBeTruthy();
+    expect(screen.getByText('Assumed decision')).toBeTruthy();
     expect(screen.getByText('USER ASSUMPTION')).toBeTruthy();
     expect(screen.getByText('System aggregate · no site-specific grid data')).toBeTruthy();
     expect(screen.getByText('You set the mapping.')).toBeTruthy();
+    const locations = screen.getByRole('combobox', { name: 'SPP LOCATION' });
+    expect(locations.textContent).not.toContain('illustrative');
+    expect(within(locations).getByRole('option', { name: 'Wichita, KS · scenario' }).getAttribute('value')).toBe('spp-wichita-demo');
   });
 
   it('removes only earned mock labels when a mixed-source HTTP result arrives', async () => {
@@ -76,17 +79,17 @@ describe('scenario workspace interactions', () => {
       return Promise.resolve(new Response(JSON.stringify(response), { status: 200 }));
     })));
     render(<App />);
-    await screen.findByText(/API connected · current inputs synchronized/);
-    expect(screen.queryByText('Mock exposure')).toBeNull();
-    expect(screen.queryByText('Mock quantiles')).toBeNull();
-    expect(screen.queryByRole('button', { name: /Mock estimate confidence/ })).toBeNull();
-    expect(screen.getByText('Mock economics')).toBeTruthy();
-    expect(screen.getByText('Mock decision')).toBeTruthy();
+    await screen.findByText(/Estimate service connected · current inputs synchronized/);
+    expect(screen.queryByText('Assumed exposure')).toBeNull();
+    expect(screen.queryByText('Assumed quantiles')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Assumed estimate confidence/ })).toBeNull();
+    expect(screen.getByText('Assumed economics')).toBeTruthy();
+    expect(screen.getByText('Assumed decision')).toBeTruthy();
     expect(screen.getByText('USER ASSUMPTION')).toBeTruthy();
     expect(screen.getByText('System aggregate · no site-specific grid data')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Model & evidence' }));
-    expect(screen.getByText('Mock diagnostics · not computed.')).toBeTruthy();
-    expect(screen.getByText('Mock clause · not extracted')).toBeTruthy();
+    expect(screen.getByText('Evaluation unavailable.')).toBeTruthy();
+    expect(screen.getByText('Tariff evidence not supplied')).toBeTruthy();
     fireEvent.click(screen.getAllByRole('button', { name: /model provenance/ })[0]);
     expect(JSON.parse(screen.getByRole('tooltip').querySelector('pre')!.textContent!).ref).toContain('test-fixture://pipeline/exposure');
   });
@@ -99,12 +102,12 @@ describe('scenario workspace interactions', () => {
       return Promise.resolve(new Response(JSON.stringify(response), { status: 200 }));
     })));
     render(<App />);
-    await screen.findByText(/API connected · current inputs synchronized/);
-    expect(screen.queryByText('Mock economics')).toBeNull();
-    expect(screen.queryByText('Mock decision')).toBeNull();
-    expect(screen.getAllByText('Mock exposure')).toHaveLength(3);
+    await screen.findByText(/Estimate service connected · current inputs synchronized/);
+    expect(screen.queryByText('Assumed economics')).toBeNull();
+    expect(screen.queryByText('Assumed decision')).toBeNull();
+    expect(screen.getAllByText('Assumed exposure')).toHaveLength(3);
     const crossover = document.getElementById('exposure-explanation')!;
-    expect(within(crossover).getByText('Mock')).toBeTruthy();
+    expect(within(crossover).getByText('Assumed')).toBeTruthy();
     fireEvent.click(within(crossover).getByRole('button'));
     const source = JSON.parse(screen.getByRole('tooltip').querySelector('pre')!.textContent!);
     expect(source.ref).toContain('test-fixture://sourced-economics');
@@ -131,16 +134,16 @@ describe('scenario workspace interactions', () => {
     const fetcher = vi.fn().mockRejectedValueOnce(new TypeError('Failed to fetch')).mockImplementation((_url, options) => Promise.resolve(new Response(JSON.stringify(createMockEstimate(JSON.parse(options.body))), { status: 200 })));
     vi.stubGlobal('fetch', withEconomics(fetcher));
     render(<App />);
-    expect(screen.getByText(/current inputs shown as a local mock preview/)).toBeTruthy();
-    fireEvent.click(await screen.findByRole('button', { name: 'Retry API' }));
-    expect(await screen.findByText(/API connected · current inputs synchronized/)).toBeTruthy();
+    expect(screen.getByText(/current inputs shown as assumed scenario values/)).toBeTruthy();
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry estimate' }));
+    expect(await screen.findByText(/Estimate service connected · current inputs synchronized/)).toBeTruthy();
     const gpuValue = screen.getByRole('spinbutton', { name: 'LOST COMPUTE VALUE' });
     fireEvent.change(gpuValue, { target: { value: '5' } });
-    expect(screen.getByRole('button', { name: 'Local mock' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Assumed scenario' }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByText(/Economic input changed/)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Use API defaults' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Use supplied defaults' }));
     expect((gpuValue as HTMLInputElement).value).toBe('3');
-    expect(await screen.findByText(/API connected · current inputs synchronized/)).toBeTruthy();
+    expect(await screen.findByText(/Estimate service connected · current inputs synchronized/)).toBeTruthy();
   });
 
   it('starts with the fan chart without initializing a graphics context', () => {

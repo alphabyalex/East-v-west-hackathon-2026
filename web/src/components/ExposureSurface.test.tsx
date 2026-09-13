@@ -57,7 +57,7 @@ describe('exposure surface inspection', () => {
     expect(readProvenance()).toEqual({ value: 99, source_type: 'assumption', ref: 'mock://display/surface/percentile/99; cumulative percentile, not probability density' });
     fireEvent.keyDown(document, { key: 'Escape' });
     const inspector = screen.getByLabelText('Selected supplied quantile');
-    fireEvent.click(within(inspector).getByRole('button', { name: /Mock estimate confidence: Medium/ }));
+    fireEvent.click(within(inspector).getByRole('button', { name: /Assumed estimate confidence: Medium/ }));
     expect(readProvenance()).toEqual(confidence.score);
   });
 

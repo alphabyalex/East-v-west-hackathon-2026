@@ -88,7 +88,7 @@ function Header() {
   return <>
     <header className="app-header">
       <a href="/" className="brand" aria-label="Fluxline home"><span className="brand-mark" aria-hidden="true"><img className="brand-image" src="/fluxline-mark.svg" width="48" height="48" alt="" /></span>fluxline<span className="brand-divider" /><span className="brand-subtitle">INTERCONNECTION RISK</span></a>
-      <div className="header-status" data-connected={status === 'api'}><span className="status-dot" />{status === 'api' ? 'API CONNECTED' : status === 'loading' ? 'API PENDING' : status === 'fallback' ? 'LOCAL FALLBACK' : 'LOCAL WORKSPACE'}</div>
+      <div className="header-status" data-connected={status === 'api'}><span className="status-dot" />{status === 'api' ? 'ESTIMATE SERVICE CONNECTED' : status === 'loading' ? 'ESTIMATE PENDING' : status === 'fallback' ? 'ASSUMED SCENARIO' : 'SCENARIO WORKSPACE'}</div>
     </header>
     <div className="workspace-heading">
       <div><div className="eyebrow breadcrumb">SPP <span>/</span> SCENARIO ANALYSIS</div><h1>Flexible connection analysis</h1><p>Earlier grid access, modeled interruption exposure, and the cost of waiting.</p></div>
@@ -101,19 +101,19 @@ function Header() {
 function EstimateConnection() {
   const { mode, status, error, retry, chooseMode, modeNote } = useScenario();
   const message = status === 'api'
-    ? 'API connected · current inputs synchronized.'
+    ? 'Estimate service connected · current inputs synchronized.'
     : status === 'loading'
-      ? 'Waiting for API · current inputs shown as a local mock preview.'
+      ? 'Estimate pending · current inputs shown as assumed scenario values.'
       : status === 'fallback'
         ? error
-        : 'Local mock · instantaneous, no backend required.';
+        : 'Assumed scenario values · available offline.';
   return <section className={`estimate-connection estimate-connection-${status}`} aria-label="Estimate data connection">
     <div className="estimate-mode-controls segment-control" role="group" aria-label="Estimate provider">
-      <button className="button button-quiet" aria-pressed={mode === 'api'} onClick={() => chooseMode('api')}>Use API defaults</button>
-      <button className="button button-quiet" aria-pressed={mode === 'local'} onClick={() => chooseMode('local')}>Local mock</button>
+      <button className="button button-quiet" aria-pressed={mode === 'api'} onClick={() => chooseMode('api')}>Use supplied defaults</button>
+      <button className="button button-quiet" aria-pressed={mode === 'local'} onClick={() => chooseMode('local')}>Assumed scenario</button>
     </div>
-    <div className="estimate-connection-copy"><p role="status">{message}</p>{modeNote && <p className="estimate-mode-note">{modeNote}</p>}<small>Editing economics switches to Local mock. Use API defaults resets those economic inputs.</small></div>
-    {status === 'fallback' && <button className="button" onClick={retry}>Retry API</button>}
+    <div className="estimate-connection-copy"><p role="status">{message}</p>{modeNote && <p className="estimate-mode-note">{modeNote}</p>}<small>Editing economics switches to assumed scenario values. Use supplied defaults resets those economic inputs.</small></div>
+    {status === 'fallback' && <button className="button" onClick={retry}>Retry estimate</button>}
   </section>;
 }
 
@@ -122,8 +122,8 @@ function Inputs() {
   return <section className="inputs-bar" aria-label="Connection inputs">
     <div className="location-field">
       <div className="field-label"><label htmlFor="location"><MapPin size={13} />SPP LOCATION</label><SourceInfo value={inputs.location_id} source={sourceFor('location_id')} label="Location provenance" /></div>
-      <div className="select-wrap"><select id="location" value={inputs.location_id} onChange={event => update('location_id', event.target.value)}>{mockResponse.locations.map(location => <option key={location.id} value={location.id}>{location.label}</option>)}</select><ChevronDown size={15} /></div>
-      <span className="field-note">{inputs.location_id === 'SPP_SYSTEM' ? 'System aggregate · no site-specific grid data' : 'Illustrative node · no site-specific grid data'}</span>
+      <div className="select-wrap"><select id="location" value={inputs.location_id} onChange={event => update('location_id', event.target.value)}>{mockResponse.locations.map(location => <option key={location.id} value={location.id}>{location.label.replace(/ · illustrative$/, ' · scenario')}</option>)}</select><ChevronDown size={15} /></div>
+      <span className="field-note">{inputs.location_id === 'SPP_SYSTEM' ? 'System aggregate · no site-specific grid data' : 'Scenario location · no site-specific grid data'}</span>
     </div>
     <NumberField name="load_mw" label="LOAD SIZE" unit="MW" min={1} max={2000} icon={<Zap size={13} />} />
     <NumberField name="contract_years" label="CONTRACT TERM" unit="years" min={1} max={7} icon={<Activity size={13} />} />
@@ -148,7 +148,7 @@ function ExposureControl() {
         <span className="slider-progress" style={{ width: `calc(10px + (100% - 20px) * ${inputs.site_exposure})` }} aria-hidden="true" />
         <input type="range" min={0} max={1} step={0.01} value={inputs.site_exposure} onChange={event => update('site_exposure', Number(event.target.value))}
           aria-label="Site exposure factor" aria-describedby="exposure-explanation" aria-valuetext={`${inputs.site_exposure.toFixed(2)}, user-set assumption`} />
-        {marker !== null && <span className="break-even-marker" style={{ left: `calc(10px + (100% - 20px) * ${marker})` }} title={`${crossoverSources.some(isMockSource) ? 'Mock ' : ''}Median cost crossover under current assumptions`} />}
+        {marker !== null && <span className="break-even-marker" style={{ left: `calc(10px + (100% - 20px) * ${marker})` }} title={`${crossoverSources.some(isMockSource) ? 'Assumed ' : ''}Median cost crossover under current assumptions`} />}
       </div>
       <div className="slider-endpoints"><span><Sourced value={0} source={uiSource('site_exposure/min')} format={v => v.toFixed(1)} animate={false} /> No exposure</span><span>Full modeled exposure <Sourced value={1} source={uiSource('site_exposure/max')} format={v => v.toFixed(1)} animate={false} /></span></div>
       <div className="slider-caption" id="exposure-explanation"><span className="tiny-diamond" />{marker !== null ? <span>Median cost crossover at <Value datum={crossover as SourcedValue} format={fixed} /> <MockLabel sources={crossoverSources} /> under these assumptions</span> : <span>No cost crossover within this slider range</span>}</div>
@@ -164,7 +164,7 @@ function FanTooltip({ active, row, confidence }: { active?: boolean; row?: Chart
     <div><span><Percentile value={99} /> modeled exposure · h/yr</span><ExposureValue datum={row.original.p99} confidence={confidence} /></div>
     <div><span><Percentile value={90} /> modeled exposure · h/yr</span><ExposureValue datum={row.original.p90} confidence={confidence} /></div>
     <div><span><Percentile value={50} /> modeled exposure · h/yr</span><ExposureValue datum={row.original.p50} confidence={confidence} /></div>
-    <small><MockLabel sources={[row.original.p50, row.original.p90, row.original.p99]} children="Mock quantiles" /> Hover or tap a value for its source</small>
+    <small><MockLabel sources={[row.original.p50, row.original.p90, row.original.p99]} children="Assumed quantiles" /> Hover or tap a value for its source</small>
   </div>;
 }
 
@@ -196,13 +196,13 @@ function ExposurePanel() {
       {([['p50', 50, 'Median scenario'], ['p90', 90, 'Upper-tail scenario'], ['p99', 99, 'Extreme-tail scenario']] as const).map(([key, percentile, label]) => <div className={`metric metric-${key}${key === 'p50' ? ' metric-primary' : ''}`} key={key}>
         <div className="metric-label"><Percentile value={percentile} /><span>{label}</span></div>
         <div className="metric-number"><Value datum={result.annual_exposure[key]} format={numeric.format} /><span className="metric-unit">h/yr</span></div>
-        <MockLabel sources={[result.annual_exposure[key]]} children="Mock exposure" />
+        <MockLabel sources={[result.annual_exposure[key]]} children="Assumed exposure" />
         <ConfidenceBadge confidence={result.confidence} />
       </div>)}
     </div>
     {transparencyOpen && <TransparencyPanel confidence={result.confidence} tariff={result.tariff} siteExposure={result.inputs.site_exposure} onClose={closeTransparency} />}
     <div className="chart-section" ref={chartRef}>
-      <div className="chart-heading"><div><h3>Exposure over the contract term</h3><p><MockLabel sources={[result.canonical_response.modeled_exposure.source]} children="Mock quantiles" /> Fixed inputs · no live simulation</p></div><div className="chart-view-controls segment-control" role="group" aria-label="Exposure visualization"><button aria-pressed={view === 'fan'} onClick={() => setView('fan')}>Fan chart</button><button aria-pressed={view === 'surface'} onClick={() => { setSurfaceUnavailable(false); setView('surface'); }}>Surface</button></div></div>
+      <div className="chart-heading"><div><h3>Exposure over the contract term</h3><p><MockLabel sources={[result.canonical_response.modeled_exposure.source]} children="Assumed quantiles" /> Fixed inputs · precomputed values</p></div><div className="chart-view-controls segment-control" role="group" aria-label="Exposure visualization"><button aria-pressed={view === 'fan'} onClick={() => setView('fan')}>Fan chart</button><button aria-pressed={view === 'surface'} onClick={() => { setSurfaceUnavailable(false); setView('surface'); }}>Surface</button></div></div>
       {surfaceUnavailable && <p className="surface-fallback" role="status">Interactive surface unavailable on this device. Fan chart shown; exact sourced values remain below.</p>}
       {view === 'surface' ? <SurfaceBoundary onUnavailable={showFallback}><Suspense fallback={<div className="surface-loading" role="status">Preparing exposure surface…</div>}><ExposureSurface rows={result.annual_series} maximumHours={maximum} confidence={result.confidence} onUnavailable={showFallback} /></Suspense></SurfaceBoundary> : <>
       <div className="chart-legend fan-legend"><span><i className="legend-line" /><Percentile value={50} /></span><span><i className="legend-band" /><Percentile value={50} />–<Percentile value={90} /></span><span><i className="legend-line legend-upper" /><Percentile value={99} /></span></div>
@@ -225,7 +225,7 @@ function ExposurePanel() {
       {tableOpen && <div id="annual-values" className="annual-table-wrap"><table className="annual-table"><caption className="sr-only">Sourced annual modeled exposure in hours per year</caption><thead><tr><th>Year</th><th><Percentile value={50} /> h/yr</th><th><Percentile value={90} /> h/yr</th><th><Percentile value={99} /> h/yr</th></tr></thead><tbody>{result.annual_series.map(row => <tr key={row.year.value}><td><Value datum={row.year} /></td><td><ExposureValue datum={row.p50} confidence={result.confidence} /></td><td><ExposureValue datum={row.p90} confidence={result.confidence} /></td><td><ExposureValue datum={row.p99} confidence={result.confidence} /></td></tr>)}</tbody></table></div>}
     </div>
     <div className="panel-footnote"><CircleHelp size={13} /><span>Annual summaries average each percentile across the selected term. They do not describe the distribution of total contract exposure.</span></div>
-    <div className="panel-footnote confidence-footnote"><CircleHelp size={13} /><span>Confidence describes support for an estimate, not the chance that the future matches it.{isMockSource(result.confidence.source) && ' The mock confidence signal has not been computed by an ensemble.'}</span></div>
+    <div className="panel-footnote confidence-footnote"><CircleHelp size={13} /><span>Confidence describes support for an estimate, not the chance that the future matches it.{isMockSource(result.confidence.source) && ' The assumed confidence signal has not been computed by an ensemble.'}</span></div>
   </section>;
 }
 
@@ -238,7 +238,7 @@ function EconomicsPanel() {
   const state = decision === 'worth it' ? 'positive' : decision === 'not worth it' ? 'negative' : 'neutral';
   return <section className={`panel economics-panel decision-${state}`} aria-labelledby="economics-title" aria-describedby={isMockSource(economicsSource) ? 'economics-mock-note' : undefined}>
     <div className="panel-heading"><div className="flex items-center gap-2"><span className="dollar-icon">$</span><h2 id="economics-title">Connection economics</h2></div></div>
-    {isMockSource(economicsSource) && <p className="economics-mock-note" id="economics-mock-note"><MockLabel sources={[economicsSource]} children="Mock economics" /> GPU-hours, dollars and break-even use unverified placeholder inputs.</p>}
+    {isMockSource(economicsSource) && <p className="economics-mock-note" id="economics-mock-note"><MockLabel sources={[economicsSource]} children="Assumed economics" /> GPU-hours, dollars and break-even use unverified scenario inputs.</p>}
     <div className="economics-flow">
       <div className="economics-row"><div><span className="economics-label">Interruptible capacity</span><span className="economics-detail">Load × flexibility split</span></div><span><Value datum={e.interruptible_mw} /> <small>MW</small></span></div>
       <div className="flow-connector"><ArrowDownRight size={14} /><span>Modeled exposure × compute density</span></div>
@@ -255,7 +255,7 @@ function EconomicsPanel() {
     </div>
     <div className="decision-readout" role="status" aria-live="polite" aria-atomic="true">
       <div className="decision-icon">{state === 'positive' ? <ArrowUpRight size={22} /> : state === 'negative' ? <ArrowDownRight size={22} /> : <ArrowRight size={22} />}</div>
-      <div><span className="eyebrow">UNDER THESE ASSUMPTIONS <MockLabel sources={[economicsSource]} children="Mock decision" /></span><h3 ref={decisionRef}>{decision}</h3><p>{state === 'positive' ? 'Earlier-access contribution exceeds the upper-tail term cost.' : state === 'negative' ? 'Median term cost exceeds earlier-access contribution.' : 'The quantiles straddle the trade-off or sit near break-even.'}</p></div>
+      <div><span className="eyebrow">UNDER THESE ASSUMPTIONS <MockLabel sources={[economicsSource]} children="Assumed decision" /></span><h3 ref={decisionRef}>{decision}</h3><p>{state === 'positive' ? 'Earlier-access contribution exceeds the upper-tail term cost.' : state === 'negative' ? 'Median term cost exceeds earlier-access contribution.' : 'The quantiles straddle the trade-off or sit near break-even.'}</p></div>
     </div>
     <div className="break-even-row"><span>Break-even modeled exposure</span><strong>{e.break_even_exposure_hours.value === null ? 'No modeled cost' : <><Value datum={e.break_even_exposure_hours as SourcedValue} /> <small>h/yr</small></>}</strong></div>
   </section>;
