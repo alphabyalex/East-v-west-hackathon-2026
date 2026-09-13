@@ -98,3 +98,9 @@ A live HTTP job also prepared all 8,784 Amarillo temperature hours successfully
 through the running service. The browser loaded the application, fonts and data
 endpoints successfully; visual inspection was unavailable because browser control
 was not connected in the development session.
+
+
+Update (2026-09-13 UTC): the [multi-factor prediction model](MULTIFACTOR_PREDICTION.md) now uses real 2019?2024 load, temperature, wind and solar data to predict a high-demand stress proxy. Saved expected hours, annual scenarios and an explicit site-exposure slider are available in the local ML workspace. This is separate from the earlier emergency-only evidence catalog.
+# Automated location reports
+
+Use **Explore your location** to enter any US city/state or latitude/longitude and automatically collect its weather, fit a location-weather model, and generate a modeled-exposure report. Follow [Choose your own location](LOCATION_REPORTS.md) for the steps, source coverage and limitations. This flow uses the documented high-demand proxy and does not require uploading event labels.

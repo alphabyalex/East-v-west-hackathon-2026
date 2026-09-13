@@ -56,3 +56,6 @@ After preparing the load/weather input:
 Outputs contain `observed_eea_minutes`, source event IDs, and `.evidence.json`/`.events.csv` companions. Duplicate overlaps are unioned. Date-only advisories and local Shreveport events cannot become system EEA hours. Unreported hours remain unknown. The local workspace can inspect the dataset and evidence provenance.
 
 This join creates no `event_active` training labels. A reviewed target and adequately covered positive and negative periods remain necessary; one EEA cannot support chronological training, calibration and held-out evaluation. Existing minimum-data checks remain intact. No real-data model or predicted cutoff hours were fabricated. Priority additions are local constraint/voltage records, reserves, wind forecasts, outages, imports and weather/load forecasts with issue timestamps. PJM observations cannot substitute for SPP labels.
+
+
+Update (2026-09-13 UTC): the [multi-factor prediction model](MULTIFACTOR_PREDICTION.md) now uses real 2019?2024 load, temperature, wind and solar data to predict a high-demand stress proxy. Saved expected hours, annual scenarios and an explicit site-exposure slider are available in the local ML workspace. This is separate from the earlier emergency-only evidence catalog.

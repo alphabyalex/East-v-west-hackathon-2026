@@ -1,0 +1,378 @@
+{
+  "created_utc": "2026-09-13T04:49:35.431479+00:00",
+  "location": {
+    "name": "Wichita, Kansas",
+    "latitude": 37.69224,
+    "longitude": -97.33754,
+    "weight": 1.0,
+    "geonames_id": 4281730
+  },
+  "model_version": "spp_lgbm_20260913T044845_08d957be21",
+  "model_run": "data/processed/workbench/area_models/208974ebb5b8dfaacfab8d53/9254357b846f/run",
+  "confidence": {
+    "level": "Low",
+    "score": 0.997545439448172,
+    "n_similar_historical_hours": 0,
+    "mean_ensemble_probability_std": 0.001227280275914021,
+    "limitations": [],
+    "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
+  },
+  "assumptions": {
+    "load_mw": 100.0,
+    "conditional_share": 1.0,
+    "site_exposure": 1.0,
+    "years": 7,
+    "confirm_spp": false
+  },
+  "target": {
+    "operator": "SPP",
+    "label_method": "observed_event",
+    "data_ref": "C:\\Users\\krist\\Hackathon\\East-v-west-hackathon-2026\\data\\processed\\workbench\\area_models\\208974ebb5b8dfaacfab8d53\\9254357b846f\\weather.parquet; sha256=2f7b1035dc32e41387bdaf986950901b9a2e34dc3fb4da43d256ea92fa161324",
+    "label_ref": "ASSUMPTION: high aggregate demand >= reference 0.95 quantile; C:\\Users\\krist\\Hackathon\\East-v-west-hackathon-2026\\data\\processed\\workbench\\area_models\\208974ebb5b8dfaacfab8d53\\9254357b846f\\policy.json",
+    "target_name": "high_demand_stress_proxy",
+    "target_source_type": "assumption",
+    "target_description": "High aggregate demand proxy; not an emergency, network-overload measurement, or site interruption.",
+    "demand_proxy": {
+      "quantile": 0.95,
+      "thresholds_mw": {
+        "SPP_SYSTEM": 42064.0228
+      },
+      "reference_end_exclusive": "2022-01-01T00:00:00+00:00",
+      "reference_start": "2019-01-01 06:00:00+00:00",
+      "method": "Fixed per-location empirical quantile, fit only within the training period.",
+      "split_counts": {
+        "train": {
+          "hours": 31350,
+          "positive_hours": 1841
+        },
+        "calibration": {
+          "hours": 10426,
+          "positive_hours": 893
+        },
+        "test": {
+          "hours": 10426,
+          "positive_hours": 835
+        }
+      }
+    }
+  },
+  "scenario": {
+    "annual": [
+      {
+        "year": 1,
+        "confidence": "Low",
+        "system_p50_hours": 833.0,
+        "site_p50_hours": 833.0,
+        "conditional_p50_mwh": 83300.0,
+        "system_p90_hours": 949.1000000000001,
+        "site_p90_hours": 949.1000000000001,
+        "conditional_p90_mwh": 94910.00000000001,
+        "system_p99_hours": 1034.02,
+        "site_p99_hours": 1034.02,
+        "conditional_p99_mwh": 103402.0
+      },
+      {
+        "year": 2,
+        "confidence": "Low",
+        "system_p50_hours": 835.0,
+        "site_p50_hours": 835.0,
+        "conditional_p50_mwh": 83500.0,
+        "system_p90_hours": 951.0,
+        "site_p90_hours": 951.0,
+        "conditional_p90_mwh": 95100.0,
+        "system_p99_hours": 1025.02,
+        "site_p99_hours": 1025.02,
+        "conditional_p99_mwh": 102502.0
+      },
+      {
+        "year": 3,
+        "confidence": "Low",
+        "system_p50_hours": 838.0,
+        "site_p50_hours": 838.0,
+        "conditional_p50_mwh": 83800.0,
+        "system_p90_hours": 940.0,
+        "site_p90_hours": 940.0,
+        "conditional_p90_mwh": 94000.0,
+        "system_p99_hours": 1034.01,
+        "site_p99_hours": 1034.01,
+        "conditional_p99_mwh": 103401.0
+      },
+      {
+        "year": 4,
+        "confidence": "Low",
+        "system_p50_hours": 840.0,
+        "site_p50_hours": 840.0,
+        "conditional_p50_mwh": 84000.0,
+        "system_p90_hours": 948.1000000000001,
+        "site_p90_hours": 948.1000000000001,
+        "conditional_p90_mwh": 94810.00000000001,
+        "system_p99_hours": 1036.0,
+        "site_p99_hours": 1036.0,
+        "conditional_p99_mwh": 103600.0
+      },
+      {
+        "year": 5,
+        "confidence": "Low",
+        "system_p50_hours": 834.0,
+        "site_p50_hours": 834.0,
+        "conditional_p50_mwh": 83400.0,
+        "system_p90_hours": 947.1000000000001,
+        "site_p90_hours": 947.1000000000001,
+        "conditional_p90_mwh": 94710.00000000001,
+        "system_p99_hours": 1043.03,
+        "site_p99_hours": 1043.03,
+        "conditional_p99_mwh": 104303.0
+      },
+      {
+        "year": 6,
+        "confidence": "Low",
+        "system_p50_hours": 839.0,
+        "site_p50_hours": 839.0,
+        "conditional_p50_mwh": 83900.0,
+        "system_p90_hours": 950.0,
+        "site_p90_hours": 950.0,
+        "conditional_p90_mwh": 95000.0,
+        "system_p99_hours": 1041.01,
+        "site_p99_hours": 1041.01,
+        "conditional_p99_mwh": 104101.0
+      },
+      {
+        "year": 7,
+        "confidence": "Low",
+        "system_p50_hours": 839.0,
+        "site_p50_hours": 839.0,
+        "conditional_p50_mwh": 83900.0,
+        "system_p90_hours": 952.0,
+        "site_p90_hours": 952.0,
+        "conditional_p90_mwh": 95200.0,
+        "system_p99_hours": 1046.01,
+        "site_p99_hours": 1046.01,
+        "conditional_p99_mwh": 104601.0
+      }
+    ],
+    "system_term": {
+      "term_years": 7,
+      "simulations": 2000,
+      "expected_total_hours": 5863.419,
+      "p50_total_hours": 5864.0,
+      "p90_total_hours": 6151.1,
+      "p99_total_hours": 6391.0
+    },
+    "flexible_mw": 100.0,
+    "site_term": {
+      "expected_total_hours": 5863.419,
+      "p50_total_hours": 5864.0,
+      "p90_total_hours": 6151.1,
+      "p99_total_hours": 6391.0
+    },
+    "units": "Hours are modeled clock-hour exposure; MWh assumes the entire conditional MW is interrupted during those assumed site hours. Facility MW changes MWh only; it does not model added grid stress."
+  },
+  "temperature_comparison": {
+    "threshold_c": 30,
+    "source_type": "assumption",
+    "ref": "Descriptive comparison only; 30 C does not define the training target or prove a causal temperature effect.",
+    "groups": [
+      {
+        "condition": "Prior-hour temperature >= 30 C",
+        "scored_hours": 646,
+        "mean_probability": 0.8203940685178019
+      },
+      {
+        "condition": "Prior-hour temperature < 30 C",
+        "scored_hours": 9780,
+        "mean_probability": 0.029188719213335462
+      }
+    ]
+  },
+  "limitations": [
+    "The target is high SPP demand (training-reference 95th percentile), not recorded data-center cutoff or every form of network stress.",
+    "Local transmission headroom, outages, available reserves, operating instructions and site contract triggers are not established by these inputs.",
+    "Site exposure is a user assumption, applied after system modeling. A historical utility-map match does not verify a parcel's interconnection.",
+    "Annual scenarios reuse historical seasons. No forecast of future cutoff dates, climate change, load growth or the incremental effect of building this facility.",
+    "Annual tails have not been validated; confidence is Low. Temperature comparisons show association and can also reflect load, season and other inputs.",
+    "SPP grid history is 2019-2024. Newly joined territories may be outside its applicability; this is not a live 2026 grid-condition forecast."
+  ],
+  "coverage": {
+    "status": "historical_spp_match",
+    "territories": [
+      {
+        "holding_co": "WESTAR ENERGY",
+        "year": "2020",
+        "name": "EVERGY KANSAS SOUTH, INC",
+        "cntrl_area": "SOUTHWEST POWER POOL",
+        "plan_area": "NOT AVAILABLE",
+        "state": "KS",
+        "source": "EIA 860, EIA 861, TIGER/Line Shapefiles - U.S. Census",
+        "sourcedate": 1633478400000
+      },
+      {
+        "holding_co": "WESTAR ENERGY INC",
+        "year": "2020",
+        "name": "EVERGY KANSAS CENTRAL, INC",
+        "cntrl_area": "SOUTHWEST POWER POOL",
+        "plan_area": "SOUTHWEST POWER POOL (SPP)",
+        "state": "KS",
+        "source": "FERC 714, EIA 860, EIA 861, TIGER/Line Shapefiles - U.S. Census, http://outagemap.westarenergy.com/external/default.html",
+        "sourcedate": 1633478400000
+      },
+      {
+        "holding_co": "CITY OF MOUNT HOPE - (KS)",
+        "year": "2020",
+        "name": "CITY OF MOUNT HOPE - (KS)",
+        "cntrl_area": "SOUTHWEST POWER POOL",
+        "plan_area": "NOT AVAILABLE",
+        "state": "KS",
+        "source": "EIA 861, TIGER/Line Shapefiles - U.S. Census",
+        "sourcedate": 1633478400000
+      },
+      {
+        "holding_co": "CITY OF MULVANE - (KS)",
+        "year": "2020",
+        "name": "CITY OF MULVANE - (KS)",
+        "cntrl_area": "SOUTHWEST POWER POOL",
+        "plan_area": "NOT AVAILABLE",
+        "state": "KS",
+        "source": "EIA 860, EIA 861, TIGER/Line Shapefiles - U.S. Census",
+        "sourcedate": 1633478400000
+      },
+      {
+        "holding_co": "SEDGWICK COUNTY EL COOP ASSN INC",
+        "year": "2020",
+        "name": "SEDGWICK COUNTY EL COOP ASSN INC",
+        "cntrl_area": "SOUTHWEST POWER POOL",
+        "plan_area": "NOT AVAILABLE",
+        "state": "KS",
+        "source": "EIA 861, TIGER/Line Shapefiles - U.S. Census",
+        "sourcedate": 1633478400000
+      },
+      {
+        "holding_co": "SUMNER-COWLEY ELEC COOP, INC",
+        "year": "2020",
+        "name": "SUMNER-COWLEY ELEC COOP, INC",
+        "cntrl_area": "SOUTHWEST POWER POOL",
+        "plan_area": "NOT AVAILABLE",
+        "state": "KS",
+        "source": "EIA 861, TIGER/Line Shapefiles - U.S. Census",
+        "sourcedate": 1633478400000
+      }
+    ],
+    "source": {
+      "source_type": "data",
+      "ref": "https://eedgis.pnnl.gov/arcgis/rest/services/Hosted/Electric_Service_Territories/FeatureServer/0/query?f=json&where=1%3D1&geometry=-97.33754%2C37.69224&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=name%2Ccntrl_area%2Cplan_area%2Cholding_co%2Cstate%2Csource%2Csourcedate%2Cyear&returnGeometry=false",
+      "cache_path": "C:\\Users\\krist\\Hackathon\\East-v-west-hackathon-2026\\data\\raw\\site\\territories\\dde05b4ba3ab14b322d51a20.parquet",
+      "retrieved_utc": "2026-09-13T04:44:55.139718+00:00",
+      "sha256": "0d0558b259a38d6bebc150d68c598101817dec51c403258bae17b1e72d92d8ce",
+      "limitation": "Historical HIFLD retail-territory polygons hosted by PNNL; not a current interconnection study or exact service guarantee."
+    }
+  },
+  "held_out": {
+    "start_utc": "2023-10-21T17:00:00+00:00",
+    "end_exclusive_utc": "2025-01-01T06:00:00+00:00",
+    "scored_hours": 10426,
+    "unscored_hours": 75,
+    "expected_exposure_hours": 815.440242168921
+  },
+  "validation": {
+    "test": {
+      "brier_score": 0.003053451235688484,
+      "log_loss": 0.011018978980354657,
+      "event_rate": 0.08008824093612124,
+      "mean_prediction": 0.07821218513033963,
+      "n_hours": 10426,
+      "positive_hours": 835,
+      "roc_auc": 0.9997774860039071,
+      "average_precision": 0.997643042073943,
+      "reliability_bins": [
+        {
+          "n": 9535,
+          "mean_prediction": 0.00041197593764270206,
+          "observed_fraction": 0.0006292606187729418
+        },
+        {
+          "n": 25,
+          "mean_prediction": 0.1600899534456093,
+          "observed_fraction": 0.32
+        },
+        {
+          "n": 22,
+          "mean_prediction": 0.2561216048085269,
+          "observed_fraction": 0.22727272727272727
+        },
+        {
+          "n": 14,
+          "mean_prediction": 0.34852921117434377,
+          "observed_fraction": 0.5
+        },
+        {
+          "n": 15,
+          "mean_prediction": 0.44270664871186366,
+          "observed_fraction": 0.3333333333333333
+        },
+        {
+          "n": 11,
+          "mean_prediction": 0.5567939209788197,
+          "observed_fraction": 0.5454545454545454
+        },
+        {
+          "n": 8,
+          "mean_prediction": 0.6618036628077504,
+          "observed_fraction": 0.75
+        },
+        {
+          "n": 17,
+          "mean_prediction": 0.754285419952383,
+          "observed_fraction": 0.8235294117647058
+        },
+        {
+          "n": 39,
+          "mean_prediction": 0.8548972268862303,
+          "observed_fraction": 0.9743589743589743
+        },
+        {
+          "n": 740,
+          "mean_prediction": 0.9902325842614441,
+          "observed_fraction": 1.0
+        }
+      ]
+    },
+    "baseline": {
+      "brier_score": 0.0741305418469926,
+      "log_loss": 0.28271469191425463,
+      "event_rate": 0.08008824093612124,
+      "mean_prediction": 0.05872408293460924,
+      "n_hours": 10426,
+      "positive_hours": 835,
+      "roc_auc": 0.5,
+      "average_precision": 0.08008824093612124,
+      "reliability_bins": [
+        {
+          "n": 10426,
+          "mean_prediction": 0.05872408293460924,
+          "observed_fraction": 0.08008824093612124
+        }
+      ]
+    },
+    "splits": {
+      "train": {
+        "start": "2019-01-02 06:00:00+00:00",
+        "end": "2022-08-06 17:00:00+00:00",
+        "rows": 31350,
+        "positive_hours": 1841
+      },
+      "calibration": {
+        "start": "2022-08-07 18:00:00+00:00",
+        "end": "2023-10-20 16:00:00+00:00",
+        "rows": 10426,
+        "positive_hours": 893
+      },
+      "test": {
+        "start": "2023-10-21 17:00:00+00:00",
+        "end": "2025-01-01 05:00:00+00:00",
+        "rows": 10426,
+        "positive_hours": 835
+      }
+    }
+  },
+  "report_path": "data/processed/workbench/sites/20260913T044812_b4635f88/site_report.json",
+  "report_sha256": "db9f035ede0312d458ff4b65e9f5bc532c2333e02cb4c4b86c9b99e64bb8825a"
+}

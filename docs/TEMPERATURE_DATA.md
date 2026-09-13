@@ -156,3 +156,6 @@ temperature. Changing names or weights reuses cached coordinate/year downloads.
   pipeline. Weather tests cover ambiguity, UTC alignment, leap years, cache reuse,
   missing inputs, provenance, prior-hour feature timing, and synthetic heat/cold
   learning. The synthetic thresholds in those tests are not production rules.
+
+
+Update (2026-09-13 UTC): the [multi-factor prediction model](MULTIFACTOR_PREDICTION.md) now uses real 2019?2024 load, temperature, wind and solar data to predict a high-demand stress proxy. Saved expected hours, annual scenarios and an explicit site-exposure slider are available in the local ML workspace. This is separate from the earlier emergency-only evidence catalog.

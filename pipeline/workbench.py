@@ -26,7 +26,10 @@ from pipeline.common import ROOT, fingerprint, read_hourly, write_json
 
 APP_ID = "headroom-ml-workspace"
 ASSETS = Path(__file__).with_name("workbench_assets")
-DOWNLOADS = {"REPORT.md", "model_card.json", "model.joblib", "test_predictions.parquet", "confidence.json"}
+DOWNLOADS = {"REPORT.md", "model_card.json", "model.joblib", "test_predictions.parquet", "confidence.json",
+             "hours_summary.json", "monthly_expected_hours.csv", "exposure_by_location.parquet",
+             "simulation_metadata.json", "contract_hours.json"}
+SITE_DOWNLOADS = {"site_report.json", "SITE_REPORT.md", "SITE_REPORT.html"}
 
 
 class Workspace:
@@ -94,7 +97,27 @@ class Workspace:
         if job:
             log = self.resolve(job["log_path"])
             job["log"] = log.read_text(encoding="utf-8", errors="replace")[-20000:] if log.exists() else "Starting offline job..."
-        return {"app": APP_ID, "datasets": self.datasets(), "runs": self.runs(), "job": job}
+        return {"app": APP_ID, "datasets": self.datasets(), "runs": self.runs(), "job": job,
+                "site_scans": self.site_records("scan.json"), "site_reports": self.site_records("site_report.json")}
+
+    def site_records(self, filename: str) -> list[dict]:
+        rows = []
+        for path in sorted((self.home / "sites").glob("*/" + filename), reverse=True):
+            try:
+                data = json.loads(self.resolve(self.relative(path)).read_text(encoding="utf-8"))
+                name = data["query"] if filename == "scan.json" else data["location"]["name"]
+                rows.append({"id": self.relative(path.parent), "name": name})
+            except (ValueError, OSError, KeyError):
+                continue
+        return rows
+
+    def site_record(self, identifier: str, filename: str) -> dict:
+        if identifier not in {row["id"] for row in self.site_records(filename)}:
+            raise ValueError("Select an available location search or report.")
+        data = json.loads(self.resolve(identifier + "/" + filename).read_text(encoding="utf-8"))
+        if filename == "site_report.json":
+            data["markdown"] = self.resolve(identifier + "/SITE_REPORT.md").read_text(encoding="utf-8")
+        return data
 
     def dataset(self, identifier: str, location: str) -> dict:
         path = self.dataset_path(identifier)
@@ -111,7 +134,7 @@ class Workspace:
                    "event_hours": int(frame.event_active.notna().sum()) if "event_active" in frame else 0,
                    "start": str(frame.timestamp_utc.min()), "end": str(frame.timestamp_utc.max())}
         sources = {}
-        for suffix in (".weather.json", ".quality.json", ".evidence.json"):
+        for suffix in (".weather.json", ".quality.json", ".evidence.json", ".generation.json"):
             source_path = path.with_suffix(suffix)
             if source_path.exists():
                 sources[suffix] = json.loads(source_path.read_text(encoding="utf-8"))
@@ -123,7 +146,18 @@ class Workspace:
             raise ValueError("Model run is not available.")
         path = self.resolve(identifier)
         card = json.loads((path / "model_card.json").read_text(encoding="utf-8"))
+        hours_path = path / "hours_summary.json"
+        hours = json.loads(hours_path.read_text(encoding="utf-8")) if hours_path.exists() else None
+        annual = None
+        if (path / "exposure_by_location.parquet").exists() and (path / "simulation_metadata.json").exists():
+            from pipeline.simulate import get_location_estimate
+            locations = pd.read_parquet(path / "exposure_by_location.parquet").location_id.unique()
+            annual = {"locations": {location: get_location_estimate(location, path=path / "exposure_by_location.parquet") for location in locations},
+                      "metadata": json.loads((path / "simulation_metadata.json").read_text(encoding="utf-8"))}
+            if (path / "contract_hours.json").exists():
+                annual["contract"] = json.loads((path / "contract_hours.json").read_text(encoding="utf-8"))
         return {"id": identifier, "card": card, "report": (path / "REPORT.md").read_text(encoding="utf-8"),
+                "hours": hours, "annual": annual,
                 "downloads": sorted(name for name in DOWNLOADS if (path / name).is_file())}
 
     def submit(self, data: dict) -> dict:
@@ -131,12 +165,44 @@ class Workspace:
         with self.lock:
             if self.job and self.job["status"] == "running":
                 raise ValueError("An offline job is already running. Wait for it to finish.")
-            source = self.dataset_path(data.get("dataset", ""))
             kind = data.get("kind")
+            source = self.dataset_path(data.get("dataset", "")) if kind in {"weather", "train"} else None
             identifier = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%S") + "_" + uuid.uuid4().hex[:8]
             job_dir = self.home / "jobs" / identifier
             commands = []
-            if kind == "weather":
+            if kind in {"site-scan", "site-report"}:
+                from pipeline.site import validate_query, validate_assumptions
+                if kind == "site-scan":
+                    request = {"kind": kind, "query": validate_query(data.get("query"))}
+                else:
+                    scan = self.site_record(data.get("scan", ""), "scan.json")
+                    index = data.get("candidate")
+                    if isinstance(index, bool) or not isinstance(index, int) or not 0 <= index < len(scan["candidates"]):
+                        raise ValueError("Choose a result from your location search.")
+                    request = {"kind": kind, "scan": scan, "point": scan["candidates"][index], **validate_assumptions(data)}
+                job_dir.mkdir(parents=True)
+                request_path = job_dir / "site_request.json"
+                write_json(request_path, request)
+                output = self.home / "sites" / identifier
+                commands = [["site-job", "--request", str(request_path), "--out", str(output)]]
+                result_id = self.relative(output)
+            elif kind == "hours":
+                run_id = data.get("run", "")
+                saved = self.run(run_id)
+                run_dir = self.resolve(run_id)
+                years = data.get("years", 0)
+                if isinstance(years, bool) or not isinstance(years, int) or not 0 <= years <= 7:
+                    raise ValueError("Choose zero for the scored period, or 1–7 years for annual simulation.")
+                commands = [["hours", "--run-dir", str(run_dir)]]
+                if years:
+                    if not saved["hours"]:
+                        raise ValueError("Calculate scored-period hours before requesting annual simulation.")
+                    blockers = [reason for info in saved["hours"]["locations"].values() for reason in info["annual_blockers"]]
+                    if blockers:
+                        raise ValueError("Annual simulation needs more held-out history. " + blockers[0])
+                    commands.append(["simulate", "--run-dir", str(run_dir), "--years", str(years)])
+                result_id = run_id
+            elif kind == "weather":
                 area = data.get("area", "")
                 if not isinstance(area, str) or not 2 <= len(area.strip()) <= 120 or any(ord(c) < 32 for c in area):
                     raise ValueError('Enter a US city and state, for example "Amarillo, TX".')
@@ -257,6 +323,15 @@ def handler_for(workspace: Workspace):
                     return self.respond(workspace.dataset(query.get("id", ""), query.get("location", "")))
                 if request.path == "/api/run":
                     return self.respond(workspace.run(query.get("id", "")))
+                if request.path in {"/api/site-scan", "/api/site-report"}:
+                    filename = "scan.json" if request.path.endswith("site-scan") else "site_report.json"
+                    return self.respond(workspace.site_record(query.get("id", ""), filename))
+                if request.path == "/api/site-download":
+                    identifier, name = query.get("id", ""), query.get("file", "")
+                    workspace.site_record(identifier, "site_report.json")
+                    if name not in SITE_DOWNLOADS:
+                        raise ValueError("File is not a downloadable site report.")
+                    return self.respond(workspace.resolve(identifier + "/" + name).read_bytes(), content_type="application/octet-stream", filename=name)
                 if request.path == "/api/download":
                     identifier, name = query.get("id", ""), query.get("file", "")
                     workspace.run(identifier)

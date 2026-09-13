@@ -48,6 +48,18 @@ def build_features(labeled: pd.DataFrame, policy: dict) -> tuple[pd.DataFrame, l
             features["temperature_c_min_24h"] = past_temperature.rolling(24, min_periods=24).min()
             features["temperature_c_max_24h"] = past_temperature.rolling(24, min_periods=24).max()
             features["temperature_c_change_24h"] = past_temperature - group["temperature_c"].shift(25)
+            if "load_mw" in signals:
+                features["temperature_x_load_lag_1h"] = past_temperature * group["load_mw"].shift(1)
+                features["temperature_squared_lag_1h"] = past_temperature ** 2
+        if "load_mw" in signals:
+            features["load_change_1h"] = group.load_mw.shift(1) - group.load_mw.shift(2)
+            features["load_change_24h"] = group.load_mw.shift(1) - group.load_mw.shift(25)
+        if {"load_mw", "wind_mw", "solar_mw"}.issubset(signals):
+            net_load = group.load_mw - group.wind_mw - group.solar_mw
+            features["net_load_lag_1h"] = net_load.shift(1)
+            features["net_load_change_1h"] = net_load.shift(1) - net_load.shift(2)
+        if {"available_reserves_mw", "required_reserves_mw"}.issubset(signals):
+            features["reserve_margin_lag_1h"] = (group.available_reserves_mw - group.required_reserves_mw).shift(1)
         feature_names = list(features.columns)
         features["target"] = group["target"]
         features["location_id"] = location

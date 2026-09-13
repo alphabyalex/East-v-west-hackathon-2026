@@ -341,6 +341,35 @@ def fetch_public_evidence(url: str, key: str, *, cache_dir: Path | None = None) 
     return content, source
 
 
+def fetch_utility_territories(latitude: float, longitude: float, *, cache_dir=None):
+    """Cache PNNL's public HIFLD point intersection; historical screening only."""
+    import math
+    import requests
+    if not (math.isfinite(latitude) and math.isfinite(longitude) and -90 <= latitude <= 90 and -180 <= longitude <= 180):
+        raise ValueError("Invalid location coordinates.")
+    url = "https://eedgis.pnnl.gov/arcgis/rest/services/Hosted/Electric_Service_Territories/FeatureServer/0/query"
+    params = {"f": "json", "where": "1=1", "geometry": f"{longitude},{latitude}",
+              "geometryType": "esriGeometryPoint", "inSR": 4326, "spatialRel": "esriSpatialRelIntersects",
+              "outFields": "name,cntrl_area,plan_area,holding_co,state,source,sourcedate,year", "returnGeometry": "false"}
+    key = hashlib.sha256(json.dumps(params, sort_keys=True).encode()).hexdigest()[:24]
+    path = Path(cache_dir or Path(__file__).resolve().parents[1] / "data/raw/site/territories") / f"{key}.parquet"
+    if path.exists():
+        cached = pd.read_parquet(path).iloc[0]
+        return json.loads(cached.payload_json), json.loads(cached.source_json)
+    response = requests.get(url, params=params, timeout=40)
+    response.raise_for_status()
+    payload = response.json()
+    if "error" in payload or "features" not in payload or payload.get("exceededTransferLimit"):
+        raise ValueError("The utility map returned an incomplete or invalid response.")
+    source = {"source_type": "data", "ref": response.url, "cache_path": str(path),
+              "retrieved_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
+              "sha256": hashlib.sha256(response.content).hexdigest(),
+              "limitation": "Historical HIFLD retail-territory polygons hosted by PNNL; not a current interconnection study or exact service guarantee."}
+    path.parent.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame([{"payload_json": json.dumps(payload), "source_json": json.dumps(source)}]).to_parquet(path, index=False)
+    return payload, source
+
+
 def main():
     parser = argparse.ArgumentParser(description="Ingest SPP grid data to parquet cache.")
     parser.add_argument("--start", required=True, help="YYYY-MM-DD")
