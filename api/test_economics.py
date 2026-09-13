@@ -46,45 +46,56 @@ def calculate(path: Path, source: Source = PLACEHOLDER_SOURCE, **inputs):
     return build_economics(EstimateRequest(**{**REQUEST, **inputs}), SUMMARY, source, assumptions_path=path)
 
 
-def test_scaffold_is_explicitly_unsourced():
+def test_team_defaults_preserve_unreviewed_margin_and_policy():
     result = load_assumptions()
-    assert result.status == "placeholder"
-    assert result.gpu_rental_price_usd_per_hour.value == 2
-    assert result.industrial_electricity_price_usd_per_mwh.value == 50
-    assert result.gpus_per_mw.value == 1000
-    for key, item in result.model_dump().items():
-        if key in {"schema_version", "status"}:
-            continue
-        assert item["source_type"] == "assumption"
-        assert "placeholder" in item["ref"]
-        assert item["source_url"] is None
-        assert item["retrieved_on"] is None
+    assert result.status == "mixed"
+    assert result.gpu_rental_price_usd_per_hour.value == 3
+    assert result.industrial_electricity_price_usd_per_mwh.value == 82.1
+    assert result.gpus_per_mw.value == 575
+    assert result.early_connection_years.value == 4
+    assert result.early_margin_usd_per_mw_year.value == 317000
+    assert "unverified 3% operating-margin assumption" in result.early_margin_usd_per_mw_year.ref
+    assert "not verified net margin" in result.early_margin_usd_per_mw_year.ref
+    for key in ("early_margin_usd_per_mw_year", "close_call_fraction"):
+        item = getattr(result, key)
+        assert item.source_type == "assumption"
+        assert item.ref.startswith("mock://") and "placeholder" in item.ref
+        assert item.source_url is None and item.retrieved_on is None
+    for key in ("gpu_rental_price_usd_per_hour", "industrial_electricity_price_usd_per_mwh",
+                "gpus_per_mw", "early_connection_years"):
+        item = getattr(result, key)
+        assert item.source_type == "assumption"
+        assert "Tharun 59cbdda" in item.ref
+        assert "/blob/59cbdda/docs/ASSUMPTIONS.md#" in item.source_url
+        assert item.retrieved_on == "2026-09-12"
 
 
 def test_default_formula_and_provenance(assumptions_path):
     result = calculate(assumptions_path)
-    assert result.gpus_per_mw == 1000
-    assert result.lost_gpu_hours_per_year.model_dump() == {"p50": 4800000, "p90": 8400000, "p99": 13200000}
-    assert result.annual_cost_usd.model_dump() == {"p50": 9600000, "p90": 16800000, "p99": 26400000}
-    assert result.value_of_early_connection_usd == 150000000
-    assert result.breakeven_exposure_hours_per_year == pytest.approx(150000000 / (7 * 60 * 1000 * 2))
+    assert result.gpus_per_mw == 575
+    assert result.lost_gpu_hours_per_year.model_dump() == {"p50": 2760000, "p90": 4830000, "p99": 7590000}
+    assert result.annual_cost_usd.model_dump() == {"p50": 8280000, "p90": 14490000, "p99": 22770000}
+    assert result.value_of_early_connection_usd == 126800000
+    assert result.breakeven_exposure_hours_per_year == pytest.approx(126800000 / (7 * 60 * 575 * 3))
     assert result.decision == "worth_it"
     assert result.source.source_type == "assumption"
     assert result.source.ref.startswith("mock://")
     assert "placeholder, pipeline not wired yet" in result.source.ref
-    assert "gpu_rental_price_usd_per_hour=2" in result.source.ref
-    assert "docs/ASSUMPTIONS.md#gpu-rental-price" in result.source.ref
+    assert "gpu_rental_price_usd_per_hour=3" in result.source.ref
+    assert "docs/ASSUMPTIONS.md#2-cost-of-interrupted-compute" in result.source.ref
+    assert "annual_cost_basis=lost GPU-hours valued at gross rental price" in result.source.ref
+    assert "early_connection_basis=assumed operating margin, not gross revenue" in result.source.ref
 
 
 def test_same_path_edit_changes_next_result_without_restart(assumptions_path, payload):
     first = calculate(assumptions_path)
-    payload["gpu_rental_price_usd_per_hour"]["value"] = 4
+    payload["gpu_rental_price_usd_per_hour"]["value"] = 6
     assumptions_path.write_text(document(payload), encoding="utf-8")
     second = calculate(assumptions_path)
     assert second.annual_cost_usd.p50 == first.annual_cost_usd.p50 * 2
     assert second.breakeven_exposure_hours_per_year == first.breakeven_exposure_hours_per_year / 2
     assert second.decision == "close_call"
-    assert "gpu_rental_price_usd_per_hour=4" in second.source.ref
+    assert "gpu_rental_price_usd_per_hour=6" in second.source.ref
 
 
 def test_gpu_density_is_read_from_file(assumptions_path, payload):
@@ -93,19 +104,20 @@ def test_gpu_density_is_read_from_file(assumptions_path, payload):
     assumptions_path.write_text(document(payload), encoding="utf-8")
     second = calculate(assumptions_path)
     assert second.gpus_per_mw == 500
-    assert second.lost_gpu_hours_per_year.p90 == first.lost_gpu_hours_per_year.p90 / 2
-    assert second.annual_cost_usd.p90 == first.annual_cost_usd.p90 / 2
+    assert second.lost_gpu_hours_per_year.p90 == pytest.approx(first.lost_gpu_hours_per_year.p90 * 500 / 575)
+    assert second.annual_cost_usd.p90 == pytest.approx(first.annual_cost_usd.p90 * 500 / 575)
 
 
 def test_electricity_is_informational_not_double_counted(assumptions_path, payload):
     first = calculate(assumptions_path)
-    payload["industrial_electricity_price_usd_per_mwh"]["value"] = 100
+    payload["industrial_electricity_price_usd_per_mwh"]["value"] = 85
     assumptions_path.write_text(document(payload), encoding="utf-8")
     second = calculate(assumptions_path)
     assert second.annual_cost_usd == first.annual_cost_usd
     assert second.value_of_early_connection_usd == first.value_of_early_connection_usd
-    assert "industrial_electricity_price_usd_per_mwh=100" in second.source.ref
+    assert "industrial_electricity_price_usd_per_mwh=85" in second.source.ref
     assert "electricity=informational, not applied" in second.source.ref
+    assert "informational Kansas reference, not a site tariff" in second.source.ref
 
 
 def test_zero_interruptible_load_has_no_finite_crossover(assumptions_path):
@@ -126,7 +138,7 @@ def test_zero_rental_price_has_no_finite_crossover(assumptions_path, payload):
 
 def test_earlier_connection_is_capped_by_term(assumptions_path):
     result = calculate(assumptions_path, term_years=1)
-    assert result.value_of_early_connection_usd == 100 * 500000
+    assert result.value_of_early_connection_usd == 100 * 317000
 
 
 def test_real_exposure_does_not_relabel_placeholder_economics(assumptions_path):
@@ -173,14 +185,28 @@ def test_invalid_values_fail_explicitly_without_defaults(assumptions_path, paylo
 
 @pytest.mark.parametrize("change", [
     {"unit": "cents/kWh"},
-    {"source_type": "data"},
-    {"ref": "plausible looking unsupported estimate"},
-    {"source_url": "https://example.org/fake-source"},
-    {"retrieved_on": "2026-09-12"},
+    {"source_type": "real/derived"},
+    {"ref": "mock://missing-required-tag"},
+    {"source_url": "http://example.org/insecure-source"},
+    {"source_url": None},
+    {"retrieved_on": None},
     {"low": 10, "high": 1},
 ])
 def test_invalid_provenance_units_or_ranges_fail(assumptions_path, payload, change):
     payload["gpu_rental_price_usd_per_hour"].update(change)
+    assumptions_path.write_text(document(payload), encoding="utf-8")
+    with pytest.raises(AssumptionsError):
+        calculate(assumptions_path)
+
+
+@pytest.mark.parametrize("change", [
+    {"source_type": "data"},
+    {"ref": "unsupported operating margin"},
+    {"source_url": "https://example.org/unverified-margin"},
+    {"retrieved_on": "2026-09-12"},
+])
+def test_unreviewed_margin_cannot_imply_verified_source(assumptions_path, payload, change):
+    payload["early_margin_usd_per_mw_year"].update(change)
     assumptions_path.write_text(document(payload), encoding="utf-8")
     with pytest.raises(AssumptionsError):
         calculate(assumptions_path)
@@ -222,7 +248,12 @@ def test_arithmetic_overflow_is_an_explicit_range_error(assumptions_path):
 
 def test_tolerance_comes_from_file_and_equality_is_close_call(assumptions_path, payload):
     request = EstimateRequest(**{**REQUEST, "term_years": 1, "load_mw": 1, "flexibility_split": 1})
-    # For this setup cost/hour is 2000 and early value is 500000.
+    # Isolate a known equality boundary from future team-default changes.
+    payload["gpus_per_mw"]["value"] = 500
+    payload["gpu_rental_price_usd_per_hour"]["value"] = 4
+    payload["early_margin_usd_per_mw_year"]["value"] = 500000
+    assumptions_path.write_text(document(payload), encoding="utf-8")
+    # For this explicit setup cost/hour is 2000 and early value is 500000.
     equal_upper = {"p50": 262.5, "p90": 262.5, "p99": 262.5}
     result = build_economics(request, equal_upper, REAL_SOURCE, assumptions_path=assumptions_path)
     assert result.decision == "close_call"

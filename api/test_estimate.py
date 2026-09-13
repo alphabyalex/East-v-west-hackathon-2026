@@ -81,7 +81,7 @@ def test_locations_and_full_ordered_contract_horizon(client, location_id, scale,
     for quantile in ("p50", "p90", "p99"):
         assert result["modeled_exposure"][quantile] == pytest.approx(sum(row[quantile] for row in rows) / term_years)
     assert result["inputs_echo"] == {**DEFAULT_REQUEST, "location_id": location_id, "term_years": term_years, "site_exposure": 1}
-    assert result["economics"]["value_of_early_connection_usd"] == min(term_years, 3) * 100 * 500000
+    assert result["economics"]["value_of_early_connection_usd"] == min(term_years, 4) * 100 * 317000
 
 
 def test_load_and_flexibility_change_economics_without_changing_exposure(client):
@@ -258,3 +258,36 @@ def test_cors_headers_remain_on_invalid_input_and_pipeline_errors(client):
     response = client.post("/api/estimate", json=DEFAULT_REQUEST, headers=origin)
     assert response.status_code == 503
     assert response.headers["access-control-allow-origin"] == origin["Origin"]
+
+
+def test_frontend_economic_defaults_match_the_file_and_estimate(client):
+    from api.economics import load_assumptions
+    response = client.get("/api/economics-assumptions", headers={"Origin": "http://127.0.0.1:5174"})
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    assert response.headers["access-control-allow-origin"] == "http://127.0.0.1:5174"
+    config = response.json()
+    assert config == load_assumptions().model_dump()
+    result = estimate(client)
+    assert result["economics"]["gpus_per_mw"] == config["gpus_per_mw"]["value"]
+    assert result["economics"]["value_of_early_connection_usd"] == (
+        min(DEFAULT_REQUEST["term_years"], config["early_connection_years"]["value"])
+        * DEFAULT_REQUEST["load_mw"] * config["early_margin_usd_per_mw_year"]["value"]
+    )
+    assert config["early_margin_usd_per_mw_year"]["source_type"] == "assumption"
+    assert "mock://" in config["early_margin_usd_per_mw_year"]["ref"]
+
+
+def test_economic_defaults_missing_file_is_explicit_error_with_cors(client, monkeypatch, tmp_path):
+    from api import economics
+    monkeypatch.setattr(economics, "ASSUMPTIONS_PATH", tmp_path / "missing.md")
+    response = client.get("/api/economics-assumptions", headers={"Origin": "http://127.0.0.1:5174"})
+    assert response.status_code == 503
+    assert response.headers["access-control-allow-origin"] == "http://127.0.0.1:5174"
+
+
+def test_system_aggregate_fallback_never_claims_observed_exposure(client):
+    result = estimate(client, location_id="SPP_SYSTEM")
+    assert result["inputs_echo"]["location_id"] == "SPP_SYSTEM"
+    assert result["modeled_exposure"]["source"]["source_type"] == "assumption"
+    assert "placeholder, pipeline not wired yet" in result["modeled_exposure"]["source"]["ref"]

@@ -7,7 +7,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from .economics import ArithmeticRangeError, AssumptionsError
+from .economics import ArithmeticRangeError, AssumptionsError, EconomicsAssumptions, load_assumptions
 from .estimate import build_estimate
 from .mock_provider import LocationNotFoundError, LocationProvider
 from .pipeline_provider import PipelineDataError, get_pipeline_location
@@ -23,7 +23,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://127.0.0.1:5174"],
     allow_credentials=False,
-    allow_methods=["POST"],
+    allow_methods=["GET", "POST"],
     allow_headers=["Content-Type"],
     expose_headers=["X-Headroom-Exposure-Source"],
 )
@@ -32,6 +32,16 @@ app.add_middleware(
 def get_location_provider() -> LocationProvider:
     """Try the precomputed reader, falling back only for missing pipeline pieces."""
     return get_pipeline_location
+
+
+@app.get("/api/economics-assumptions", response_model=EconomicsAssumptions)
+def economics_assumptions(response: Response) -> EconomicsAssumptions:
+    """Expose the exact file-backed defaults/provenance used by estimate arithmetic."""
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        return load_assumptions()
+    except AssumptionsError as error:
+        raise HTTPException(status_code=503, detail="Economic assumptions are missing or invalid; check docs/ASSUMPTIONS.md") from error
 
 
 @app.exception_handler(RequestValidationError)

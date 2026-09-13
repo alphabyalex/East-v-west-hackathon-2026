@@ -1,6 +1,7 @@
 """The precomputed reader boundary must distinguish missing data from broken data."""
 
 from copy import deepcopy
+import json
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -31,7 +32,7 @@ def payload():
             for year in range(1, 8)
         ],
         "confidence": {
-            "level": "High",
+            "level": "Low",
             "score": 0.8,
             "n_similar_historical_hours": 1000,
         },
@@ -39,12 +40,41 @@ def payload():
     }
 
 
+def write_manifests(parquet, payload):
+    """Authored metadata for disposable software-test artifacts, never real data."""
+    policy = {
+        "operator": "SPP", "label_method": "observed_event",
+        "data_ref": "Software-test input provenance; not an SPP performance result",
+        "label_ref": "Software-test label coverage; not an observed event archive",
+    }
+    card = {
+        "model_version": payload["model_version"],
+        "status": "research_only_pending_label_and_calibration_review",
+        "policy": policy,
+        "input_hashes": {"hourly_sha256": "a" * 64, "policy_sha256": "b" * 64},
+        "confidence": {payload["location_id"]: payload["confidence"]},
+        "settings": {"ensemble_members": 15},
+    }
+    simulation = {
+        "status": "experimental_unvalidated_annual_tails",
+        "method": "seasonal_joint_probability_and_randomized_residual_block_bootstrap",
+        "policy": policy, "source_type": "model",
+        "ref": f"pipeline/simulate.py model_version={payload['model_version']}",
+        "site_exposure_applied": False, "simulations": 2000,
+        "years": len(payload["by_year"]), "seed": 2026, "block_hours": 168,
+        "hours_per_year": 8760,
+    }
+    for name, document in (("model_card.json", card), ("simulation_metadata.json", simulation)):
+        parquet.with_name(name).write_text(json.dumps(document), encoding="utf-8")
+
+
 @pytest.fixture
-def install_reader(monkeypatch, tmp_path):
+def install_reader(monkeypatch, tmp_path, payload):
     # Only the adapter's existence gate touches this file. The reader is a stub;
     # no parquet engine, training dependency, or external data pull is involved.
     parquet = tmp_path / "exposure_by_location.parquet"
     parquet.touch()
+    write_manifests(parquet, payload)
     monkeypatch.setattr(pipeline_provider, "PARQUET_PATH", parquet)
 
     def install(reader, **exports):
@@ -78,18 +108,22 @@ def test_imports_reader_and_preserves_precomputed_values_and_provenance(payload,
     location = get_pipeline_location(LOCATION)
 
     importer.assert_called_once_with("pipeline.simulate")
-    reader.assert_called_once_with(LOCATION)
+    reader.assert_called_once_with(LOCATION, path=pipeline_provider.PARQUET_PATH)
     assert payload == original
     for actual, expected in zip(location.by_year, payload["by_year"], strict=True):
         assert vars(actual) == expected
     assert location.source.source_type == "model"
     assert "test_precomputed_reader_v1" in location.source.ref
     assert "data/processed/exposure_by_location.parquet" in location.source.ref
-    assert location.confidence.level == "High"
+    assert location.confidence.level == "Low"
     assert location.confidence.score == 0.8
     assert location.confidence.basis == "ensemble_disagreement"
     assert location.confidence.source.source_type == "model"
     assert "n_similar_historical_hours=1000" in location.confidence.source.ref
+    assert "experimental_unvalidated_annual_tails" in location.source.ref
+    assert "p99 of annual longest modeled episodes, not a guaranteed maximum" in location.source.ref
+    assert "numeric score describes classifier ensemble agreement" in location.confidence.source.ref
+    assert "not annual-tail coverage" in location.confidence.source.ref
     # A real exposure reader does not turn unpublished tariff extraction into fact.
     assert all(trigger.source.source_type == "assumption" for trigger in location.tariff.curtailment_triggers)
 
@@ -104,7 +138,7 @@ def test_site_factor_is_applied_once_downstream_of_the_reader(payload, install_r
 
     result = build_estimate(request, get_pipeline_location)
 
-    reader.assert_called_once_with(LOCATION)
+    reader.assert_called_once_with(LOCATION, path=pipeline_provider.PARQUET_PATH)
     assert result.modeled_exposure.by_year[0].p50 == 25
     assert result.modeled_exposure.by_year[1].p50 == 50
     assert result.modeled_exposure.p50 == 37.5
@@ -151,7 +185,7 @@ def test_default_http_dependency_calls_real_reader(payload, install_reader):
     with TestClient(app) as client:
         response = client.post("/api/estimate", json=request, headers={"Origin": "http://127.0.0.1:5174"})
     assert response.status_code == 200
-    reader.assert_called_once_with(LOCATION)
+    reader.assert_called_once_with(LOCATION, path=pipeline_provider.PARQUET_PATH)
     assert response.json()["modeled_exposure"]["p50"] == 37.5
     assert response.headers["x-headroom-exposure-source"] == "pipeline"
     assert response.headers["access-control-allow-origin"] == "http://127.0.0.1:5174"
@@ -169,7 +203,7 @@ def test_parquet_disappearing_during_read_returns_explicit_placeholder(install_r
     reader = Mock(side_effect=FileNotFoundError("precomputed file moved"))
     install_reader(reader)
     assert_placeholder(get_pipeline_location(LOCATION), "precomputed file is unavailable")
-    reader.assert_called_once_with(LOCATION)
+    reader.assert_called_once_with(LOCATION, path=pipeline_provider.PARQUET_PATH)
 
 
 def test_newly_available_reader_is_discovered_on_the_next_call(payload, install_reader):
@@ -181,7 +215,7 @@ def test_newly_available_reader_is_discovered_on_the_next_call(payload, install_
     ]
     assert_placeholder(get_pipeline_location(LOCATION), "pipeline.simulate is absent")
     assert get_pipeline_location(LOCATION).source.source_type == "model"
-    reader.assert_called_once_with(LOCATION)
+    reader.assert_called_once_with(LOCATION, path=pipeline_provider.PARQUET_PATH)
 
 
 @pytest.mark.parametrize("error", [
@@ -243,8 +277,10 @@ def test_invalid_exported_error_type_does_not_disguise_reader_failure(install_re
     (("by_year", 0, "p99_hours"), float("-inf")),
     (("by_year", 0, "p90_hours"), 50),
     (("by_year", 0, "p99_hours"), 150),
+    (("by_year", 0, "p99_hours"), 9000),
     (("by_year", 0, "worst_contiguous_hours"), -1),
     (("by_year", 0, "worst_contiguous_hours"), float("nan")),
+    (("by_year", 0, "worst_contiguous_hours"), 9000),
     (("by_year", 0, "p50_hours"), "100"),
     (("by_year", 0, "year_offset"), 0),
     (("by_year", 0, "year_offset"), 8),
@@ -286,3 +322,145 @@ def test_non_record_reader_output_is_an_error(install_reader, malformed):
     install_reader(Mock(return_value=malformed))
     with pytest.raises(PipelineDataError, match="BUILD_PLAN"):
         get_pipeline_location(LOCATION)
+
+
+@pytest.mark.parametrize("name", ["model_card.json", "simulation_metadata.json"])
+def test_absent_provenance_keeps_unverified_artifact_a_placeholder(payload, install_reader, name):
+    reader = Mock(return_value=payload)
+    _, parquet = install_reader(reader)
+    sidecar = parquet.with_name(name)
+    document = sidecar.read_text(encoding="utf-8")
+    sidecar.unlink()
+
+    assert_placeholder(get_pipeline_location(LOCATION), f"{name} absent")
+    reader.assert_not_called()
+
+    sidecar.write_text(document, encoding="utf-8")
+    assert get_pipeline_location(LOCATION).source.source_type == "model"
+    reader.assert_called_once_with(LOCATION, path=parquet)
+
+
+@pytest.mark.parametrize("name,content", [
+    ("model_card.json", "not json"),
+    ("model_card.json", "[]"),
+    ("simulation_metadata.json", "null"),
+    ("simulation_metadata.json", "{"),
+])
+def test_corrupt_provenance_is_an_error_not_a_real_or_placeholder_result(payload, install_reader, name, content):
+    _, parquet = install_reader(Mock(return_value=payload))
+    parquet.with_name(name).write_text(content, encoding="utf-8")
+    with pytest.raises(PipelineDataError, match="artifact provenance is invalid"):
+        get_pipeline_location(LOCATION)
+
+
+@pytest.mark.parametrize("name,path,value", [
+    ("model_card.json", ("model_version",), "another_model_version"),
+    ("model_card.json", ("status",), "validated_forecast"),
+    ("model_card.json", ("policy", "operator"), "PJM"),
+    ("model_card.json", ("policy", "label_method"), "load_above_mean"),
+    ("model_card.json", ("policy", "label_ref"), ""),
+    ("model_card.json", ("policy", "label_ref"), "placeholder, no reviewed labels"),
+    ("model_card.json", ("policy", "data_ref"), "mock://invented-observations"),
+    ("model_card.json", ("input_hashes",), {}),
+    ("model_card.json", ("input_hashes", "hourly_sha256"), "not a hash"),
+    ("model_card.json", ("confidence",), {}),
+    ("model_card.json", ("confidence", LOCATION, "score"), 0.1),
+    ("model_card.json", ("settings", "ensemble_members"), True),
+    ("model_card.json", ("settings", "ensemble_members"), 1),
+    ("simulation_metadata.json", ("policy", "label_method"), "binding_constraint"),
+    ("simulation_metadata.json", ("status",), "validated"),
+    ("simulation_metadata.json", ("method",), "invented_method"),
+    ("simulation_metadata.json", ("source_type",), "assumption"),
+    ("simulation_metadata.json", ("ref",), "pipeline/simulate.py model_version=another_model"),
+    ("simulation_metadata.json", ("site_exposure_applied",), True),
+    ("simulation_metadata.json", ("site_exposure_applied",), 0),
+    ("simulation_metadata.json", ("simulations",), 999),
+    ("simulation_metadata.json", ("simulations",), "2000"),
+    ("simulation_metadata.json", ("years",), 6),
+    ("simulation_metadata.json", ("seed",), None),
+    ("simulation_metadata.json", ("seed",), True),
+    ("simulation_metadata.json", ("block_hours",), 25),
+    ("simulation_metadata.json", ("block_hours",), 192),
+    ("simulation_metadata.json", ("hours_per_year",), 8784),
+])
+def test_inconsistent_or_unsupported_metadata_never_earns_model_provenance(payload, install_reader, name, path, value):
+    _, parquet = install_reader(Mock(return_value=payload))
+    sidecar = parquet.with_name(name)
+    document = json.loads(sidecar.read_text(encoding="utf-8"))
+    container = document
+    for key in path[:-1]:
+        container = container[key]
+    container[path[-1]] = value
+    sidecar.write_text(json.dumps(document), encoding="utf-8")
+    with pytest.raises(PipelineDataError, match="artifact provenance is invalid"):
+        get_pipeline_location(LOCATION)
+
+
+def test_annual_tail_confidence_cannot_be_upgraded_before_supported_metadata(payload, install_reader):
+    payload["confidence"]["level"] = "High"
+    install_reader(Mock(return_value=payload))
+    with pytest.raises(PipelineDataError, match="capped Low"):
+        get_pipeline_location(LOCATION)
+
+
+def test_invalid_metadata_returns_http_503(payload, install_reader):
+    from fastapi.testclient import TestClient
+    from api.main import app
+
+    _, parquet = install_reader(Mock(return_value=payload))
+    parquet.with_name("simulation_metadata.json").write_text("{}", encoding="utf-8")
+    with TestClient(app) as client:
+        response = client.post("/api/estimate", json={
+            "location_id": LOCATION, "load_mw": 100, "term_years": 2,
+            "flexibility_split": 0.6, "site_exposure": 0.25,
+        })
+    assert response.status_code == 503
+
+
+def test_real_parquet_reader_round_trip_never_trains_simulates_or_fetches(payload, monkeypatch, tmp_path):
+    """A real reader over disposable authored rows, not a real model result."""
+    import pandas as pd
+    import requests
+    from fastapi.testclient import TestClient
+    from pipeline import simulate, train
+    from api.main import app
+
+    parquet = tmp_path / "exposure_by_location.parquet"
+    rows = [
+        {
+            **row, "location_id": LOCATION,
+            "confidence_level": payload["confidence"]["level"],
+            "confidence_score": payload["confidence"]["score"],
+            "n_similar_historical_hours": payload["confidence"]["n_similar_historical_hours"],
+            "model_version": payload["model_version"],
+        }
+        for row in payload["by_year"]
+    ]
+    pd.DataFrame(rows).to_parquet(parquet, index=False)
+    write_manifests(parquet, payload)
+    monkeypatch.setattr(pipeline_provider, "PARQUET_PATH", parquet)
+    reader = Mock(wraps=simulate.get_location_estimate)
+    monkeypatch.setattr(simulate, "get_location_estimate", reader)
+    forbidden = Mock(side_effect=AssertionError("The estimate request must only read precomputed data"))
+    monkeypatch.setattr(simulate, "simulate_exposure", forbidden)
+    monkeypatch.setattr(train, "fit_ensemble", forbidden)
+    monkeypatch.setattr(requests.sessions.Session, "request", forbidden)
+
+    with TestClient(app) as client:
+        response = client.post("/api/estimate", json={
+            "location_id": LOCATION, "load_mw": 100, "term_years": 2,
+            "flexibility_split": 0.6, "site_exposure": 0.25,
+        })
+        unavailable_location = client.post("/api/estimate", json={
+            "location_id": "SPP_NOT_IN_TABLE", "load_mw": 100, "term_years": 2,
+            "flexibility_split": 0.6, "site_exposure": 0.25,
+        })
+    assert response.status_code == 200
+    assert response.json()["modeled_exposure"]["p50"] == 37.5
+    assert response.json()["modeled_exposure"]["source"]["source_type"] == "model"
+    assert response.json()["confidence"]["level"] == "Low"
+    assert response.json()["confidence"]["score"] == 0.8
+    assert "not annual-tail coverage" in response.json()["confidence"]["source"]["ref"]
+    assert unavailable_location.status_code == 404
+    reader.assert_any_call(LOCATION, path=parquet)
+    forbidden.assert_not_called()

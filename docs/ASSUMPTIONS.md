@@ -1,19 +1,19 @@
 # Assumptions — Headroom Economics Model
 
-This file is the source of truth for every economics number the Headroom model currently
-fakes under the `mock://illustrative/economics-placeholder` provenance tag (visible today
-in `api/estimate.py`, `web/src/model/fixture.ts`, and `web/src/model/mock-response.json`
-as flat placeholders: 1,000 GPU/MW, $2/GPU-hour, a fixed 3-year firm wait, and a flat
-$500,000/MW/yr "early margin"). Every entry below is named, sourced with a URL, dated to
-the day it was retrieved, and given a plausible low/high range instead of a single
-false-precision point — this mirrors the closing rule in `docs/DATA_NEEDED.md`: *"every
-number is named, sourced, dated, and adjustable from the UI."* All entries were retrieved
-**2026-09-12** unless noted otherwise. Where a number genuinely cannot be sourced it is
-marked **ASSUMPTION** in bold rather than dressed up as a fact. The "Value" column is the
-recommended point default for a UI slider; the "Range" column is what the slider should
-span. A real number with an honest range beats a precise-looking fake one — several
-ranges below are wide (5x spread on revenue/MW/yr, for example) because that is genuinely
-how uncertain the underlying inputs are, not a mistake.
+The marked JSON block at the end of this file is the source of truth for the API's
+economics inputs. `api/economics.py` reads it on each request; there are no hardcoded
+backend defaults. The research notes below were supplied by Tharun in commits
+`7669f42` and `59cbdda`; their retrieval dates and source claims are preserved as
+reported, **not independently verified by this integration**. A cited planning
+default is still an assumption, not a measurement of a proposed site.
+
+The selected defaults are 575 GPUs per grid MW, $3 per GPU-hour, and a four-year
+earlier-connection gap. The $317,000/MW-year early-value input is **Tharun's
+unverified operating-margin assumption**, not sourced net profit: it applies an
+assumed 3% to $10,577,700 of scenario gross revenue and rounds the result. Its
+`mock://` placeholder tag remains. Electricity is a Kansas reference only and is
+informational; it is not subtracted from economics a second time. The recorded
+ranges are scenario ranges, not statistical confidence intervals.
 
 ---
 
@@ -101,7 +101,7 @@ The other side of the ledger: what a flexible (CHILLS) connection buys you versu
 | Flexible vs. firm connection timeline — industry cross-check | 15 mo flexible / 6.5 yr firm | 12–18 mo flexible / 5–8 yr firm | months / years | [Camus Energy blog](https://www.camus.energy/blog/how-flexible-interconnections-can-help-data-centers-connect-faster-without-overloading-the-grid) — interested party (sells flexible-interconnection software), used as a cross-check only | 2026-09-12 |
 | **DERIVED** — value-of-early-connection horizon, recommended `firm_wait_years` default | 4 | 3–7 | years | Derived (this project) from the rows above; see arithmetic below | 2026-09-12 |
 | Realistic GPU-fleet utilization rate | 70 | 60–85 | % of calendar hours revenue-earning | [Park Place Technologies](https://www.parkplacetechnologies.com/blog/data-center-gpu-deployment-strategy-why-it-matters-more-than-ever/); SemiAnalysis GPU-cluster cost analysis | 2026-09-12 |
-| **DERIVED** — data center revenue per MW per year (recommended input for `early_margin_usd_per_mw_year` — see naming caveat below) | 19,000,000 | 7,400,000–38,000,000 | USD per MW per year, **gross revenue, not margin** | Derived (this project); see arithmetic below | 2026-09-12 |
+| **DERIVED** — historical IT-basis revenue illustration (not the selected `early_margin_usd_per_mw_year`) | 19,000,000 | 7,400,000–38,000,000 | USD per MW per year, **gross revenue, not margin** | Derived (this project); see arithmetic below | 2026-09-12 |
 | Capex per MW, AI-optimized fully-built data center (optional/nice-to-have) | 28,000,000 | 20,000,000–37,000,000 | USD per MW | [JLL, "2026 Market Outlook for Global Data Centers"](https://www.jll.com/en-us/insights/market-outlook/data-center-outlook) | 2026-09-12 |
 | Capex per MW, shell-and-core only (for reference; not this product's scope) | 11,000,000 | 10,700,000–11,300,000 | USD per MW | [JLL, "2026 Market Outlook for Global Data Centers"](https://www.jll.com/en-us/insights/market-outlook/data-center-outlook) | 2026-09-12 |
 
@@ -118,31 +118,63 @@ The other side of the ledger: what a flexible (CHILLS) connection buys you versu
 
 **Internal-consistency flag:** this derivation deliberately reused `docs/DATA_NEEDED.md`'s own stated 700–850 GPUs/MW anchor (the pre-PUE, IT-power-basis figure — see §1) rather than this document's own post-PUE grid-basis figure (575, range 430–720), because Category C's brief only asked to combine the MW→GPU anchor with rental price and utilization, not re-derive it. If recomputed with the grid-basis GPUs/MW instead — 575 central, 430–720 range — the result is materially lower: LOW ≈ 430 × $1.49 × 0.60 × 8,760 ≈ **$3.37M**, MID ≈ 575 × $3.00 × 0.70 × 8,760 ≈ **$10.58M**, HIGH ≈ 720 × $6.16 × 0.85 × 8,760 ≈ **$33.0M**. Both derivations are legitimate depending on which GPUs/MW basis the team standardizes on — pick one and use it consistently across the exposure calculation and the revenue calculation, since right now they are not required to match.
 
-**Naming caveat (important):** the app's mock field is called `early_margin_usd_per_mw_year`, but every number in this derivation is **gross revenue** — it excludes power cost, staffing, financing, and capex amortization, exactly as `docs/DATA_NEEDED.md` instructs ("do not use a headline figure... derive revenue"). This derived figure is 15–75x larger than the current $500,000 placeholder specifically because the placeholder was never meant to represent revenue. Before wiring in a real number, decide whether this field should hold gross revenue (use $19.0M mid / $7.4–38M range directly, and rename the field) or net margin (apply an opex/capex-amortization haircut first — no sourced haircut percentage exists for this, so if you pick one, mark it **ASSUMPTION**).
+**Naming caveat:** every revenue derivation above is **gross revenue**: power,
+staffing, financing, and capex amortization have not been deducted. None belongs
+directly in `early_margin_usd_per_mw_year`. Tharun subsequently selected an assumed
+operating-margin conversion below; there is still no reviewed cost model proving
+that result is attainable operating income or net profit.
 
 ---
 
 ## What changes in the app
 
-**Wired in 2026-09-12** (Tharun, `Tharun` branch): `api/estimate.py`'s `ECONOMICS_DEFAULTS` (formerly `MOCK_ECONOMICS`) and `web/src/model/fixture.ts`'s `defaultInputs` now use the sourced values below. Both files' `economics.source.ref` now points at `docs/ASSUMPTIONS.md?<echoed scenario + economics query>#4-what-changes-in-the-app` instead of a `mock://illustrative/economics-placeholder/...` ref — `source_type` stays `"assumption"` (still a team-set assumption, just a cited one now, not an invented placeholder). `modeled_exposure`, `confidence`, and `tariff` remain `mock://illustrative/...` unchanged, since exposure hours are still the illustrative fixture, not Kristian's real pipeline output.
+**Integrated 2026-09-12:** the selected values from Tharun's `59cbdda` are now in the
+marked JSON block consumed by `api/economics.py`. The old branch-local
+`ECONOMICS_DEFAULTS` constant is superseded by this file. The canonical
+`POST /api/estimate` body is unchanged: each economics number inherits
+`economics.source`, whose reference lists all input values and references.
+`source_type` remains `"assumption"`; the aggregate retains `mock://` while the
+operating margin or decision tolerance is unreviewed, or exposure is a placeholder.
+Sourcing an input does not promote exposure, confidence, or tariff fixtures to real
+data. Local frontend overrides remain assumptions and do not change this server file.
 
-| Field (`api/estimate.py` / `web/src/model/types.ts`) | Old mock value | Wired-in value | UI-control range | Source (§ in this doc) |
+| Machine JSON field (frontend field) | Old mock value | Selected value | Recorded range | Source (§ in this doc) |
 |---|---|---|---|---|
-| `gpu_per_mw` | 1000 (flat) | **575** GPUs/MW (H100, grid-interconnection basis) | 430–720 | §1, "DERIVED — GPUs per MW, H100, grid-interconnection basis" |
-| `gpu_hour_value_usd` | 2 (flat) | **3.00** USD/GPU-hr (H100 cross-provider composite) | 1.49–6.16 | §2, "H100 rental — cross-provider composite" |
-| `firm_wait_years` | 3 (flat) | **4** years (derived firm-vs-flexible gap) | 3–7 | §3, "DERIVED — value-of-early-connection horizon" |
-| `early_margin_usd_per_mw_year` | 500,000 (flat) | **317,000** USD/MW/yr — see resolution below, not the raw §3 revenue figure | see below | §3 revenue derivation + this section's margin resolution |
+| `gpus_per_mw` (`gpu_per_mw`) | 1000 | **575** GPUs/MW (H100, grid-interconnection basis) | 430–720 | §1, derived planning assumption |
+| `gpu_rental_price_usd_per_hour` (`gpu_hour_value_usd`) | 2 | **3.00** USD/GPU-hr (H100 composite assumption) | 1.49–6.16 | §2, cross-provider selection |
+| `early_connection_years` (`firm_wait_years`) | 3 | **4** years (assumed firm-vs-flexible gap) | 3–7 | §3, synthesized planning scenario |
+| `early_margin_usd_per_mw_year` | 500,000 | **317,000** USD/MW-year — unverified operating-margin assumption | 0–1,000,000, retained placeholder range | §3 gross scenario × Tharun's assumed 3% |
+| `industrial_electricity_price_usd_per_mwh` | 50 | **82.1** USD/MWh, Kansas reference only | 76–86 | §2, 8.21 cents/kWh × 10; informational only |
+| `close_call_fraction` | 0.05 | **0.05**, unreviewed decision tolerance | 0–0.1 | Original explicit placeholder decision policy |
 
-**How the `early_margin_usd_per_mw_year` decision was actually resolved.** The two open decisions this doc originally flagged were made explicitly, not left implicit:
+**Gross revenue versus operating margin — explicit accounting basis.** Tharun's
+`59cbdda` selected the grid-interconnection basis and an assumed operating-margin
+conversion. The arithmetic is:
 
-1. **GPUs/MW basis: grid-interconnection (575), not IT-power (720)** — matches this doc's own recommendation, since SPP CHILLS capacity is metered at the interconnection point, not the IT room.
-2. **Revenue vs. margin:** plugging the raw sourced gross revenue ($10,577,700/MW/yr = 575 × $3.00 × 70% utilization × 8,760h, recomputed on the grid-interconnection basis for internal consistency, *not* the §3 table's $19.0M figure which used the other basis) directly into `early_margin_usd_per_mw_year` breaks the product: `benefit` (which multiplies this field by `load_mw` and `min(firm_wait_years, contract_years)`) would hit **~$4.2B** at the app's default 100MW/4yr inputs — three orders of magnitude larger than any realistic interruption cost, making the decision "worth it" at every exposure level from 0 to 1 and destroying the slider's ability to demonstrate all three decision states, which AGENTS.md calls the product's single most important interaction.
+- Scenario gross revenue: `575 × $3 × 0.70 × 8,760 = $10,577,700/MW-year`.
+- Tharun's **unverified 3% operating-margin assumption**:
+  `$10,577,700 × 0.03 = $317,331`, rounded to the selected **$317,000/MW-year**.
+- API early value: `min(4, term_years) × load_mw × $317,000`.
+  The default 100 MW, seven-year contract therefore uses $126,800,000.
 
-   Resolution: apply an explicit **3% assumed operating margin** to the sourced gross revenue (3% × $10,577,700 ≈ **$317,000**/MW/yr). No public opex/capex-amortization disclosure exists for AI-GPU-neocloud infrastructure margins, so 3% is a labeled **ASSUMPTION**, not a citation — chosen as a plausible, conservative figure for a capex-heavy business dominated by depreciation in its early years (real gross margins for neoclouds run much higher, 60-75%+, but operating margin after heavy GPU depreciation is a different, much thinner number). This also happens to land inside the exact range needed to preserve the existing calibrated demo property (site_exposure 0.4/0.55/0.9 → worth_it/close_call/not_worth_it at the default 100MW/7yr/60%-flexible scenario), which is a legitimate secondary constraint, not the primary justification — the margin assumption was chosen for economic plausibility first and verified against the calibration second, not reverse-engineered to hit it.
+The first number is modeled gross revenue under assumed density, rental price, and
+utilization; it is not observed revenue from a real site. The second is an assumed
+operating-margin proxy after a blanket haircut, **not verified net margin or net
+profit**. The research notes supply no supporting cost breakdown for the 3% choice.
+It remains explicitly unreviewed and tagged `mock://`; this integration adopts
+Tharun's stated scenario without asserting that the haircut is economically valid.
+An attractive decision flip is not evidence for choosing a margin. Review the
+actual revenue and cost assumptions together before presenting an investment case.
 
-   If real opex/capex-amortization data becomes available, replace the 3% assumption directly — the sourced $10,577,700 gross-revenue figure underneath it does not need to change.
+Interruption cost currently values lost GPU-hours at the **gross rental-price
+proxy**; it does not estimate avoided power expense, restart losses, SLA credits, or
+net lost profit. Early benefit uses the **assumed operating-margin proxy** above.
+These are different accounting bases and must not be described as a complete net
+present-value or profitability calculation. Electricity is informational and is not
+deducted again from the blanket margin. The Kansas reference is not a site tariff or
+an automatically selected Oklahoma/Nebraska rate.
 
-Additional fields the model does **not** currently have wired in (`api/estimate.py` has no restart-minutes or SLA-credit field today), recommended per `docs/DATA_NEEDED.md` §B/§D if the team extends the model before demo:
+Additional fields the model does **not** currently apply (`api/economics.py` has no restart-minutes or SLA-credit term), retained as research notes per `docs/DATA_NEEDED.md` §B/§D:
 
 | Proposed field | Suggested default | Suggested range | Source (§ in this doc) |
 |---|---|---|---|
@@ -152,14 +184,15 @@ Additional fields the model does **not** currently have wired in (`api/estimate.
 | `utilization_pct` (currently baked into the revenue derivation, not exposed) | 70% | 60–85% | §3, "Realistic GPU-fleet utilization rate" |
 | SLA credit lookup (not a scalar — a tier table) | n/a | AWS 10/30/100%, Azure 10/25/100%, GCP 10/25%+ | §2, SLA rows |
 
-**Both decisions below were resolved 2026-09-12** (see "How the `early_margin_usd_per_mw_year` decision was actually resolved" above) — kept here for the record, not as open questions:
-
-1. **GPUs/MW basis — resolved: grid-interconnection basis (575, 430–720).** Standardized everywhere `gpu_per_mw` appears, including the revenue-per-MW derivation, over the IT-power basis (720, 660–785), since SPP CHILLS capacity is metered at the interconnection point.
-2. **Revenue vs. margin — resolved: kept the field name, applied a 3% ASSUMPTION haircut.** Not renamed (avoids rippling through the shared API contract in `docs/BUILD_PLAN.md`, `docs/frontend-api-contract.md`, and the UI label). Instead an explicit, labeled 3% operating-margin assumption converts the sourced $10,577,700 gross-revenue figure into a genuine margin number ($317,000) before it's stored as `early_margin_usd_per_mw_year`.
-
 ## Integration note
 
-The machine-readable block below is retained from main during branch integration. Its placeholder values are being reconciled against the sourcing above before final publication.
+The API contract keeps its existing field names and formulas. The machine block
+supersedes prose examples as runtime configuration. Defaults selected from cited
+research use `source_type: "assumption"`, including the Kansas electricity figure
+recorded by Tharun; integration has not independently verified the external tables.
+The references attribute those choices to the immutable teammate commit. Unreviewed
+margin and tolerance retain placeholder provenance. Status is therefore `mixed`.
+No `real`, `derived`, or compound provenance enum is introduced.
 
 ## Machine-readable assumptions
 
@@ -167,8 +200,10 @@ Keep one marked JSON block. Values are finite, with nonnegative prices, margin,
 years, and ranges; positive GPU density; and tolerance in `[0, 1)`. Each value must
 lie within its recorded range. A placeholder entry must retain `source_type:
 "assumption"`, an explicit `mock://` placeholder reference, and null source URL and
-retrieval date. Reviewed entries may use `source_type: "data"` with an actual HTTPS
-source URL and retrieval date. Top-level status is `placeholder`, `mixed`, or
+retrieval date. Referenced entries require an HTTPS source URL and retrieval date;
+they use `source_type: "assumption"` for chosen defaults and derived scenarios, or
+`"data"` for directly supported observations. A URL alone does not establish review
+or convert an assumption into a fact. Top-level status is `placeholder`, `mixed`, or
 `sourced` according to whether all, some, or none of the entries remain placeholders.
 The derived API economics block still carries `source_type: "assumption"` because
 the calculation uses the user's scenario assumptions; its reference records its
@@ -179,51 +214,51 @@ real.
 ```json
 {
   "schema_version": 1,
-  "status": "placeholder",
+  "status": "mixed",
   "gpu_rental_price_usd_per_hour": {
-    "value": 2,
-    "source_type": "assumption",
-    "ref": "mock://economics-placeholder/docs/ASSUMPTIONS.md#gpu-rental-price; placeholder, not sourced",
-    "unit": "USD/GPU-hour",
-    "source_url": null,
-    "retrieved_on": null,
-    "low": 1,
-    "high": 4
-  },
-  "industrial_electricity_price_usd_per_mwh": {
-    "value": 50,
-    "source_type": "assumption",
-    "ref": "mock://economics-placeholder/docs/ASSUMPTIONS.md#industrial-electricity-price; placeholder, not sourced",
-    "unit": "USD/MWh",
-    "source_url": null,
-    "retrieved_on": null,
-    "low": 0,
-    "high": 100
-  },
-  "gpus_per_mw": {
-    "value": 1000,
-    "source_type": "assumption",
-    "ref": "mock://economics-placeholder/docs/ASSUMPTIONS.md#gpus-per-mw; placeholder, not sourced",
-    "unit": "GPU/MW",
-    "source_url": null,
-    "retrieved_on": null,
-    "low": 500,
-    "high": 1500
-  },
-  "early_connection_years": {
     "value": 3,
     "source_type": "assumption",
-    "ref": "mock://economics-placeholder/docs/ASSUMPTIONS.md#early-connection-years; placeholder, not sourced",
+    "ref": "docs/ASSUMPTIONS.md#2-cost-of-interrupted-compute; Tharun 59cbdda; assumed H100 cross-provider rental-price default, not a site quote",
+    "unit": "USD/GPU-hour",
+    "source_url": "https://github.com/alphabyalex/East-v-west-hackathon-2026/blob/59cbdda/docs/ASSUMPTIONS.md#2-cost-of-interrupted-compute",
+    "retrieved_on": "2026-09-12",
+    "low": 1.49,
+    "high": 6.16
+  },
+  "industrial_electricity_price_usd_per_mwh": {
+    "value": 82.1,
+    "source_type": "assumption",
+    "ref": "docs/ASSUMPTIONS.md#2-cost-of-interrupted-compute; Tharun 59cbdda records EIA June 2026 Kansas industrial 8.21 cents/kWh x 10 = 82.1 USD/MWh; not independently verified; informational Kansas reference, not a site tariff",
+    "unit": "USD/MWh",
+    "source_url": "https://github.com/alphabyalex/East-v-west-hackathon-2026/blob/59cbdda/docs/ASSUMPTIONS.md#2-cost-of-interrupted-compute",
+    "retrieved_on": "2026-09-12",
+    "low": 76,
+    "high": 86
+  },
+  "gpus_per_mw": {
+    "value": 575,
+    "source_type": "assumption",
+    "ref": "docs/ASSUMPTIONS.md#1-hardware--power-conversion; Tharun 59cbdda; assumed H100 density per grid-interconnection MW, post-PUE, not IT MW or measured site capacity",
+    "unit": "GPU/MW",
+    "source_url": "https://github.com/alphabyalex/East-v-west-hackathon-2026/blob/59cbdda/docs/ASSUMPTIONS.md#1-hardware--power-conversion",
+    "retrieved_on": "2026-09-12",
+    "low": 430,
+    "high": 720
+  },
+  "early_connection_years": {
+    "value": 4,
+    "source_type": "assumption",
+    "ref": "docs/ASSUMPTIONS.md#3-value-of-connecting-early; Tharun 59cbdda; assumed firm-minus-flexible connection gap, not a guaranteed SPP energization schedule",
     "unit": "year",
-    "source_url": null,
-    "retrieved_on": null,
-    "low": 0,
-    "high": 5
+    "source_url": "https://github.com/alphabyalex/East-v-west-hackathon-2026/blob/59cbdda/docs/ASSUMPTIONS.md#3-value-of-connecting-early",
+    "retrieved_on": "2026-09-12",
+    "low": 3,
+    "high": 7
   },
   "early_margin_usd_per_mw_year": {
-    "value": 500000,
+    "value": 317000,
     "source_type": "assumption",
-    "ref": "mock://economics-placeholder/docs/ASSUMPTIONS.md#net-operating-margin; placeholder, not sourced",
+    "ref": "mock://economics-placeholder/docs/ASSUMPTIONS.md#what-changes-in-the-app; placeholder, Tharun 59cbdda unverified 3% operating-margin assumption x 10577700 USD/MW-year scenario gross revenue = 317331, rounded to 317000; not verified net margin",
     "unit": "USD/MW-year",
     "source_url": null,
     "retrieved_on": null,
