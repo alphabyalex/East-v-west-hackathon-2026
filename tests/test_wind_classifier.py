@@ -448,3 +448,80 @@ def test_equivalent_source_mapping_order_keeps_report_and_prediction_json_identi
     events.attrs["source"] = dict(reversed(list(events.attrs["source"].items())))
     result = wind.fit_wind_event_classifier(actuals, events, sources=sources)
     assert json.dumps(result, allow_nan=False) == json.dumps(experiment, allow_nan=False)
+
+
+METRIC_ORIGIN = {"source_type": "assumption", "ref": "synthetic probability metric fixtures; no measured observations"}
+
+
+@pytest.mark.parametrize("target", [[2., 2.], [-1., -1.], [0., .5], [0., np.nan],
+                                    [0., np.inf], [0., -np.inf]])
+@pytest.mark.parametrize("unavailable", [None, "disabled_by_declared_policy"])
+def test_metric_helper_rejects_nonbinary_or_nonfinite_targets(target, unavailable):
+    with pytest.raises(ValueError, match="finite binary targets"):
+        wind._wind_classifier_metrics(target, [1., 1.], METRIC_ORIGIN, unavailable=unavailable)
+
+
+@pytest.mark.parametrize("target,probabilities", [
+    (0., [0.]), ([0.], 0.),
+    ([[0.], [1.]], [.2, .8]), ([0., 1.], [[.2], [.8]]),
+    ([[0., 1.]], [[.2, .8]]),
+    (np.empty((0, 1)), []), ([], np.empty((0, 1))),
+    ([0., 1.], [.2]), ([], [.2]),
+])
+@pytest.mark.parametrize("unavailable", [None, "disabled_by_declared_policy"])
+def test_metric_helper_rejects_broadcasting_and_unaligned_arrays(target, probabilities, unavailable):
+    with pytest.raises(ValueError, match="aligned one-dimensional arrays"):
+        wind._wind_classifier_metrics(target, probabilities, METRIC_ORIGIN, unavailable=unavailable)
+
+
+@pytest.mark.parametrize("target,probabilities", [
+    ([0, 1, 1, 0], [.5, .5, .5, .5]),
+    ([False, True], [0., 1.]),
+    ([0., 1.], [1., 0.]),
+    ([0, 0], [0., 1.]),
+    ([1, 1], [0., 1.]),
+    ([0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0], np.arange(11) / 10),
+])
+def test_metric_helper_keeps_sklearn_values_at_ties_endpoints_and_single_classes(target, probabilities):
+    from sklearn.metrics import brier_score_loss, log_loss, roc_auc_score
+
+    result = wind._wind_classifier_metrics(target, probabilities, METRIC_ORIGIN)
+    assert result["status"] == "available"
+    assert result["brier_score"]["value"] == brier_score_loss(target, probabilities, pos_label=1)
+    assert result["log_loss"]["value"] == log_loss(target, probabilities, labels=[0, 1])
+    if len(set(target)) == 2:
+        assert result["roc_auc"]["value"] == roc_auc_score(target, probabilities)
+    else:
+        assert result["roc_auc"]["value"] is None
+        assert "both observed classes" in result["roc_auc"]["ref"]
+    assert result["sample_count"]["value"] == len(target)
+    assert sum(row["sample_count"]["value"] for row in result["reliability"]) == len(target)
+    if len(probabilities) == 11:
+        assert [row["sample_count"]["value"] for row in result["reliability"]] == [1] * 9 + [2]
+    assert_sourced_numbers(result)
+    json.dumps(result, allow_nan=False)
+
+
+@pytest.mark.parametrize("probabilities", [[np.nan, np.nan], [None, None]])
+def test_metric_helper_preserves_unavailable_calibration_null_probabilities(probabilities):
+    result = wind._wind_classifier_metrics([0, 1], probabilities, METRIC_ORIGIN,
+                                          unavailable="disabled_by_declared_policy")
+    assert result["status"] == "disabled_by_declared_policy"
+    assert result["sample_count"]["value"] == 0
+    for name in ("brier_score", "log_loss", "roc_auc"):
+        assert result[name]["value"] is None
+        assert result[name]["source_type"] == "assumption"
+        assert "disabled_by_declared_policy" in result[name]["ref"]
+    assert all(row["sample_count"]["value"] == 0 for row in result["reliability"])
+    assert_sourced_numbers(result)
+    json.dumps(result, allow_nan=False)
+
+
+def test_metric_helper_keeps_empty_one_dimensional_cohort_explicitly_unavailable():
+    result = wind._wind_classifier_metrics([], [], METRIC_ORIGIN)
+    assert result["status"] == "no_evaluable_test_rows"
+    assert result["sample_count"]["value"] == 0
+    assert all(result[name]["value"] is None for name in ("brier_score", "log_loss", "roc_auc"))
+    assert all(row["sample_count"]["value"] == 0 for row in result["reliability"])
+    assert_sourced_numbers(result)
+    json.dumps(result, allow_nan=False)

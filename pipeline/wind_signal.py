@@ -684,12 +684,14 @@ def read_cached_monthly_load(year: int = 2025) -> tuple[pd.DataFrame, dict]:
             raise ValueError("Monthly load interval starts disagree with their Central operating month.")
         # Validate raw components; leave missingness and values unchanged for the
         # shared all-components-required sum and conflicting-revision treatment.
+        # Signed regional values retain the shared normalizer's semantics; its
+        # downstream validation rejects a negative system total.
         for name in LOAD_AREAS:
             if frame[name].map(lambda value: isinstance(value, (bool, np.bool_))).any():
                 raise ValueError("Monthly load components cannot be boolean.")
             numeric = pd.to_numeric(frame[name], errors="raise")
-            if np.isinf(numeric).any() or numeric.lt(0).any():
-                raise ValueError("Monthly load components must be finite nonnegative values or missing.")
+            if np.isinf(numeric).any():
+                raise ValueError("Monthly load components must be finite numeric values or missing.")
         frames.append(frame[columns].assign(_interval_end=ends))
         origins[key] = {**origin, "ref": f"{url}; cached_sha256={digest}"}
     result = pd.concat(frames, ignore_index=True).sort_values("_interval_end", kind="stable").drop(columns="_interval_end").reset_index(drop=True)
@@ -1129,8 +1131,12 @@ def _wind_classifier_metrics(target, probabilities, origin, *, unavailable=None)
     policy = {"source_type": "assumption", "ref": "wind-event-logistic-v1: ten predeclared equal-width probability bins; upper boundary exclusive except final bin"}
     missing = {"source_type": "assumption", "ref": f"unavailable: {unavailable or 'no evaluable held-out rows'}; {origin['ref']}"}
     target, probabilities = np.asarray(target, dtype=float), np.asarray(probabilities, dtype=float)
+    if target.ndim != 1 or probabilities.ndim != 1 or target.shape != probabilities.shape:
+        raise ValueError("Held-out probability metrics require aligned one-dimensional arrays.")
+    if not np.isfinite(target).all() or not np.isin(target, (0., 1.)).all():
+        raise ValueError("Held-out probability metrics require finite binary targets.")
     available = len(target) > 0 and unavailable is None
-    if len(target) != len(probabilities) or available and (not np.isfinite(probabilities).all() or ((probabilities < 0) | (probabilities > 1)).any()):
+    if available and (not np.isfinite(probabilities).all() or ((probabilities < 0) | (probabilities > 1)).any()):
         raise ValueError("Held-out probability metrics require aligned finite probabilities.")
     def metric(value, reason=None):
         return sourced(None, {**missing, "ref": f"unavailable: {reason}; {origin['ref']}"} if reason else missing) if value is None else sourced(float(value), origin)

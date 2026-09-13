@@ -474,6 +474,144 @@ def rewrite_snapshot(path, transform, *, checksum=True):
     path.write_text(json.dumps(document), encoding="utf-8")
 
 
+def legacy_shift_snapshot(path, raw, *, period=None):
+    """Retain the formerly published conversion DAG without its new named total."""
+    import api.grid_impact as module
+    original = module._shift_total
+    def old_conversion(evidence, carbon, period):
+        result = original(evidence, carbon, period)
+        conversion = evidence.nodes[result["ref"][len(EVIDENCE_PREFIX):]]
+        kilograms = conversion["inputs"][0]
+        aggregate = evidence.nodes[kilograms["ref"][len(EVIDENCE_PREFIX):]]
+        result["ref"] = evidence.register({"method": conversion["method"], "inputs": aggregate["inputs"]})
+        return result
+    with patch.object(module, "_shift_total", side_effect=old_conversion):
+        return snapshot(path, carbon_shift=raw, shift_coverage=coverage() if period is None else period)
+
+
+def opaque_shift():
+    raw = shift()
+    for record in [raw, *raw["pairs"]]:
+        for key in ("carbon_shifted_kg_co2", "mwh_removed", "mwh_made_up"):
+            record[key] = datum(record[key]["value"], "synthetic opaque supplied record")
+    return raw
+
+
+@pytest.mark.parametrize("replacement", [123., .01, 0., None])
+def test_rehashed_shift_value_must_agree_with_its_recorded_kilograms(tmp_path, replacement):
+    path = snapshot(tmp_path / "result.json", carbon_shift=shift(), shift_coverage=coverage())
+    rewrite_snapshot(path, lambda result: result["carbon_shifted_tonnes_in_observed_hours"].update(value=replacement))
+    with pytest.raises(ValueError, match="evidence derivation"):
+        read_grid_impact_snapshot("NODE", path)
+
+
+def test_rehashing_both_annual_and_observed_carbon_cannot_hide_a_changed_total(tmp_path):
+    path = snapshot(tmp_path / "result.json", carbon_shift=shift(), shift_coverage=coverage(8784))
+    def change_both(result):
+        for suffix in ("_in_observed_hours", "_per_year"):
+            result["carbon_shifted_tonnes" + suffix]["value"] = 123.
+    rewrite_snapshot(path, change_both)
+    with pytest.raises(ValueError, match="evidence derivation"):
+        read_grid_impact_snapshot("NODE", path)
+
+
+def test_unknown_carbon_cannot_be_rehashed_into_a_known_zero(tmp_path):
+    path = snapshot(tmp_path / "result.json", carbon_shift=shift(makeup_intensity=None), shift_coverage=coverage())
+    rewrite_snapshot(path, lambda result: result["carbon_shifted_tonnes_in_observed_hours"].update(value=0.))
+    with pytest.raises(ValueError, match="evidence derivation"):
+        read_grid_impact_snapshot("NODE", path)
+
+
+def test_annual_carbon_derivation_must_retain_its_actual_observed_input(tmp_path):
+    path = snapshot(tmp_path / "result.json", carbon_shift=shift(), shift_coverage=coverage())
+    def change_annual_input(result):
+        annual = result["carbon_shifted_tonnes_per_year"]
+        old_key = annual["ref"][len(EVIDENCE_PREFIX):]
+        derivation = result["evidence"].pop(old_key)
+        observed = result["carbon_shifted_tonnes_in_observed_hours"]
+        next(item for item in derivation["inputs"] if item == observed)["value"] = 123.
+        key = hashlib.sha256(json.dumps(derivation, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+        result["evidence"][key] = derivation
+        annual["ref"] = EVIDENCE_PREFIX + key
+    rewrite_snapshot(path, change_annual_input)
+    with pytest.raises(ValueError, match="evidence derivation"):
+        read_grid_impact_snapshot("NODE", path)
+
+
+@pytest.mark.parametrize("field,input_change", [
+    ("carbon_absorbed_tonnes_in_observed_hours", {"value": 1.}),
+    ("carbon_shifted_tonnes_in_observed_hours", {"unit": "MWh"}),
+])
+def test_carbon_conversion_ref_must_identify_its_correct_quantity(tmp_path, field, input_change):
+    path = snapshot(tmp_path / "result.json", wind_summary=wind(), carbon_shift=shift(), shift_coverage=coverage())
+    def change_conversion(result):
+        original = result["evidence"][result[field]["ref"][len(EVIDENCE_PREFIX):]]
+        derivation = deepcopy(original)
+        derivation["inputs"][0].update(input_change)
+        key = hashlib.sha256(json.dumps(derivation, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+        result["evidence"][key] = derivation
+        result[field]["ref"] = EVIDENCE_PREFIX + key
+        # The unchanged annual derivation still references the original node.
+    rewrite_snapshot(path, change_conversion)
+    with pytest.raises(ValueError, match="evidence derivation"):
+        read_grid_impact_snapshot("NODE", path)
+
+
+def test_new_opaque_shift_inputs_have_a_named_sourced_kg_total(tmp_path):
+    path = snapshot(tmp_path / "result.json", carbon_shift=opaque_shift(), shift_coverage=coverage())
+    result = read_grid_impact_snapshot("NODE", path)
+    conversion = result["evidence"][result["carbon_shifted_tonnes_in_observed_hours"]["ref"][len(EVIDENCE_PREFIX):]]
+    assert len(conversion["inputs"]) == 1
+    kilograms = conversion["inputs"][0]
+    assert kilograms == {"quantity": "carbon_shifted_kg_co2", "unit": "kg CO2", "value": -2000.,
+                         "source_type": "assumption", "ref": kilograms["ref"]}
+    assert "synthetic opaque supplied record" in evidence_text(result)
+    assert_complete_evidence_graph(result)
+    rewrite_snapshot(path, lambda value: value["carbon_shifted_tonnes_in_observed_hours"].update(value=.01))
+    with pytest.raises(ValueError, match="evidence derivation"):
+        read_grid_impact_snapshot("NODE", path)
+
+
+@pytest.mark.parametrize("raw", [shift(), shift(makeup_intensity=None), shift(energy=0.),
+                                 shift(risk_intensity=300., makeup_intensity=100.), opaque_shift()])
+def test_existing_legacy_shift_derivations_remain_readable(tmp_path, raw):
+    path = legacy_shift_snapshot(tmp_path / "legacy.json", raw)
+    result = read_grid_impact_snapshot("NODE", path)
+    kilograms = raw["carbon_shifted_kg_co2"]["value"]
+    assert result["carbon_shifted_tonnes_in_observed_hours"]["value"] == (None if kilograms is None else kilograms / 1000)
+    assert result["carbon_shifted_tonnes_per_year"]["value"] is None
+    assert_complete_evidence_graph(result)
+
+
+def test_known_legacy_shift_derivation_rejects_a_rehashed_changed_value(tmp_path):
+    path = legacy_shift_snapshot(tmp_path / "legacy.json", shift())
+    rewrite_snapshot(path, lambda result: result["carbon_shifted_tonnes_in_observed_hours"].update(value=123.))
+    with pytest.raises(ValueError, match="evidence derivation"):
+        read_grid_impact_snapshot("NODE", path)
+
+
+def test_legacy_carbon_pair_sum_preserves_multiple_distinct_equal_values(tmp_path):
+    path = legacy_shift_snapshot(tmp_path / "legacy.json", scheduled_pairs(3), period=coverage(72))
+    result = read_grid_impact_snapshot("NODE", path)
+    assert result["carbon_shifted_tonnes_in_observed_hours"]["value"] == -6.
+
+
+def test_legacy_carbon_total_retains_accepted_one_step_roundoff(tmp_path):
+    raw = shift(energy=.1)
+    raw["carbon_shifted_kg_co2"]["value"] = math.nextafter(raw["carbon_shifted_kg_co2"]["value"], math.inf)
+    path = legacy_shift_snapshot(tmp_path / "legacy.json", raw)
+    result = read_grid_impact_snapshot("NODE", path)
+    assert result["carbon_shifted_tonnes_in_observed_hours"]["value"] == -.02
+
+
+def test_carbon_derivation_guard_does_not_run_on_validated_cache_hits(tmp_path):
+    path = snapshot(tmp_path / "result.json", carbon_shift=shift(), shift_coverage=coverage())
+    memo = GridImpactSnapshotCache()
+    result = read_grid_impact_snapshot("NODE", path, cache=memo)
+    with patch("api.grid_impact._validate_carbon_snapshot_derivations", side_effect=AssertionError("already validated")):
+        assert read_grid_impact_snapshot("NODE", path, cache=memo) == result
+
+
 @pytest.mark.parametrize("inputs", [
     {}, {"wind_summary": wind()}, {"wind_summary": wind(price=float("nan"))},
     {"carbon_shift": shift(), "shift_coverage": coverage(8784)},

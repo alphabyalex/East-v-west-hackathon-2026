@@ -187,6 +187,38 @@ def test_monthly_reader_retains_duplicates_and_conflicts_for_shared_normalizer(t
     assert pd.isna(pd.read_parquet(output_path).load_mw.iloc[0])
 
 
+@pytest.mark.parametrize("component, expected_total", [(-5., 155.), (-160., 0.), (-200., None)])
+def test_monthly_reader_preserves_signed_components_and_shared_system_total_validation(
+    tmp_path, monkeypatch, component, expected_total,
+):
+    rows = load_rows(1)
+    rows["CSWS"] = component
+    load_cache(tmp_path, monkeypatch, replace_month=1, replacement=rows)
+    frame, _ = wind.read_cached_monthly_load()
+    assert frame.CSWS.iloc[0] == component
+    assert frame.loc[0, [name for name in LOAD_AREAS if name != "CSWS"]].eq(10.).all()
+    raw_path, output_path = tmp_path / "raw.parquet", tmp_path / "normalized.parquet"
+    frame.to_parquet(raw_path, index=False)
+    if expected_total is None:
+        with pytest.raises(ValueError, match="load_mw cannot be negative"):
+            normalize_legacy_load(raw_path, output_path)
+    else:
+        normalize_legacy_load(raw_path, output_path)
+        normalized = pd.read_parquet(output_path)
+        assert normalized.load_mw.iloc[0] == expected_total
+        assert normalized.load_mw.dropna().iloc[1:].eq(170.).all()
+
+
+@pytest.mark.parametrize("value", [True, False])
+def test_monthly_reader_rejects_boolean_components_even_alongside_missing_values(tmp_path, monkeypatch, value):
+    rows = pd.concat([load_rows(1), load_rows(1)], ignore_index=True)
+    rows.loc[1, "MarketHour"] = "01/01/2025 08:00:00"
+    rows["CSWS"] = pd.Series([value, None], dtype=object)
+    load_cache(tmp_path, monkeypatch, replace_month=1, replacement=rows)
+    with pytest.raises(ValueError, match="Monthly load components cannot be boolean"):
+        wind.read_cached_monthly_load()
+
+
 @pytest.mark.parametrize("month", [1, 7, 12])
 def test_missing_month_is_not_fetched_or_silently_ignored(tmp_path, monkeypatch, month):
     load_cache(tmp_path, monkeypatch, missing_month=month)
@@ -194,7 +226,7 @@ def test_missing_month_is_not_fetched_or_silently_ignored(tmp_path, monkeypatch,
         wind.read_cached_monthly_load()
 
 
-@pytest.mark.parametrize("change", ["missing_area", "extra_area", "duplicate_header", "blank_header", "empty", "wrong_month", "numeric_time", "fractional_hour", "infinite", "negative", "boolean"])
+@pytest.mark.parametrize("change", ["missing_area", "extra_area", "duplicate_header", "blank_header", "empty", "wrong_month", "numeric_time", "fractional_hour", "infinite", "negative_infinite", "boolean", "boolean_false", "corrupt_string"])
 def test_invalid_monthly_schema_and_observations_are_rejected(tmp_path, monkeypatch, change):
     rows = load_rows(1)
     if change == "missing_area":
@@ -214,7 +246,8 @@ def test_invalid_monthly_schema_and_observations_are_rejected(tmp_path, monkeypa
     elif change == "fractional_hour":
         rows.loc[0, "MarketHour"] = "2025-01-01T07:30:00Z"
     else:
-        rows["CSWS"] = {"infinite": np.inf, "negative": -1., "boolean": True}[change]
+        rows["CSWS"] = {"infinite": np.inf, "negative_infinite": -np.inf, "boolean": True,
+                        "boolean_false": False, "corrupt_string": "not-a-load"}[change]
     load_cache(tmp_path, monkeypatch, replace_month=1, replacement=rows)
     with pytest.raises(ValueError):
         wind.read_cached_monthly_load()

@@ -58,6 +58,11 @@ then reuses validation for the same path/content digest and returns a deep copy.
 Snapshot envelope: {snapshot_version:'grid-impact-snapshot-v1', location_id,
 result_sha256, result:<the unchanged grid-impact-v1 result including all evidence>}.
 Checksums establish integrity, not the authenticity of the underlying observations.
+Cold reads also check carbon scalars against named kilogram totals or exact known
+producer derivations. Legacy shift snapshots with only opaque, untyped references
+remain readable, but their scalar arithmetic cannot be verified from those refs;
+recompile them to retain an explicit sourced kilogram total. No units are guessed
+from an arbitrary citation or from the magnitude of a number.
 
 For request-specific wind capacity, use read_wind_scenario(location_id, path,
 flexible_load_mw=<sourced datum>, available_fraction=<sourced datum>, cache=...).
@@ -67,6 +72,18 @@ and scenario_inputs. It never scales or carries forward a stored carbon-shift
 schedule. Legacy snapshots remain readable as fixed scenarios, but cannot be used
 by this recomputation helper. Neither site_exposure nor interruptibility itself
 establishes available upward capacity; the caller must state that assumption.
+
+Offline handoff commands (run from the repository root):
+  python -m api.grid_impact compile --input prepared.json --location-id EXACT_ID --output new.snapshot.json
+  python -m api.grid_impact check --snapshot received.snapshot.json --location-id EXACT_ID
+The input is the grid-impact-inputs-v1 envelope above, with all source objects.
+These commands reject missing files/locations instead of publishing a fallback.
+Valid unavailable observations and partial-year nulls remain valid. Compilation
+refuses existing destinations; checking performs no writes or recomputation.
+Neither command fetches, trains, or changes the canonical estimate endpoint.
+Runtime artifacts are ignored by git: transfer reviewed snapshots or their full
+prepared envelopes separately, and compare sender-provided file hashes. Passing
+check establishes structural integrity, not authenticity or complete coverage.
 """
 from __future__ import annotations
 
@@ -339,7 +356,10 @@ def _shift_total(evidence, raw, coverage):
     expected = None if None in values else _sum_quantities(values)
     if (expected is None) != (total["value"] is None) or expected is not None and not _same_quantity(expected, total["value"]):
         raise ValueError("Shift carbon total disagrees with its pairs or hides unknown intensities")
-    return evidence.derive(None if expected is None else expected / 1000, origins, "signed kilograms CO2 / 1000 = tonnes CO2; explicit conserved-energy pairs")
+    checked_total = evidence.derive(expected, origins, "validated signed sum of explicit pair kilograms CO2")
+    return evidence.derive(None if expected is None else expected / 1000,
+                           [{**checked_total, "quantity": "carbon_shifted_kg_co2", "unit": "kg CO2"}],
+                           "signed kilograms CO2 / 1000 = tonnes CO2; explicit conserved-energy pairs")
 
 
 def _empty_result(location_id, evidence, reason=None):
@@ -457,14 +477,9 @@ def _nonfinite_constant(value):
     raise ValueError(f"Nonfinite JSON constant: {value}")
 
 
-def get_location_grid_impact(location_id, path=DEFAULT_PATH):
-    """Read one location from the documented offline cache; missing is unavailable."""
-    location_id = _location(location_id)
-    path = Path(path)
-    try:
-        content = path.read_text(encoding="utf-8")
-    except FileNotFoundError:
-        return compose_grid_impact(location_id, unavailable_reason=f"missing precomputed grid-impact file: {path}")
+def _read_grid_impact_inputs(location_id, path):
+    """Select an explicit prepared record; missing file raises, absent ID is None."""
+    content = Path(path).read_text(encoding="utf-8")
     cache = json.loads(content, object_pairs_hook=_unique_object, parse_constant=_nonfinite_constant)
     if not isinstance(cache, dict) or set(cache) != {"schema_version", "locations"} or cache["schema_version"] != "grid-impact-inputs-v1" or not isinstance(cache["locations"], list):
         raise ValueError("Expected grid-impact-inputs-v1 cache with a locations list")
@@ -479,6 +494,17 @@ def get_location_grid_impact(location_id, path=DEFAULT_PATH):
         seen.add(key)
         if key == location_id:
             found = row
+    return found
+
+
+def get_location_grid_impact(location_id, path=DEFAULT_PATH):
+    """Read one location from the documented offline cache; missing is unavailable."""
+    location_id = _location(location_id)
+    path = Path(path)
+    try:
+        found = _read_grid_impact_inputs(location_id, path)
+    except FileNotFoundError:
+        return compose_grid_impact(location_id, unavailable_reason=f"missing precomputed grid-impact file: {path}")
     if found is not None:
         try:
             return compose_grid_impact(**found)
@@ -496,6 +522,86 @@ def _canonical_bytes(value):
 
 def _digest(value):
     return hashlib.sha256(_canonical_bytes(value)).hexdigest()
+
+
+def _validate_carbon_snapshot_derivations(result):
+    """Check recorded arithmetic after DAG validation, never authenticate sources.
+
+    Named totals cover newly composed shifts even when their original citations
+    are opaque. Legacy nodes can identify kg only through the exact producer
+    aggregate method; untyped opaque legacy inputs cannot establish their roles.
+    This runs only during initial snapshot validation, never on a cache hit.
+    """
+    evidence = result["evidence"]
+    unavailable = "unavailable; no numeric substitute"
+
+    def node(datum):
+        return evidence[datum["ref"][len(EVIDENCE_PREFIX):]]
+
+    def disagreement():
+        raise ValueError("Snapshot carbon scalar disagrees with its evidence derivation")
+
+    def check_value(actual, expected):
+        if ((actual is None) != (expected is None)
+                or expected is not None and not _same_quantity(actual, expected)):
+            disagreement()
+
+    def sourced_inputs(derivation):
+        inputs = derivation.get("inputs")
+        if not isinstance(inputs, list) or not all(isinstance(item, dict) for item in inputs):
+            disagreement()
+        return inputs
+
+    for stem, coverage_name in (("carbon_absorbed_tonnes", "wind"), ("carbon_shifted_tonnes", "shift")):
+        observed, annual = (result[stem + suffix] for suffix in ("_in_observed_hours", "_per_year"))
+        derivation = node(observed)
+        inputs = sourced_inputs(derivation)
+        if derivation["method"] == unavailable:
+            check_value(observed["value"], None)
+        elif coverage_name == "wind":
+            if (derivation["method"] != "associated wind direct operational kilograms CO2 / 1000 = tonnes CO2"
+                    or len(inputs) != 1 or "value" not in inputs[0]):
+                disagreement()
+            kilograms = inputs[0]["value"]
+            check_value(observed["value"], None if kilograms is None else kilograms / 1000)
+        else:
+            if derivation["method"] != "signed kilograms CO2 / 1000 = tonnes CO2; explicit conserved-energy pairs":
+                disagreement()
+            if any({"quantity", "unit"}.intersection(item) for item in inputs):
+                if (len(inputs) != 1 or inputs[0].get("quantity") != "carbon_shifted_kg_co2"
+                        or inputs[0].get("unit") != "kg CO2" or "value" not in inputs[0]
+                        or node(inputs[0])["method"] != "validated signed sum of explicit pair kilograms CO2"):
+                    disagreement()
+                kilograms = inputs[0]["value"]
+                check_value(observed["value"], None if kilograms is None else kilograms / 1000)
+            else:
+                totals = [item for item in inputs if item.get("ref", "").startswith(EVIDENCE_PREFIX)
+                          and node(item)["method"] == "signed sum across all explicit shift pairs; not a causal emissions reduction estimate"]
+                if totals:
+                    if len(totals) != 1 or "value" not in totals[0]:
+                        disagreement()
+                    # The aggregate also carries nonnumeric selection-policy
+                    # sources; its numeric inputs are the submitted pair totals.
+                    pairs = [item for item in sourced_inputs(node(totals[0])) if "value" in item]
+                    if not pairs:
+                        disagreement()
+                    values = [item["value"] for item in pairs]
+                    kilograms = None if None in values else _sum_quantities(values)
+                    check_value(totals[0]["value"], kilograms)
+                    check_value(observed["value"], None if kilograms is None else kilograms / 1000)
+                # Opaque legacy refs do not identify kg versus MWh. Preserve
+                # readability without pretending that numeric matching proves units.
+
+        derivation = node(annual)
+        inputs = sourced_inputs(derivation)
+        if derivation["method"] == unavailable:
+            check_value(annual["value"], None)
+        elif derivation["method"] == "same complete observed UTC calendar-year total; no extrapolation":
+            check_value(annual["value"], observed["value"])
+        else:
+            disagreement()
+        if result["coverage"][coverage_name]["status"] != "unavailable" and observed not in inputs:
+            disagreement()
 
 
 def _validate_snapshot_result(result, location_id):
@@ -612,6 +718,7 @@ def _validate_snapshot_result(result, location_id):
     walk({key: value for key, value in result.items() if key != "evidence"})
     if set(visited) != set(evidence):
         raise ValueError("Snapshot contains unreachable evidence nodes")
+    _validate_carbon_snapshot_derivations(result)
 
 
 def compile_grid_impact_snapshot(location_id, path, *, wind_summary=None, carbon_shift=None, shift_coverage=None):
@@ -680,20 +787,25 @@ class GridImpactSnapshotCache:
             self._bytes += size
 
 
-def read_grid_impact_snapshot(location_id, path, *, cache=None):
+def read_grid_impact_snapshot(location_id, path, *, cache=None, required=False):
     """Read only one precompiled location; never invoke composition or a model.
 
-    Missing files return sourced unavailable values. A present file identifying a
+    Missing files return sourced unavailable values, unless required=True, which
+    raises FileNotFoundError for offline verification. A present file identifying a
     different location is an error. Any changed content, even at unchanged size
     and timestamps, is revalidated. The checksum is integrity, not a signature.
     """
     location_id = _location(location_id)
+    if not isinstance(required, bool):
+        raise ValueError("required must be boolean")
     if cache is not None and not isinstance(cache, GridImpactSnapshotCache):
         raise ValueError("cache must be a GridImpactSnapshotCache")
     path = Path(path)
     try:
         content = path.read_bytes()
     except FileNotFoundError:
+        if required:
+            raise
         evidence = _Evidence()
         return evidence.finish(_empty_result(location_id, evidence, f"missing precompiled grid-impact snapshot: {path}"))
     key = (str(path.resolve()), hashlib.sha256(content).hexdigest())
@@ -779,3 +891,40 @@ def read_wind_scenario(location_id, path, *, flexible_load_mw, available_fractio
     result["carbon_absorbed_tonnes_in_observed_hours"] = operational
     result["carbon_absorbed_tonnes_per_year"] = _annual(evidence, operational, result["coverage"]["wind"])
     return evidence.finish(result)
+
+
+def main(argv=None):
+    """Compile or verify explicit local artifacts; no missing-data fallback."""
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Offline grid-impact snapshot compilation and validation; no fetching or training.")
+    actions = parser.add_subparsers(dest="action", required=True)
+    compile_action = actions.add_parser("compile", help="Publish one immutable snapshot from prepared grid-impact-inputs-v1 JSON")
+    compile_action.add_argument("--input", type=Path, required=True)
+    compile_action.add_argument("--location-id", required=True)
+    compile_action.add_argument("--output", type=Path, required=True)
+    check_action = actions.add_parser("check", help="Validate an existing snapshot without recomputing or writing")
+    check_action.add_argument("--snapshot", type=Path, required=True)
+    check_action.add_argument("--location-id", required=True)
+    args = parser.parse_args(argv)
+    try:
+        location_id = _location(args.location_id)
+        if args.action == "compile":
+            row = _read_grid_impact_inputs(location_id, args.input)
+            if row is None:
+                raise ValueError(f"Location {location_id} is absent from prepared input: {args.input}")
+            path = compile_grid_impact_snapshot(path=args.output, **row)
+        else:
+            path = args.snapshot
+        result = read_grid_impact_snapshot(location_id, path, required=True)
+    except (OSError, ValueError, KeyError, TypeError, OverflowError, RecursionError) as error:
+        parser.error(str(error))
+    print(json.dumps({"status": "compiled" if args.action == "compile" else "validated",
+                      "location_id": location_id, "snapshot": str(path),
+                      "schema_version": result["schema_version"], "result_sha256": _digest(result)},
+                     sort_keys=True, allow_nan=False))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
