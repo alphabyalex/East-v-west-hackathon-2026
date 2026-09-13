@@ -179,7 +179,13 @@ export interface EstimateClientOptions {
   fetchImpl?: typeof fetch
 }
 
-/** Opt-in only: importing this module never contacts the API. */
+/** An empty override supports same-origin hosting; local development needs no proxy. */
+export function apiUrl(path: string): string {
+  const base = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000'
+  return `${base.replace(/\/+$/, '')}${path}`
+}
+
+/** Importing this module never contacts the API. */
 export async function postEstimate(
   request: EstimateRequest,
   { signal, fetchImpl = globalThis.fetch }: EstimateClientOptions = {},
@@ -193,7 +199,7 @@ export async function postEstimate(
     flexibility_split: request.flexibility_split,
     site_exposure: request.site_exposure,
   }
-  const response = await fetchImpl('/api/estimate', {
+  const response = await fetchImpl(apiUrl('/api/estimate'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify(submitted),

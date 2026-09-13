@@ -5,22 +5,43 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 
-from .estimate import ArithmeticRangeError, build_estimate
-from .mock_provider import LocationNotFoundError, LocationProvider, get_mock_location
+from .economics import ArithmeticRangeError, AssumptionsError, EconomicsAssumptions, load_assumptions
+from .estimate import build_estimate
+from .mock_provider import LocationNotFoundError, LocationProvider
+from .pipeline_provider import PipelineDataError, get_pipeline_location
 from .schemas import EstimateRequest, EstimateResponse
 
 
 app = FastAPI(
-    title="Headroom estimate API",
-    description="Deterministic mock data only. Site exposure is a user assumption.",
-    version="0.1.0",
+    title="Fluxline estimate API",
+    description="Precomputed pipeline estimates with explicit placeholder fallback. Site exposure is a user assumption.",
+    version="0.2.0",
+)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://127.0.0.1:5174"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
+    expose_headers=["X-Headroom-Exposure-Source"],
 )
 
 
 def get_location_provider() -> LocationProvider:
-    """Replace this dependency with a cached pipeline/parquet adapter when ready."""
-    return get_mock_location
+    """Try the precomputed reader, falling back only for missing pipeline pieces."""
+    return get_pipeline_location
+
+
+@app.get("/api/economics-assumptions", response_model=EconomicsAssumptions)
+def economics_assumptions(response: Response) -> EconomicsAssumptions:
+    """Expose the exact file-backed defaults/provenance used by estimate arithmetic."""
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        return load_assumptions()
+    except AssumptionsError as error:
+        raise HTTPException(status_code=503, detail="Economic assumptions are missing or invalid; check docs/ASSUMPTIONS.md") from error
 
 
 @app.exception_handler(RequestValidationError)
@@ -43,8 +64,16 @@ def estimate(
 ) -> EstimateResponse:
     response.headers["Cache-Control"] = "no-store"
     try:
-        return build_estimate(request, provider)
+        result = build_estimate(request, provider)
+        response.headers["X-Headroom-Exposure-Source"] = (
+            "placeholder" if result.modeled_exposure.source.ref.startswith("mock://") else "pipeline"
+        )
+        return result
     except LocationNotFoundError as error:
         raise HTTPException(status_code=404, detail="Location is not in the supplied SPP estimate set") from error
     except ArithmeticRangeError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
+    except PipelineDataError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    except AssumptionsError as error:
+        raise HTTPException(status_code=503, detail="Economic assumptions are missing or invalid; check docs/ASSUMPTIONS.md") from error

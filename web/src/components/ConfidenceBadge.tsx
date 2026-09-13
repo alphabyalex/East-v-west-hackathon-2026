@@ -1,5 +1,8 @@
 import type { Source, SourcedValue } from '../model'
 import { Sourced } from './Sourced'
+import { useRef } from 'react'
+import { useChangeMotion } from '../hooks/useChangeMotion'
+import { isMockSource } from './MockLabel'
 
 export interface ConfidenceEstimate {
   level: 'High' | 'Medium' | 'Low'
@@ -15,7 +18,9 @@ export interface ConfidenceBadgeProps {
 
 /** The supplied model level is shown verbatim; the UI assigns no score thresholds. */
 export function ConfidenceBadge({ confidence, compact = false }: ConfidenceBadgeProps) {
-  const mocked = /^mock:/i.test(confidence.source.ref) || /^mock:/i.test(confidence.score.ref)
+  const mocked = isMockSource(confidence.source) || isMockSource(confidence.score)
+  const levelRef = useRef<HTMLSpanElement>(null)
+  useChangeMotion(levelRef, confidence.level)
   const label = `${mocked ? 'Mock estimate' : 'Estimate'} confidence: ${confidence.level}. Signal score`
   const description = [
     mocked
@@ -35,8 +40,8 @@ export function ConfidenceBadge({ confidence, compact = false }: ConfidenceBadge
       className={`confidence-badge${compact ? ' confidence-compact' : ''}`}
       animate={false}
     >
-      <span>{compact ? confidence.level : `Confidence: ${confidence.level}`}</span>
-      {mocked && <span className="confidence-mock">MOCK</span>}
+      <span ref={levelRef}>{compact ? confidence.level : `Confidence: ${confidence.level}`}</span>
+      {mocked && <span className="confidence-mock mock-label">Mock</span>}
     </Sourced>
   )
 }

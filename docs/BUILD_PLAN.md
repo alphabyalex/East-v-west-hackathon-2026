@@ -41,12 +41,12 @@ offset into the contract term). Columns:
 
 | column | type | meaning |
 |---|---|---|
-| `location_id` | string | SPP pricing node / hub identifier |
+| `location_id` | string | SPP coverage identifier; `SPP_SYSTEM` is a system aggregate, not a pricing node or site |
 | `year_offset` | int | 1..7, year into the contract term |
 | `p50_hours` | float | median modeled exposure hours that year |
 | `p90_hours` | float | 90th percentile |
 | `p99_hours` | float | 99th percentile |
-| `worst_contiguous_hours` | float | longest single modeled outage that year |
+| `worst_contiguous_hours` | float | current simulator: p99 of annual longest modeled episodes, not a guaranteed maximum |
 | `confidence_level` | string | "High" \| "Medium" \| "Low" |
 | `confidence_score` | float | 0.0-1.0, ensemble agreement (+ data density if built) |
 | `n_similar_historical_hours` | int | precedent count backing the confidence score |
@@ -73,6 +73,27 @@ def get_location_estimate(location_id: str) -> dict:
     Raises LocationNotFoundError if location_id isn't in the precomputed set.
     """
 ```
+
+**Integrated artifact handoff (2026-09-12):** Kristian's current reader additionally
+accepts an optional keyword-only `path`; the API supplies its canonical parquet path.
+Offline workflow output stays in `--run-dir` until publication. Publish the matching
+`model_card.json` and `simulation_metadata.json` beside
+`data/processed/exposure_by_location.parquet`. The API checks model version, explicit
+SPP data/label policy, input hashes, unscaled output, simulation settings, and
+confidence consistency before assigning model provenance. Missing companions yield
+explicit assumption placeholders; invalid or mismatched artifacts yield 503.
+
+The current experimental simulator caps annual confidence at **Low**; its score
+describes classifier agreement, not annual-tail validation. The API's
+`worst_contiguous_outage_hours` is the maximum annual episode-p99 statistic over the
+requested term, multiplied by the user's site factor, not an observed or guaranteed
+outage duration. These limitations travel in provenance. A system aggregate is
+never copied under a site/node identifier.
+
+Current integration attempt fetched and normalized real 2024 SPP load, but training
+is blocked by missing `event_active` evidence and the intentionally empty policy
+`label_ref`. No production exposure parquet exists; load alone does not establish
+exposure. See `docs/FROM_CODEX.md` for the exact command results.
 
 **`data/tariffs/tariffs.json`** (from `/extract`, Claude's) — per-operator extracted
 tariff terms with citations. Alex's API reads this for the `tariff` block in section 2.
@@ -165,6 +186,36 @@ that file for the numbers, not hardcode invented ones** — and while it doesn't
 yet, use round, obviously-fake placeholders (per `docs/DATA_NEEDED.md`'s "develop
 against dummy values" note) rather than a precise-looking fake number.
 
+The integrated API reads the single marked `headroom:economics-assumptions:v1`
+JSON block in that document. `GET /api/economics-assumptions` returns that exact
+validated block so the frontend can display the same defaults and provenance:
+
+```text
+{
+  schema_version: 1,
+  status: "placeholder" | "mixed" | "sourced",
+  gpu_rental_price_usd_per_hour: AssumptionValue,
+  industrial_electricity_price_usd_per_mwh: AssumptionValue,
+  gpus_per_mw: AssumptionValue,
+  early_connection_years: AssumptionValue,
+  early_margin_usd_per_mw_year: AssumptionValue,
+  close_call_fraction: AssumptionValue
+}
+AssumptionValue = {
+  value: number, source_type: "data" | "assumption", ref: string,
+  unit: string, source_url: string | null, retrieved_on: string | null,
+  low: number, high: number
+}
+```
+
+This additive read-only endpoint does not change section 2's five-field POST
+request or response. CORS allows direct `GET`/`POST` from `http://127.0.0.1:5174`.
+The frontend validates both responses; local economic overrides remain local.
+The current economics status is `mixed`: $317,000/MW-year is Tharun's explicitly
+unverified 3% operating-margin assumption applied to scenario gross revenue,
+not sourced net profit. Interruption cost uses gross rental value; electricity
+is informational. Keep the remaining placeholder references and labels intact.
+
 ---
 
 ## 4. Deadlines by checkpoint (submission every 12 hours — miss it, that block is zero)
@@ -197,6 +248,14 @@ that shows up too late for anyone else to use.
 ---
 
 ## 5. Definition of "wired in correctly"
+
+The CP4 results-view break-even sensitivity chart derives one-at-a-time comparisons
+from section 2's economics without extending its JSON contract. GPU rental price,
+flexibility split and site exposure are computed; electricity and utilization are
+explicitly **not modeled**, per Alex's direction to keep the existing formulas.
+See [the sensitivity policy](ASSUMPTIONS.md#sensitivity-policy) for ranges/accounting
+and [the frontend handoff](frontend-api-contract.md#break-even-sensitivity-handoff)
+for the sourced scenario-export shape. This does not change either deadline above.
 
 - `/web` never talks to `/pipeline` directly — always through `/api`
 - `/api` never runs a model or fetches external data live — only reads precomputed

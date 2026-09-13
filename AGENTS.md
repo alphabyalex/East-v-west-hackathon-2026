@@ -154,13 +154,80 @@ This has to look like professional financial/trading software, not a hackathon d
 and not a generic AI app. Judges will see a hundred purple-gradient chatbot UIs this
 weekend. Ours needs to look like it belongs on a trading desk.
 
-**Reference bar — study these, don't imitate any one exactly:** Coinbase Institutional
-/ Coinbase Prime, Jane Street's site, Optiver's site, Millennium's site, Palantir's
-product UI (Foundry/Gotham marketing pages and product screenshots). What they share:
-restraint, real information density, confident whitespace used structurally (not
-decoratively), typography as the main design tool, muted/near-monochrome palettes
-with one precise accent color used sparingly, and zero decoration that isn't load-
-bearing. Nothing about them is trying to look "friendly." It's trying to look correct.
+**Reference bar, updated — two families, blended:** Coinbase Institutional/Prime,
+Jane Street, Optiver, Millennium, and Palantir's product UI still govern density,
+honesty, and restraint. Add **Coinbase's main consumer app and Robinhood** for
+polish and confidence: bold hero numbers with real scale contrast (the headline
+figure is dramatically bigger than supporting text, not everything one size),
+buttery-smooth eased transitions when values change (slider drag, recompute — think
+Robinhood's chart animations, not an instant snap), a more considered color rhythm,
+and generous-but-purposeful spacing between sections. The first pass over-indexed on
+severe/dense and read as unfinished rather than serious. Borrow the institutional
+side's rigor (real data density, honesty labeling, no fake friendliness) and the
+consumer side's craft (motion, hierarchy, confident typographic scale) — not either
+one alone. Nothing about it should look "friendly" in tone, but it should feel
+polished and deliberate rather than cold and unfinished.
+
+**Honesty labeling — be quiet about it, not loud.** The per-value provenance system
+(the small clickable source tags) is core and never gets removed or watered down —
+it's the actual product differentiator. But large persistent top-of-screen badges
+("ILLUSTRATIVE DATA" pills, big "MOCK ECONOMICS" banners) read as an unfinished
+prototype to a judge glancing at the screen, even though the underlying honesty is
+correct. Fix the presentation, not the truth:
+- Genuinely fake/placeholder data (economics, confidence, tariff citations right now)
+  stays clearly marked, but as a smaller, integrated label near the affected numbers
+  rather than a shouting banner — and the real fix is landing Kristian's real pipeline
+  data and sourced `docs/ASSUMPTIONS.md` numbers so these labels legitimately go away
+  because the data earned it, not because we hid something. Do not remove a
+  mock/assumption label from data that is still actually fake.
+- Permanent, accurate caveats that are core to the pitch — `site_exposure` being a
+  user-set assumption, a location having no site-specific grid data — stay exactly as
+  prominent as they are now. These aren't bugs to hide, they're the honesty layer that
+  wins the hardest Q&A question. Don't confuse "this looks unfinished" with "this is
+  the whole point of the product."
+
+**Typography and color — concrete, not vibes.** The first pass used default-feeling
+type and no real palette, which read as generic regardless of layout discipline. Fix:
+
+*Type system (three fonts, each doing a distinct job — load via Google Fonts or a
+self-hosted equivalent, not a system-ui fallback):*
+- **Brand/headline serif: Fraunces.** Used sparingly — the product name, section
+  titles, maybe the decision readout. This is what gives the product a distinct
+  identity instead of reading as another Inter-everywhere SaaS tool. A serif brand
+  mark against an otherwise technical UI is a deliberate, specific choice — not
+  decoration.
+- **UI/body sans: IBM Plex Sans.** Labels, copy, controls. Chosen because it has real
+  institutional pedigree (IBM's own enterprise type system) and is specifically NOT
+  one of the handful of fonts every AI-generated site defaults to (Inter, Poppins,
+  Manrope, Space Grotesk-as-body). If Plex Sans is unavailable for some reason,
+  Söhne/Suisse-style alternatives are fine — just not Inter or Poppins as the primary.
+- **Data/numbers monospace: IBM Plex Mono** (or JetBrains Mono). Every number in a
+  table, chart axis, or metric tile uses this with real tabular alignment — this is
+  what makes dense numeric panels actually scannable, not just stylistically "terminal."
+
+*Color system (dark-first, one confident accent, not a rainbow):*
+- Background base: near-black charcoal, not pure `#000` (reads cheap) — around
+  `#0A0B0D`, with panels one step lighter (`#14161A`) separated by hairline borders
+  (`#262930`), never drop shadows.
+- Primary text: warm off-white, `#EDEBE6` — avoid stark pure-white on pure-black,
+  it's harsh at data density.
+- **Primary accent: a confident amber/gold** (`#D98E2B` range) — used ONLY for the
+  single most important thing on screen at any moment (the decision readout, the
+  slider handle, an active state). This is deliberately NOT blue or purple — it reads
+  as instrument/terminal (think analog gauges, Bloomberg-style amber-on-black) rather
+  than generic tech-startup blue.
+- **Secondary accent: a muted steel-teal** (`#5C8A86` range) — for a second data
+  series or a secondary interactive element only. Primary and secondary accents never
+  blend into a gradient between them — that recreates the exact thing that's banned.
+- Semantic states (worth it / not worth it / close call): muted, desaturated green
+  and brick-red, not neon traffic-light colors — `close call` uses the primary amber
+  accent itself rather than a third hue.
+
+This palette is a strong starting proposal, not scripture — refine the exact hex
+values once real data is on screen and you can see how it reads, but keep the
+structure (one warm accent, one cool secondary, muted semantics, three fonts each
+with a distinct job) rather than drifting back toward a generic single-sans, blue-
+accent system.
 
 **Ban list — these are the tells of an AI-generated frontend. None of them appear
 anywhere in this product:**

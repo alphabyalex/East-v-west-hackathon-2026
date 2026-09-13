@@ -17,6 +17,11 @@ LOCATION_SCALES = {
     "spp-wichita-demo": 1.0,
     "spp-oklahoma-city-demo": 1.12,
     "spp-lincoln-demo": 0.9,
+    # Canonical request example; support is placeholder-only, not node coverage.
+    "SPP_SPS_HUB": 1.0,
+    # Real input data is system-aggregate; these exposure values are still authored
+    # placeholders until the matching precomputed system estimate is published.
+    "SPP_SYSTEM": 1.0,
 }
 
 
@@ -52,7 +57,17 @@ def load_fixture() -> EstimateResponse:
     return EstimateResponse.model_validate(json.loads(FIXTURE_PATH.read_text(encoding="utf-8")))
 
 
-def get_mock_location(location_id: str) -> LocationEstimate:
+def placeholder_tariff() -> Tariff:
+    tariff = deepcopy(load_fixture().tariff)
+    for trigger in tariff.curtailment_triggers:
+        trigger.source = Source(
+            source_type="assumption",
+            ref="mock://placeholder/tariff; placeholder, tariff extraction not wired yet; no verified citation",
+        )
+    return tariff
+
+
+def get_mock_location(location_id: str, *, reason: str = "precomputed pipeline reader unavailable") -> LocationEstimate:
     try:
         scale = LOCATION_SCALES[location_id]
     except KeyError as error:
@@ -78,10 +93,13 @@ def get_mock_location(location_id: str) -> LocationEstimate:
             )
             for row in exposure.by_year
         ),
-        confidence=fixture.confidence.model_copy(deep=True),
+        confidence=fixture.confidence.model_copy(update={"source": Source(
+            source_type="assumption",
+            ref=f"mock://placeholder/confidence; placeholder, pipeline not wired yet; {reason}; not computed by an ensemble",
+        )}, deep=True),
         source=Source(
             source_type="assumption",
-            ref="mock://illustrative/api/estimate/modeled_exposure",
+            ref=f"mock://placeholder/exposure; placeholder, pipeline not wired yet; {reason}",
         ),
-        tariff=deepcopy(fixture.tariff),
+        tariff=placeholder_tariff(),
     )

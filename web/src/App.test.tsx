@@ -4,6 +4,7 @@ import { fireEvent, render, screen, cleanup, within } from '@testing-library/rea
 import { cloneElement, type ReactElement } from 'react';
 import App from './App';
 import { createMockEstimate } from './model';
+import { withEconomics } from './api/test-fixtures';
 
 // jsdom has no layout engine. Retain the real Recharts SVG/axes/tooltip components
 // while giving their responsive wrapper a deterministic layout for interaction tests.
@@ -20,6 +21,96 @@ beforeEach(() => vi.stubEnv('VITE_ESTIMATE_MODE', 'local'));
 afterEach(() => { cleanup(); vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
 describe('scenario workspace interactions', () => {
+  it('exports the current sourced sensitivity without extending the canonical API response', async () => {
+    let exported: Blob | undefined;
+    let release!: () => void;
+    const released = new Promise<void>(resolve => { release = resolve; });
+    vi.stubGlobal('URL', class extends URL {
+      static createObjectURL(blob: Blob) { exported = blob; return 'blob:scenario-test'; }
+      static revokeObjectURL() { release(); }
+    });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    try {
+      render(<App />);
+      fireEvent.change(screen.getByRole('slider', { name: 'Site exposure factor' }), { target: { value: '0' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Export scenario' }));
+      const json = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(reader.error);
+        reader.readAsText(exported!);
+      });
+      const payload = JSON.parse(json);
+      expect(payload.request.site_exposure).toBe(0);
+      expect(payload.response_origin).toBe('local_mock');
+      expect(payload.response).not.toHaveProperty('sensitivity');
+      expect(payload.sensitivity.rows.filter((row: { status: string }) => row.status === 'modeled')).toHaveLength(3);
+      const electricity = payload.sensitivity.rows.find((row: { key: string }) => row.key === 'electricity_price');
+      expect(electricity.low.snapshot).toBeNull();
+      expect(electricity.swing_usd).toBeNull();
+      expect(payload.sensitivity.baseline.net_value_usd.p50.value).toBe(payload.result.economics.net_value_usd.value);
+      expect(payload.sensitivity.source.ref).toMatch(/^mock:/);
+      await released; // Keep the URL stub until the export's delayed cleanup runs.
+    } finally { click.mockRestore(); }
+  });
+
+  it('keeps mock status near results and preserves the permanent site caveats', () => {
+    render(<App />);
+    expect(screen.queryByText('ILLUSTRATIVE DATA')).toBeNull();
+    expect(screen.queryByText('MOCK ECONOMICS')).toBeNull();
+    expect(screen.getAllByText('Mock exposure')).toHaveLength(3);
+    expect(screen.getByText('Mock economics')).toBeTruthy();
+    expect(screen.getByText('Mock decision')).toBeTruthy();
+    expect(screen.getByText('USER ASSUMPTION')).toBeTruthy();
+    expect(screen.getByText('System aggregate · no site-specific grid data')).toBeTruthy();
+    expect(screen.getByText('You set the mapping.')).toBeTruthy();
+  });
+
+  it('removes only earned mock labels when a mixed-source HTTP result arrives', async () => {
+    vi.stubEnv('VITE_ESTIMATE_MODE', 'api');
+    vi.stubGlobal('fetch', withEconomics(vi.fn().mockImplementation((_url, options) => {
+      const response = createMockEstimate(JSON.parse(options.body));
+      // Test-only supplied references: exposure can arrive before economics/evidence.
+      response.modeled_exposure.source = { source_type: 'model', ref: 'test-fixture://pipeline/exposure' };
+      response.confidence.source = { source_type: 'model', ref: 'test-fixture://pipeline/confidence' };
+      return Promise.resolve(new Response(JSON.stringify(response), { status: 200 }));
+    })));
+    render(<App />);
+    await screen.findByText(/API connected · current inputs synchronized/);
+    expect(screen.queryByText('Mock exposure')).toBeNull();
+    expect(screen.queryByText('Mock quantiles')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Mock estimate confidence/ })).toBeNull();
+    expect(screen.getByText('Mock economics')).toBeTruthy();
+    expect(screen.getByText('Mock decision')).toBeTruthy();
+    expect(screen.getByText('USER ASSUMPTION')).toBeTruthy();
+    expect(screen.getByText('System aggregate · no site-specific grid data')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Model & evidence' }));
+    expect(screen.getByText('Mock diagnostics · not computed.')).toBeTruthy();
+    expect(screen.getByText('Mock clause · not extracted')).toBeTruthy();
+    fireEvent.click(screen.getAllByRole('button', { name: /model provenance/ })[0]);
+    expect(JSON.parse(screen.getByRole('tooltip').querySelector('pre')!.textContent!).ref).toContain('test-fixture://pipeline/exposure');
+  });
+
+  it('retains the crossover mock label if exposure is still mock after sourced economics arrive', async () => {
+    vi.stubEnv('VITE_ESTIMATE_MODE', 'api');
+    vi.stubGlobal('fetch', withEconomics(vi.fn().mockImplementation((_url, options) => {
+      const response = createMockEstimate(JSON.parse(options.body));
+      response.economics.source = { source_type: 'data', ref: 'test-fixture://sourced-economics' };
+      return Promise.resolve(new Response(JSON.stringify(response), { status: 200 }));
+    })));
+    render(<App />);
+    await screen.findByText(/API connected · current inputs synchronized/);
+    expect(screen.queryByText('Mock economics')).toBeNull();
+    expect(screen.queryByText('Mock decision')).toBeNull();
+    expect(screen.getAllByText('Mock exposure')).toHaveLength(3);
+    const crossover = document.getElementById('exposure-explanation')!;
+    expect(within(crossover).getByText('Mock')).toBeTruthy();
+    fireEvent.click(within(crossover).getByRole('button'));
+    const source = JSON.parse(screen.getByRole('tooltip').querySelector('pre')!.textContent!);
+    expect(source.ref).toContain('test-fixture://sourced-economics');
+    expect(source.ref).toContain('exposure_baseline_source=mock://');
+  });
+
   it('opens the inline transparency panel and restores trigger focus on Escape', () => {
     render(<App />);
     const trigger = screen.getByRole('button', { name: 'Model & evidence' });
@@ -38,18 +129,18 @@ describe('scenario workspace interactions', () => {
   it('makes HTTP fallback, retry, and the economic override mode switch visible', async () => {
     vi.stubEnv('VITE_ESTIMATE_MODE', 'api');
     const fetcher = vi.fn().mockRejectedValueOnce(new TypeError('Failed to fetch')).mockImplementation((_url, options) => Promise.resolve(new Response(JSON.stringify(createMockEstimate(JSON.parse(options.body))), { status: 200 })));
-    vi.stubGlobal('fetch', fetcher);
+    vi.stubGlobal('fetch', withEconomics(fetcher));
     render(<App />);
     expect(screen.getByText(/current inputs shown as a local mock preview/)).toBeTruthy();
     fireEvent.click(await screen.findByRole('button', { name: 'Retry API' }));
-    expect(await screen.findByText(/API connected · server mock response/)).toBeTruthy();
+    expect(await screen.findByText(/API connected · current inputs synchronized/)).toBeTruthy();
     const gpuValue = screen.getByRole('spinbutton', { name: 'LOST COMPUTE VALUE' });
     fireEvent.change(gpuValue, { target: { value: '5' } });
     expect(screen.getByRole('button', { name: 'Local mock' }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByText(/Economic input changed/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Use API defaults' }));
-    expect((gpuValue as HTMLInputElement).value).toBe('2');
-    expect(await screen.findByText(/API connected · server mock response/)).toBeTruthy();
+    expect((gpuValue as HTMLInputElement).value).toBe('3');
+    expect(await screen.findByText(/API connected · current inputs synchronized/)).toBeTruthy();
   });
 
   it('starts with the fan chart without initializing a graphics context', () => {
@@ -63,7 +154,9 @@ describe('scenario workspace interactions', () => {
   it('falls back without WebGL and keeps the upper-tail source available after recomputation', async () => {
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: 'Surface' }));
-    expect(await screen.findByText(/Interactive surface unavailable on this device/)).toBeTruthy();
+    // The cold, lazy Three.js import can exceed RTL's one-second default when
+    // the complete real-Recharts suite runs concurrently; keep a bounded wait.
+    expect(await screen.findByText(/Interactive surface unavailable on this device/, {}, { timeout: 3500 })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Fan chart' }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByRole('group', { name: /Annual modeled exposure fan chart/ })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Inspect annual values' }));

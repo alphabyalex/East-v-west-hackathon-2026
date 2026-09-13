@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "status": "mixed",
+  "gpu_rental_price_usd_per_hour": {
+    "value": 3,
+    "source_type": "assumption",
+    "ref": "docs/ASSUMPTIONS.md#2-cost-of-interrupted-compute; Tharun 59cbdda; assumed H100 cross-provider rental-price default, not a site quote",
+    "unit": "USD/GPU-hour",
+    "source_url": "https://github.com/alphabyalex/East-v-west-hackathon-2026/blob/59cbdda/docs/ASSUMPTIONS.md#2-cost-of-interrupted-compute",
+    "retrieved_on": "2026-09-12",
+    "low": 1.49,
+    "high": 6.16
+  },
+  "industrial_electricity_price_usd_per_mwh": {
+    "value": 82.1,
+    "source_type": "assumption",
+    "ref": "docs/ASSUMPTIONS.md#2-cost-of-interrupted-compute; Tharun 59cbdda records EIA June 2026 Kansas industrial 8.21 cents/kWh x 10 = 82.1 USD/MWh; not independently verified; informational Kansas reference, not a site tariff",
+    "unit": "USD/MWh",
+    "source_url": "https://github.com/alphabyalex/East-v-west-hackathon-2026/blob/59cbdda/docs/ASSUMPTIONS.md#2-cost-of-interrupted-compute",
+    "retrieved_on": "2026-09-12",
+    "low": 76,
+    "high": 86
+  },
+  "gpus_per_mw": {
+    "value": 575,
+    "source_type": "assumption",
+    "ref": "docs/ASSUMPTIONS.md#1-hardware--power-conversion; Tharun 59cbdda; assumed H100 density per grid-interconnection MW, post-PUE, not IT MW or measured site capacity",
+    "unit": "GPU/MW",
+    "source_url": "https://github.com/alphabyalex/East-v-west-hackathon-2026/blob/59cbdda/docs/ASSUMPTIONS.md#1-hardware--power-conversion",
+    "retrieved_on": "2026-09-12",
+    "low": 430,
+    "high": 720
+  },
+  "early_connection_years": {
+    "value": 4,
+    "source_type": "assumption",
+    "ref": "docs/ASSUMPTIONS.md#3-value-of-connecting-early; Tharun 59cbdda; assumed firm-minus-flexible connection gap, not a guaranteed SPP energization schedule",
+    "unit": "year",
+    "source_url": "https://github.com/alphabyalex/East-v-west-hackathon-2026/blob/59cbdda/docs/ASSUMPTIONS.md#3-value-of-connecting-early",
+    "retrieved_on": "2026-09-12",
+    "low": 3,
+    "high": 7
+  },
+  "early_margin_usd_per_mw_year": {
+    "value": 317000,
+    "source_type": "assumption",
+    "ref": "mock://economics-placeholder/docs/ASSUMPTIONS.md#what-changes-in-the-app; placeholder, Tharun 59cbdda unverified 3% operating-margin assumption x 10577700 USD/MW-year scenario gross revenue = 317331, rounded to 317000; not verified net margin",
+    "unit": "USD/MW-year",
+    "source_url": null,
+    "retrieved_on": null,
+    "low": 0,
+    "high": 1000000
+  },
+  "close_call_fraction": {
+    "value": 0.05,
+    "source_type": "assumption",
+    "ref": "mock://economics-placeholder/docs/ASSUMPTIONS.md#close-call-tolerance; placeholder, unreviewed decision rule",
+    "unit": "fraction",
+    "source_url": null,
+    "retrieved_on": null,
+    "low": 0,
+    "high": 0.1
+  }
+}

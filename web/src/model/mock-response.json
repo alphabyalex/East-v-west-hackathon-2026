@@ -1,6 +1,6 @@
 {
   "inputs_echo": {
-    "location_id": "spp-wichita-demo",
+    "location_id": "SPP_SYSTEM",
     "load_mw": 100,
     "term_years": 7,
     "flexibility_split": 0.6,
@@ -58,7 +58,7 @@
     ],
     "source": {
       "source_type": "assumption",
-      "ref": "mock://illustrative/api/estimate/modeled_exposure?location_id=spp-wichita-demo&load_mw=100&term_years=7&flexibility_split=0.6&site_exposure=0.4"
+      "ref": "mock://illustrative/api/estimate/modeled_exposure?location_id=SPP_SYSTEM&load_mw=100&term_years=7&flexibility_split=0.6&site_exposure=0.4"
     }
   },
   "confidence": {
@@ -71,23 +71,23 @@
     }
   },
   "economics": {
-    "gpus_per_mw": 1000,
+    "gpus_per_mw": 575,
     "lost_gpu_hours_per_year": {
-      "p50": 5108571.428571428,
-      "p90": 8694857.142857144,
-      "p99": 13409142.857142856
+      "p50": 2937428.5714285714,
+      "p90": 4999542.857142857,
+      "p99": 7710257.142857143
     },
     "annual_cost_usd": {
-      "p50": 10217142.857142856,
-      "p90": 17389714.285714287,
-      "p99": 26818285.714285713
+      "p50": 8812285.714285715,
+      "p90": 14998628.57142857,
+      "p99": 23130771.42857143
     },
-    "value_of_early_connection_usd": 150000000,
-    "breakeven_exposure_hours_per_year": 178.57142857142858,
+    "value_of_early_connection_usd": 126800000,
+    "breakeven_exposure_hours_per_year": 175.01725327812284,
     "decision": "worth_it",
     "source": {
       "source_type": "assumption",
-      "ref": "mock://illustrative/economics-placeholder/api/estimate?location_id=spp-wichita-demo&load_mw=100&term_years=7&flexibility_split=0.6&site_exposure=0.4&firm_wait_years=3&gpu_per_mw=1000&gpu_hour_value_usd=2&early_margin_usd_per_mw_year=500000&pending=docs%2FASSUMPTIONS.md"
+      "ref": "mock://illustrative/api/estimate/economics?location_id=SPP_SYSTEM&load_mw=100&term_years=7&flexibility_split=0.6&site_exposure=0.4&firm_wait_years=4&gpu_per_mw=575&gpu_hour_value_usd=3&early_margin_usd_per_mw_year=317000; exposure_source=mock://illustrative/api/estimate/modeled_exposure?location_id=SPP_SYSTEM&load_mw=100&term_years=7&flexibility_split=0.6&site_exposure=0.4; economic_inputs=local assumptions, defaults documented in docs/ASSUMPTIONS.md; close_call_fraction=0.05; policy_source=mock://economics-placeholder/docs/ASSUMPTIONS.md#close-call-tolerance; placeholder, unreviewed decision rule"
     }
   },
   "tariff": {
