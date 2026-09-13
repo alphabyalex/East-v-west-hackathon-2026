@@ -21,11 +21,19 @@ partial history is reported for its actual period without extrapolation.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
+import io
+import json
 from numbers import Real
+from pathlib import Path
 from typing import Mapping
 
 import numpy as np
 import pandas as pd
+
+from pipeline import ingest
+from pipeline.common import ROOT, fingerprint, read_hourly
+from pipeline.generation import normalize_generation
 
 
 def source(value: object) -> dict:
@@ -77,6 +85,191 @@ class WindPolicy:
 
 
 INPUT_COLUMNS = ("system_wind_mw", "system_load_mw", "lmp_usd_mwh")
+
+
+def _complete_hourly_power(raw: pd.DataFrame, value_column: str) -> pd.DataFrame:
+    """Mean MW or mean price only when interval coverage fills the whole hour.
+
+    gridstatus returns interval-start/end timestamps. Never sum MW as if it were
+    energy, forward-fill missing intervals, or combine overlapping revisions.
+    Five-minute and hourly intervals are supported; an hour must use one cadence.
+    """
+    names = ["Interval Start", "Interval End", value_column]
+    if not set(names).issubset(raw.columns) or raw.empty:
+        raise ValueError(f"Cached observations require nonempty {names}.")
+    frame = raw[names].drop_duplicates().copy()
+    for name in names[:2]:
+        parsed = [pd.Timestamp(value) for value in frame[name]]
+        if any(pd.isna(value) or value.tzinfo is None for value in parsed):
+            raise ValueError("Cached interval timestamps require explicit timezones.")
+        frame[name] = pd.to_datetime(parsed, utc=True)
+    if frame.duplicated("Interval Start").any():
+        raise ValueError("Conflicting interval revisions must be reconciled before screening.")
+    duration = (frame["Interval End"] - frame["Interval Start"]).dt.total_seconds()
+    if not duration.isin([300., 3600.]).all():
+        raise ValueError("Only complete five-minute or hourly source intervals are supported.")
+    if not frame["Interval Start"].eq(frame["Interval Start"].dt.floor("5min")).all():
+        raise ValueError("Source intervals must align to five-minute boundaries.")
+    hour = frame["Interval Start"].dt.floor("h")
+    if (frame["Interval End"] > hour + pd.Timedelta(1, unit="h")).any():
+        raise ValueError("Source intervals cannot cross UTC-hour boundaries.")
+    if frame[value_column].map(lambda value: isinstance(value, (bool, np.bool_))).any():
+        raise ValueError("Cached numeric observations cannot be booleans.")
+    frame[value_column] = pd.to_numeric(frame[value_column], errors="raise").astype(float)
+    if np.isinf(frame[value_column]).any():
+        raise ValueError("Cached numeric observations cannot be infinite.")
+    frame["duration"] = duration
+    frame["timestamp_utc"] = hour
+    rows = []
+    for stamp, group in frame.groupby("timestamp_utc", sort=True):
+        if group.duration.nunique() != 1:
+            raise ValueError("Overlapping mixed-cadence observations must be reconciled first.")
+        expected = int(3600 / group.duration.iloc[0])
+        known = len(group) == expected and group[value_column].notna().all()
+        rows.append({"timestamp_utc": stamp, value_column: float(group[value_column].mean()) if known else np.nan})
+    return pd.DataFrame(rows)
+
+
+def prepare_wind_inputs(
+    generation: pd.DataFrame, system_load: pd.DataFrame, prices: pd.DataFrame, *,
+    price_locations: Mapping[str, str], market: str, generation_format: str = "gridstatus",
+) -> pd.DataFrame:
+    """Normalize existing SPP cache formats without geographic or price averaging.
+
+    price_locations explicitly maps each output location_id to ONE exact provider
+    Location. The caller must separately provide verified matching wind/load scope
+    and provenance to wind_oversupply_hours. There is no guessed node-to-zone map.
+    historical generation uses the existing generation.normalize_generation helper;
+    gridstatus uses Wind MW with declared interval starts/ends. Fuel-mix totals
+    alone do not establish the geographic footprint (notably SPP versus SWPW).
+    """
+    if not isinstance(price_locations, Mapping) or not price_locations or any(
+        not isinstance(key, str) or not key.strip() or not isinstance(value, str) or not value.strip()
+        for key, value in price_locations.items()
+    ):
+        raise ValueError("Provide an explicit nonempty output-location to price-location map.")
+    if not isinstance(market, str) or not market.strip():
+        raise ValueError("Select one exact price market explicitly.")
+    required = {"timestamp_utc", "location_id", "load_mw"}
+    if not required.issubset(system_load.columns) or system_load.empty:
+        raise ValueError("System load requires nonempty canonical hourly observations.")
+    if system_load.location_id.nunique(dropna=False) != 1:
+        raise ValueError("Provide one system load footprint, not individual-zone load rows.")
+    # A caller may use a different verified system label, but cannot mix footprints.
+    load = system_load[["timestamp_utc", "load_mw"]].copy()
+    parsed = [pd.Timestamp(value) for value in load.timestamp_utc]
+    if any(pd.isna(value) or value.tzinfo is None for value in parsed):
+        raise ValueError("System load timestamps need explicit timezones.")
+    load["timestamp_utc"] = pd.to_datetime(parsed, utc=True)
+    if load.timestamp_utc.duplicated().any() or not load.timestamp_utc.eq(load.timestamp_utc.dt.floor("h")).all():
+        raise ValueError("System load must have unique hourly interval-start timestamps.")
+    if generation_format == "historical":
+        wind = normalize_generation(generation)[["timestamp_utc", "wind_mw"]].rename(columns={"wind_mw": "system_wind_mw"})
+    elif generation_format == "gridstatus":
+        wind = _complete_hourly_power(generation, "Wind").rename(columns={"Wind": "system_wind_mw"})
+    else:
+        raise ValueError("generation_format must be gridstatus or historical.")
+    price_columns = {"Interval Start", "Interval End", "Market", "Location", "LMP"}
+    if not price_columns.issubset(prices.columns):
+        raise ValueError("Cached LMP input needs interval timestamps, Market, Location and LMP.")
+    selected = prices[prices.Market == market]
+    if selected.empty:
+        raise ValueError("The selected market has no cached prices.")
+    base = load.rename(columns={"load_mw": "system_load_mw"}).merge(wind, how="left", on="timestamp_utc", validate="one_to_one")
+    frames = []
+    for location, node in sorted(price_locations.items()):
+        local = selected[selected.Location == node]
+        if local.empty:
+            raise ValueError(f"No cached prices for the explicitly selected location {node}.")
+        lmp = _complete_hourly_power(local, "LMP").rename(columns={"LMP": "lmp_usd_mwh"})
+        frame = base.merge(lmp, how="left", on="timestamp_utc", validate="one_to_one")
+        frame["location_id"] = location
+        frames.append(frame)
+    return pd.concat(frames, ignore_index=True).sort_values(["location_id", "timestamp_utc"]).reset_index(drop=True)
+
+
+def read_cached_wind_inputs(
+    system_load_path: Path, *, price_locations: Mapping[str, str], market: str,
+) -> pd.DataFrame:
+    """Read-only adapter around the existing ingest.load_dataset cache readers.
+
+    Run from the repository root because the existing reader's RAW_DIR is relative.
+    Missing caches raise FileNotFoundError; there is no fetch or fake-data fallback.
+    Returned attrs identify cached bytes and exact market/node selections. Before
+    scoring, the integration caller must supply each input's source and matching
+    footprint explicitly; cache existence is not proof of source or spatial scope.
+    """
+    if Path.cwd().resolve() != ROOT.resolve():
+        raise ValueError("Run the existing relative-path cache reader from the repository root.")
+    load_path = Path(system_load_path)
+    load = read_hourly(load_path)
+    generation, prices = ingest.load_dataset("fuel_mix"), ingest.load_dataset("lmp")
+    frame = prepare_wind_inputs(generation, load, prices, price_locations=price_locations, market=market)
+    frame.attrs = {
+        "load_sha256": fingerprint(load_path), "load_location_id": str(load.location_id.iloc[0]),
+        "price_market": market, "price_locations": dict(sorted(price_locations.items())),
+        "cache_hashes": {str(path): fingerprint(path) for dataset in ("fuel_mix", "lmp")
+                         for path in sorted((ingest.RAW_DIR / dataset).glob("*.parquet"))},
+        "scope_status": "caller must establish common system wind/load footprint before screening",
+    }
+    return frame
+
+
+def read_cached_generation_archive(year: int) -> tuple[pd.DataFrame, dict]:
+    """Read the existing historical downloader's cached CSV, with its manifest.
+
+    Offline preparation only. An absent archive stays missing; call the existing
+    ingest.fetch_public_evidence downloader separately to populate this cache.
+    The returned raw table retains ALL fuel columns for separate carbon accounting.
+    Do not use a normalized wind/solar-only table as a complete grid fuel mix.
+    """
+    if isinstance(year, bool) or not isinstance(year, int) or not 2019 <= year <= 2024:
+        raise ValueError("Historical generation reader supports declared 2019..2024 archive years.")
+    path = ROOT / f"data/raw/spp/evidence/genmix_{year}.parquet"
+    cached = pd.read_parquet(path)
+    if len(cached) != 1 or not {"request_url", "content", "source_json"}.issubset(cached.columns):
+        raise ValueError("Invalid cached historical-generation document.")
+    row = cached.iloc[0]
+    url = f"https://portal.spp.org/file-browser-api/download/generation-mix-historical?path=/GenMix_{year}.csv"
+    manifest = json.loads(row.source_json)
+    if not isinstance(manifest, dict) or row.request_url != url or manifest.get("requested_url") != url or manifest.get("ref") != url:
+        raise ValueError("Historical generation cache must match its exact SPP archive URL.")
+    origin = source({key: manifest.get(key) for key in ("source_type", "ref")})
+    if not isinstance(row.content, (bytes, bytearray)):
+        raise ValueError("Cached generation content must contain CSV bytes.")
+    digest = hashlib.sha256(row.content).hexdigest()
+    if manifest.get("sha256") != digest:
+        raise ValueError("Cached generation bytes do not match their source fingerprint.")
+    frame = pd.read_csv(io.BytesIO(row.content))
+    if frame.empty:
+        raise ValueError("Cached generation CSV is empty.")
+    return frame, {**origin, "ref": f"{origin['ref']}; cached_sha256={digest}; "
+                                  "GMT MKT Interval treated as observation time by existing generation normalizer; "
+                                  "left-closed hourly bins require 12 distinct five-minute observations"}
+
+
+def read_cached_historical_wind_inputs(
+    system_load_path: Path, *, year: int, price_locations: Mapping[str, str], market: str,
+) -> pd.DataFrame:
+    """Use historical full-mix archive plus existing load/LMP caches, without fetch.
+
+    Reuses generation.normalize_generation through prepare_wind_inputs. Its
+    observation-time binning convention is explicit in generation_source; it is
+    not an assertion about historical dispatch information availability.
+    """
+    if Path.cwd().resolve() != ROOT.resolve():
+        raise ValueError("Run the existing relative-path cache reader from the repository root.")
+    raw, generation_source = read_cached_generation_archive(year)
+    load = read_hourly(Path(system_load_path))
+    if set(load.location_id) != {"SPP_SYSTEM"} or not load.timestamp_utc.dt.year.eq(year).all():
+        raise ValueError("Historical join needs matching-year SPP_SYSTEM load, not a zone load or another vintage.")
+    frame = prepare_wind_inputs(raw, load, ingest.load_dataset("lmp"), price_locations=price_locations,
+                                market=market, generation_format="historical")
+    frame.attrs = {"generation_source": generation_source, "load_sha256": fingerprint(Path(system_load_path)),
+                   "price_market": market, "price_locations": dict(sorted(price_locations.items())),
+                   "price_cache_hashes": {str(path): fingerprint(path) for path in sorted((ingest.RAW_DIR / "lmp").glob("*.parquet"))},
+                   "scope_status": "historical SPP_SYSTEM wind/load; local deliverability still unobserved"}
+    return frame
 
 
 def wind_oversupply_hours(
