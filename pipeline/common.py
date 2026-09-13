@@ -14,6 +14,7 @@ OBSERVATIONS = (
     "load_mw", "available_reserves_mw", "required_reserves_mw",
     "wind_mw", "solar_mw", "temperature_c", "temperature_area_min_c", "temperature_area_max_c", "lmp_usd_mwh",
     "binding_constraint_count", "generation_outage_mw", "net_import_mw",
+    "outage_outlook_mw", "gas_outage_outlook_mw", "coal_outage_outlook_mw", "wind_outage_outlook_mw",
 )
 
 

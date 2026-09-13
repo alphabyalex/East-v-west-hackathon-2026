@@ -72,7 +72,7 @@ function estimateText(report) {
     s.termLabel + ": " + format(s.term) + " hours",
     s.energyLabel + ": " + format(s.energy) + " MWh/year",
     s.regionalLabel + ": " + format(s.regional) + " hours/year", "", s.note,
-    "", "Inputs used:", ...inputFacts(report).map(row => row.join(": ")),
+    "", report.location_data_note || "", "Inputs used:", ...inputFacts(report).map(row => row.join(": ")),
     "", s.calculation, "Model: " + report.model_version,
     "", "Actual power cutoffs and their dates are not predicted. Local transmission constraints and site interruption records are unavailable. Uses historical SPP data from 2019–2024; this is not a live forecast.",
     "Values above are rounded to one decimal. The source JSON retains full precision.",
@@ -160,12 +160,14 @@ async function loadReport(id, restore = true, submittedInputs = null) {
   $("estimate-result").hidden = false; $("confidence").hidden = false;
   $("result-location").textContent = report.location.name;
   $("result-date").textContent = "Saved " + new Date(report.created_utc).toLocaleString();
+  $("location-data-note").textContent = report.location_data_note || "";
+  $("location-data-note").hidden = !report.location_data_note;
   for (const [id, key] of [["annual-hours", "annual"], ["term-hours", "term"], ["annual-energy", "energy"], ["regional-hours", "regional"]]) $(id).textContent = format(values[key]);
   for (const [id, key] of [["annual-label", "annualLabel"], ["term-label", "termLabel"], ["energy-label", "energyLabel"], ["regional-label", "regionalLabel"]]) $(id).textContent = values[key];
   $("annual-note").textContent = values.note; $("calculation").textContent = values.calculation;
   facts("result-inputs", inputFacts(report));
   facts("source-facts", [["Model", report.model_version], ["Grid history", "2019–2024"],
-    ["Weather", "Historical local ERA5 temperature; not live weather"],
+    ["Weather", "Historical local or nearby ERA5 temperature; not live weather"],
     ["Grid measurements", "SPP demand, wind and solar; local grid constraints unavailable"],
     ["Model artifact hash", report.input_hashes?.model || "Recorded in the source JSON"]]);
   $("source-links").replaceChildren(...sourceReferences(report).map(ref => {

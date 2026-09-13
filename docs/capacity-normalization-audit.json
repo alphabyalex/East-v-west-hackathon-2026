@@ -1,0 +1,276 @@
+{
+  "source_type": "data",
+  "capacity_policy": {
+    "ref": "https://portal.spp.org/pages/hourly-generation-capacity-by-fuel-type",
+    "guide_ref": "https://www.spp.org/Documents/75871/SPP%20Markets%20Public%20Data%20Guide%20and%20Samples%20v35.zip",
+    "description": "Reported generation capacity by fuel, based on EcoMax used in real-time operations.",
+    "timestamp": "Preserve source GMT TIME exactly; do not infer interval start/end or publication time.",
+    "scope": "Pre-2026 SPP balancing area; exclude observations at or after 2026-01-01T00:00:00Z.",
+    "publication": "Prior-day reports; exact historical publication and revision availability are unverified.",
+    "usage": "Retrospective research only; not registered as model predictors or emergency labels.",
+    "duplicates": "Collapse only identical fuel values, retain every report reference; reject conflicts.",
+    "missing": "Explicit missing clock rows; never interpolate or forward fill.",
+    "limitation": "EcoMax is not a guarantee of available or deliverable reserves or actual site interruptions."
+  },
+  "start_year": 2019,
+  "end_year": 2025,
+  "raw_rows": 61318,
+  "source_unique_hours": 61314,
+  "clock_hours": 61362,
+  "known_hours": 61308,
+  "missing_hours": 54,
+  "identical_duplicate_hours": 4,
+  "excluded_post_2025_unique_hours": 6,
+  "training_features_created": false,
+  "output_sha256": "a5a89b5e36131642ca82411ff898e9428f216a838eb8a88c16d1c88188779bf3",
+  "output_ref": "data/processed/research/spp_capacity_2019_2025.parquet",
+  "source_catalog_ref": "docs/capacity-data-sources.json",
+  "source_catalog_sha256": "67b691c7fa5bd01649cbcdff265490d48020d29c53b033adc88046827cc9b5ab",
+  "reproduction_command": "python -m pipeline.capacity --out data/processed/research/spp_capacity_2019_2025.parquet",
+  "validation": "Real import with requests.get disabled; all sources reused from validated local byte caches. Output reloaded with pandas and checked against manifest.",
+  "years": [
+    {
+      "year": 2019,
+      "reports": 365,
+      "raw_rows": 8749,
+      "formatted_numeric_cells": 264,
+      "incomplete_reports": [
+        {
+          "report_date": "2019-03-29",
+          "missing_local_day_hours": 8
+        },
+        {
+          "report_date": "2019-06-24",
+          "missing_local_day_hours": 1
+        },
+        {
+          "report_date": "2019-06-29",
+          "missing_local_day_hours": 2
+        },
+        {
+          "report_date": "2019-11-03",
+          "missing_local_day_hours": 1
+        }
+      ]
+    },
+    {
+      "year": 2020,
+      "reports": 366,
+      "raw_rows": 8781,
+      "formatted_numeric_cells": 0,
+      "incomplete_reports": [
+        {
+          "report_date": "2020-09-06",
+          "missing_local_day_hours": 1
+        },
+        {
+          "report_date": "2020-11-01",
+          "missing_local_day_hours": 1
+        },
+        {
+          "report_date": "2020-11-19",
+          "missing_local_day_hours": 1
+        },
+        {
+          "report_date": "2020-11-25",
+          "missing_local_day_hours": 1
+        }
+      ]
+    },
+    {
+      "year": 2021,
+      "reports": 365,
+      "raw_rows": 8756,
+      "formatted_numeric_cells": 0,
+      "incomplete_reports": [
+        {
+          "report_date": "2021-06-03",
+          "missing_local_day_hours": 1
+        },
+        {
+          "report_date": "2021-07-23",
+          "missing_local_day_hours": 2
+        },
+        {
+          "report_date": "2021-11-07",
+          "missing_local_day_hours": 1
+        },
+        {
+          "report_date": "2021-11-09",
+          "missing_local_day_hours": 1
+        }
+      ]
+    },
+    {
+      "year": 2022,
+      "reports": 365,
+      "raw_rows": 8743,
+      "formatted_numeric_cells": 0,
+      "incomplete_reports": [
+        {
+          "report_date": "2022-05-16",
+          "missing_local_day_hours": 1
+        },
+        {
+          "report_date": "2022-05-29",
+          "missing_local_day_hours": 5
+        },
+        {
+          "report_date": "2022-11-02",
+          "missing_local_day_hours": 5
+        },
+        {
+          "report_date": "2022-11-03",
+          "missing_local_day_hours": 6
+        },
+        {
+          "report_date": "2022-11-06",
+          "missing_local_day_hours": 1
+        }
+      ]
+    },
+    {
+      "year": 2023,
+      "reports": 365,
+      "raw_rows": 8756,
+      "formatted_numeric_cells": 0,
+      "incomplete_reports": [
+        {
+          "report_date": "2023-01-17",
+          "missing_local_day_hours": 1
+        },
+        {
+          "report_date": "2023-04-18",
+          "missing_local_day_hours": 1
+        },
+        {
+          "report_date": "2023-05-23",
+          "missing_local_day_hours": 2
+        }
+      ]
+    },
+    {
+      "year": 2024,
+      "reports": 366,
+      "raw_rows": 8780,
+      "formatted_numeric_cells": 0,
+      "incomplete_reports": [
+        {
+          "report_date": "2024-03-10",
+          "missing_local_day_hours": 2
+        },
+        {
+          "report_date": "2024-04-23",
+          "missing_local_day_hours": 2
+        }
+      ]
+    },
+    {
+      "year": 2025,
+      "reports": 365,
+      "raw_rows": 8753,
+      "formatted_numeric_cells": 0,
+      "incomplete_reports": [
+        {
+          "report_date": "2025-10-20",
+          "missing_local_day_hours": 1
+        },
+        {
+          "report_date": "2025-10-21",
+          "missing_local_day_hours": 1
+        },
+        {
+          "report_date": "2025-11-02",
+          "missing_local_day_hours": 3
+        },
+        {
+          "report_date": "2025-11-03",
+          "missing_local_day_hours": 2
+        }
+      ]
+    }
+  ],
+  "quality_counts": {
+    "reported": 61304,
+    "missing": 54,
+    "identical_duplicate": 4
+  },
+  "missing_timestamps_utc": [
+    "2019-03-29 08:00:00+00:00",
+    "2019-03-29 09:00:00+00:00",
+    "2019-03-29 10:00:00+00:00",
+    "2019-03-29 11:00:00+00:00",
+    "2019-03-29 12:00:00+00:00",
+    "2019-03-29 13:00:00+00:00",
+    "2019-03-29 14:00:00+00:00",
+    "2019-03-29 15:00:00+00:00",
+    "2019-06-24 07:00:00+00:00",
+    "2019-06-29 10:00:00+00:00",
+    "2019-06-29 11:00:00+00:00",
+    "2019-11-03 05:00:00+00:00",
+    "2020-09-07 04:00:00+00:00",
+    "2020-11-01 05:00:00+00:00",
+    "2020-11-20 03:00:00+00:00",
+    "2020-11-25 08:00:00+00:00",
+    "2021-06-04 01:00:00+00:00",
+    "2021-07-23 22:00:00+00:00",
+    "2021-07-23 23:00:00+00:00",
+    "2021-11-07 05:00:00+00:00",
+    "2021-11-10 03:00:00+00:00",
+    "2022-05-16 21:00:00+00:00",
+    "2022-05-29 15:00:00+00:00",
+    "2022-05-29 19:00:00+00:00",
+    "2022-05-29 20:00:00+00:00",
+    "2022-05-29 21:00:00+00:00",
+    "2022-05-29 22:00:00+00:00",
+    "2022-11-03 00:00:00+00:00",
+    "2022-11-03 01:00:00+00:00",
+    "2022-11-03 02:00:00+00:00",
+    "2022-11-03 03:00:00+00:00",
+    "2022-11-03 04:00:00+00:00",
+    "2022-11-03 05:00:00+00:00",
+    "2022-11-03 06:00:00+00:00",
+    "2022-11-03 07:00:00+00:00",
+    "2022-11-03 08:00:00+00:00",
+    "2022-11-03 09:00:00+00:00",
+    "2022-11-03 10:00:00+00:00",
+    "2022-11-06 10:00:00+00:00",
+    "2023-01-18 03:00:00+00:00",
+    "2023-04-19 02:00:00+00:00",
+    "2023-05-24 02:00:00+00:00",
+    "2023-05-24 03:00:00+00:00",
+    "2024-03-10 09:00:00+00:00",
+    "2024-03-10 10:00:00+00:00",
+    "2024-04-24 01:00:00+00:00",
+    "2024-04-24 02:00:00+00:00",
+    "2025-10-20 06:00:00+00:00",
+    "2025-10-22 03:00:00+00:00",
+    "2025-11-03 03:00:00+00:00",
+    "2025-11-03 04:00:00+00:00",
+    "2025-11-03 05:00:00+00:00",
+    "2025-11-03 06:00:00+00:00",
+    "2025-11-03 07:00:00+00:00"
+  ],
+  "identical_duplicates": [
+    {
+      "observation_timestamp_utc": "2019-03-10T05:00:00.000Z",
+      "capacity_report_count": 2,
+      "capacity_evidence_refs": "[{\"ref\": \"https://portal.spp.org/file-browser-api/download/hourly-generation-capacity-by-fuel-type?path=/2019/2019.zip#2019/03/HRLY-GEN-CAP-BY-FUEL-TYPE-20190309.csv\", \"report_date\": \"2019-03-09\", \"report_sha256\": \"65b7bf58e97059faf8b7680985fd944fab51823c663c02457ca4b70b67d8495f\"}, {\"ref\": \"https://portal.spp.org/file-browser-api/download/hourly-generation-capacity-by-fuel-type?path=/2019/2019.zip#2019/03/HRLY-GEN-CAP-BY-FUEL-TYPE-20190310.csv\", \"report_date\": \"2019-03-10\", \"report_sha256\": \"d4cbce319d30b374788974817d8512369b0a9c796b6fb94171bad3aada8c4347\"}]"
+    },
+    {
+      "observation_timestamp_utc": "2020-03-08T05:00:00.000Z",
+      "capacity_report_count": 2,
+      "capacity_evidence_refs": "[{\"ref\": \"https://portal.spp.org/file-browser-api/download/hourly-generation-capacity-by-fuel-type?path=/2020/2020.zip#2020/03/HRLY-GEN-CAP-BY-FUEL-TYPE-20200307.csv\", \"report_date\": \"2020-03-07\", \"report_sha256\": \"2e36f4b57ae8aea1e0a3d269a60be9f934489c567dcc1fc1a9a97ea76c2cffb6\"}, {\"ref\": \"https://portal.spp.org/file-browser-api/download/hourly-generation-capacity-by-fuel-type?path=/2020/2020.zip#2020/03/HRLY-GEN-CAP-BY-FUEL-TYPE-20200308.csv\", \"report_date\": \"2020-03-08\", \"report_sha256\": \"f5c6ff997401bb26469ebffd87ae6f33a381992066fe8eea0ca8dc3753227284\"}]"
+    },
+    {
+      "observation_timestamp_utc": "2021-03-14T05:00:00.000Z",
+      "capacity_report_count": 2,
+      "capacity_evidence_refs": "[{\"ref\": \"https://portal.spp.org/file-browser-api/download/hourly-generation-capacity-by-fuel-type?path=/2021/2021.zip#2021/03/HRLY-GEN-CAP-BY-FUEL-TYPE-20210313.csv\", \"report_date\": \"2021-03-13\", \"report_sha256\": \"95ea3712ca07db20e230549e409a28d6d5fe42b0c0636cae3f66d2140fc2f1ee\"}, {\"ref\": \"https://portal.spp.org/file-browser-api/download/hourly-generation-capacity-by-fuel-type?path=/2021/2021.zip#2021/03/HRLY-GEN-CAP-BY-FUEL-TYPE-20210314.csv\", \"report_date\": \"2021-03-14\", \"report_sha256\": \"cc59b485203b800d31cd61cf419367c1dfea54c1a82a4ce7771a18456880ea02\"}]"
+    },
+    {
+      "observation_timestamp_utc": "2022-03-13T05:00:00.000Z",
+      "capacity_report_count": 2,
+      "capacity_evidence_refs": "[{\"ref\": \"https://portal.spp.org/file-browser-api/download/hourly-generation-capacity-by-fuel-type?path=/2022/2022.zip#2022/03/HRLY-GEN-CAP-BY-FUEL-TYPE-20220312.csv\", \"report_date\": \"2022-03-12\", \"report_sha256\": \"3f7ee7c14082330de0dde7c47440f2044f7ddf669e708342d7eed2c3e8712f5f\"}, {\"ref\": \"https://portal.spp.org/file-browser-api/download/hourly-generation-capacity-by-fuel-type?path=/2022/2022.zip#2022/03/HRLY-GEN-CAP-BY-FUEL-TYPE-20220313.csv\", \"report_date\": \"2022-03-13\", \"report_sha256\": \"d6c21351d31209aac44ce0c210f4be3f4071d163d2311ddd3f78a224f23dea9c\"}]"
+    }
+  ]
+}

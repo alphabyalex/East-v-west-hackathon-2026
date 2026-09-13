@@ -31,6 +31,18 @@
       "ref": "https://www.spp.org/documents/77674/20260902_revisions%20to%20clarify%20the%20conditional%20high%20impact%20large%20load%20policy_er26-3685-000.pdf",
       "retrieved_utc": "2026-09-13T01:10:02.909477+00:00",
       "sha256": "20313929268a2da3c8cc519c211ed41265a0bf7e86813e1afc4622b8df3ed96f"
+    },
+    "winter2021_comprehensive": {
+      "ref": "https://www.spp.org/documents/65037/comprehensive%20review%20of%20spp's%20response%20to%20the%20feb.%202021%20winter%20storm%202021%2007%2019.pdf",
+      "requested_url": "https://www.spp.org/documents/65037/comprehensive%20review%20of%20spp's%20response%20to%20the%20feb.%202021%20winter%20storm%202021%2007%2019.pdf",
+      "retrieved_utc": "2026-09-13T22:34:08.349667+00:00",
+      "sha256": "415a6d3df3a6fe2e14faa50bde8e2902a0bebc72ce9b5223917f5344a132b19a"
+    },
+    "winter2022_comprehensive": {
+      "ref": "https://www.spp.org/documents/69218/review%20of%20spp%27s%20response%20to%20the%20dec.%202022%20winter%20storm.pdf",
+      "requested_url": "https://www.spp.org/documents/69218/review%20of%20spp%27s%20response%20to%20the%20dec.%202022%20winter%20storm.pdf",
+      "retrieved_utc": "2026-09-13T22:34:50.724982+00:00",
+      "sha256": "1349172a67167a61d2875d5f71d0eef9f2416405edbc1ab65c68d07f49fc7778"
     }
   },
   "events": [
@@ -137,6 +149,276 @@
         22
       ],
       "notes": "Instruction window, not uniform customer outage duration. Local voltage/transmission event; never apply as SPP-wide or Amarillo labels."
+    },
+    {
+      "id": "spp_20210215_0500_eea1",
+      "kind": "EEA1",
+      "region_id": "SPP_BA_PRE_2026",
+      "time_precision": "interval",
+      "start": "2021-02-15T05:00:00-06:00",
+      "end": "2021-02-15T07:22:00-06:00",
+      "end_status": "confirmed",
+      "source_ids": [
+        "winter2021_comprehensive"
+      ],
+      "source_pages": [
+        25
+      ],
+      "source_pdf_pages": [
+        26
+      ],
+      "notes": "Winter Storm Uri. Level transitions from Figure 1; all times Central Standard Time. EEA duration is not load-shed duration or a site-specific outage."
+    },
+    {
+      "id": "spp_20210215_0722_eea2",
+      "kind": "EEA2",
+      "region_id": "SPP_BA_PRE_2026",
+      "time_precision": "interval",
+      "start": "2021-02-15T07:22:00-06:00",
+      "end": "2021-02-15T10:08:00-06:00",
+      "end_status": "confirmed",
+      "source_ids": [
+        "winter2021_comprehensive"
+      ],
+      "source_pages": [
+        25
+      ],
+      "source_pdf_pages": [
+        26
+      ],
+      "notes": "Winter Storm Uri. Level transitions from Figure 1; all times Central Standard Time. EEA duration is not load-shed duration or a site-specific outage."
+    },
+    {
+      "id": "spp_20210215_1008_eea3",
+      "kind": "EEA3",
+      "region_id": "SPP_BA_PRE_2026",
+      "time_precision": "interval",
+      "start": "2021-02-15T10:08:00-06:00",
+      "end": "2021-02-15T14:00:00-06:00",
+      "end_status": "confirmed",
+      "source_ids": [
+        "winter2021_comprehensive"
+      ],
+      "source_pages": [
+        25
+      ],
+      "source_pdf_pages": [
+        26
+      ],
+      "notes": "Winter Storm Uri. Level transitions from Figure 1; all times Central Standard Time. EEA duration is not load-shed duration or a site-specific outage."
+    },
+    {
+      "id": "spp_20210215_1400_eea2",
+      "kind": "EEA2",
+      "region_id": "SPP_BA_PRE_2026",
+      "time_precision": "interval",
+      "start": "2021-02-15T14:00:00-06:00",
+      "end": "2021-02-16T06:15:00-06:00",
+      "end_status": "confirmed",
+      "source_ids": [
+        "winter2021_comprehensive"
+      ],
+      "source_pages": [
+        25
+      ],
+      "source_pdf_pages": [
+        26
+      ],
+      "notes": "Winter Storm Uri. Level transitions from Figure 1; all times Central Standard Time. EEA duration is not load-shed duration or a site-specific outage."
+    },
+    {
+      "id": "spp_20210216_0615_eea3",
+      "kind": "EEA3",
+      "region_id": "SPP_BA_PRE_2026",
+      "time_precision": "interval",
+      "start": "2021-02-16T06:15:00-06:00",
+      "end": "2021-02-16T11:30:00-06:00",
+      "end_status": "confirmed",
+      "source_ids": [
+        "winter2021_comprehensive"
+      ],
+      "source_pages": [
+        25
+      ],
+      "source_pdf_pages": [
+        26
+      ],
+      "notes": "Winter Storm Uri. Level transitions from Figure 1; all times Central Standard Time. EEA duration is not load-shed duration or a site-specific outage."
+    },
+    {
+      "id": "spp_20210216_1130_eea2",
+      "kind": "EEA2",
+      "region_id": "SPP_BA_PRE_2026",
+      "time_precision": "interval",
+      "start": "2021-02-16T11:30:00-06:00",
+      "end": "2021-02-16T12:31:00-06:00",
+      "end_status": "confirmed",
+      "source_ids": [
+        "winter2021_comprehensive"
+      ],
+      "source_pages": [
+        25
+      ],
+      "source_pdf_pages": [
+        26
+      ],
+      "notes": "Winter Storm Uri. Level transitions from Figure 1; all times Central Standard Time. EEA duration is not load-shed duration or a site-specific outage."
+    },
+    {
+      "id": "spp_20210216_1231_eea1",
+      "kind": "EEA1",
+      "region_id": "SPP_BA_PRE_2026",
+      "time_precision": "interval",
+      "start": "2021-02-16T12:31:00-06:00",
+      "end": "2021-02-16T18:28:00-06:00",
+      "end_status": "confirmed",
+      "source_ids": [
+        "winter2021_comprehensive"
+      ],
+      "source_pages": [
+        25
+      ],
+      "source_pdf_pages": [
+        26
+      ],
+      "notes": "Winter Storm Uri. Level transitions from Figure 1; all times Central Standard Time. EEA duration is not load-shed duration or a site-specific outage."
+    },
+    {
+      "id": "spp_20210216_1828_eea2",
+      "kind": "EEA2",
+      "region_id": "SPP_BA_PRE_2026",
+      "time_precision": "interval",
+      "start": "2021-02-16T18:28:00-06:00",
+      "end": "2021-02-17T13:15:00-06:00",
+      "end_status": "confirmed",
+      "source_ids": [
+        "winter2021_comprehensive"
+      ],
+      "source_pages": [
+        25
+      ],
+      "source_pdf_pages": [
+        26
+      ],
+      "notes": "Winter Storm Uri. Level transitions from Figure 1; all times Central Standard Time. EEA duration is not load-shed duration or a site-specific outage."
+    },
+    {
+      "id": "spp_20210217_1315_eea1",
+      "kind": "EEA1",
+      "region_id": "SPP_BA_PRE_2026",
+      "time_precision": "interval",
+      "start": "2021-02-17T13:15:00-06:00",
+      "end": "2021-02-17T18:20:00-06:00",
+      "end_status": "confirmed",
+      "source_ids": [
+        "winter2021_comprehensive"
+      ],
+      "source_pages": [
+        25
+      ],
+      "source_pdf_pages": [
+        26
+      ],
+      "notes": "Winter Storm Uri. Level transitions from Figure 1; all times Central Standard Time. EEA duration is not load-shed duration or a site-specific outage."
+    },
+    {
+      "id": "spp_20210217_1820_eea2",
+      "kind": "EEA2",
+      "region_id": "SPP_BA_PRE_2026",
+      "time_precision": "interval",
+      "start": "2021-02-17T18:20:00-06:00",
+      "end": "2021-02-17T22:59:00-06:00",
+      "end_status": "confirmed",
+      "source_ids": [
+        "winter2021_comprehensive"
+      ],
+      "source_pages": [
+        25
+      ],
+      "source_pdf_pages": [
+        26
+      ],
+      "notes": "Winter Storm Uri. Level transitions from Figure 1; all times Central Standard Time. EEA duration is not load-shed duration or a site-specific outage."
+    },
+    {
+      "id": "spp_20210217_2259_eea1",
+      "kind": "EEA1",
+      "region_id": "SPP_BA_PRE_2026",
+      "time_precision": "interval",
+      "start": "2021-02-17T22:59:00-06:00",
+      "end": "2021-02-18T09:30:00-06:00",
+      "end_status": "confirmed",
+      "source_ids": [
+        "winter2021_comprehensive"
+      ],
+      "source_pages": [
+        25
+      ],
+      "source_pdf_pages": [
+        26
+      ],
+      "notes": "Winter Storm Uri. Level transitions from Figure 1; all times Central Standard Time. EEA duration is not load-shed duration or a site-specific outage."
+    },
+    {
+      "id": "spp_20210218_1825_eea1",
+      "kind": "EEA1",
+      "region_id": "SPP_BA_PRE_2026",
+      "time_precision": "interval",
+      "start": "2021-02-18T18:25:00-06:00",
+      "end": "2021-02-19T09:20:00-06:00",
+      "end_status": "confirmed",
+      "source_ids": [
+        "winter2021_comprehensive"
+      ],
+      "source_pages": [
+        25
+      ],
+      "source_pdf_pages": [
+        26
+      ],
+      "notes": "Winter Storm Uri. Level transitions from Figure 1; all times Central Standard Time. EEA duration is not load-shed duration or a site-specific outage."
+    },
+    {
+      "id": "spp_20221223_0827_eea1",
+      "kind": "EEA1",
+      "region_id": "SPP_BA_PRE_2026",
+      "time_precision": "interval",
+      "start": "2022-12-23T08:27:00-06:00",
+      "end": "2022-12-23T10:00:00-06:00",
+      "end_status": "confirmed",
+      "source_ids": [
+        "winter2022_comprehensive"
+      ],
+      "source_pages": [
+        5,
+        "A-1"
+      ],
+      "source_pdf_pages": [
+        9,
+        40
+      ],
+      "notes": "Winter Storm Elliott. Both intervals are confirmed in the operations narrative and Appendix A. SPP reports no system-directed load management and no progression to EEA2/EEA3."
+    },
+    {
+      "id": "spp_20221223_1720_eea1",
+      "kind": "EEA1",
+      "region_id": "SPP_BA_PRE_2026",
+      "time_precision": "interval",
+      "start": "2022-12-23T17:20:00-06:00",
+      "end": "2022-12-23T20:20:00-06:00",
+      "end_status": "confirmed",
+      "source_ids": [
+        "winter2022_comprehensive"
+      ],
+      "source_pages": [
+        5,
+        "A-1"
+      ],
+      "source_pdf_pages": [
+        9,
+        40
+      ],
+      "notes": "Winter Storm Elliott. Both intervals are confirmed in the operations narrative and Appendix A. SPP reports no system-directed load management and no progression to EEA2/EEA3."
     }
   ]
 }

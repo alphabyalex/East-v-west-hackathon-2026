@@ -21,7 +21,7 @@ The main screen contains inputs and outputs. Warning-sign explanations, historic
 
 The regional model learns from separate measured load histories for SPS, OKGE, LES and OPPD, paired with representative weather. It applies those relationships using the query point's weather and shared SPP measurements. It does not invent local grid demand for the query point. Subsequent estimates reuse the shared model and cached data.
 
-Search accepts arbitrary US cities or coordinates, but this model applies to the historical SPP footprint. Another-grid matches produce no hours. An inconclusive coverage lookup requires independent verification and an explicit saved user assertion before modeling. New SPP territories and exact interconnection arrangements are not established by the historical map.
+Search accepts arbitrary US cities or coordinates, with a Census place-directory fallback. The regional estimator accepts the historical SPP region and nearby comparison areas within 100 km, including regions around documented 2026 western participants and their member utilities. An old utility-map mismatch alone no longer blocks a regional estimate. These approximate matches do not establish exact interconnections; western estimates transfer historical SPP East patterns. See [the coverage and nearby-data policy](SPP_LOCATION_COVERAGE.md) for sources, bounds and verification.
 
 ## Output definitions
 

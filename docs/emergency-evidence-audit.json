@@ -1,0 +1,1013 @@
+{
+  "analysis": "Documented SPP emergency observations compared with the frozen high-demand proxy",
+  "source_type": "data",
+  "catalog": {
+    "ref": "docs/spp-event-evidence.json",
+    "sha256": "43afd1cc44002d24667dc3f89b62fcb5bf35d85baa992f18a25eaeb7fcd300c1"
+  },
+  "hourly_input": {
+    "ref": "data/processed/ml_inputs/spp_2019_2025_multifactor.parquet",
+    "sha256": "84d0f3f5fbd6c57555d2c0c45e15b2b2e9904a351d0e419a5bee2ba5404620fc"
+  },
+  "annotated_output": {
+    "ref": "data/processed/ml_inputs/spp_2019_2025_documented_events.parquet",
+    "sha256": "1b060f1c3badfb867892ca1c434044a5fcd7a0c783a94cfa129eb722f775c67b"
+  },
+  "demand_proxy_policy": {
+    "ref": "data/processed/ml_inputs/spp_2019_2025_demand_proxy.policy.json",
+    "sha256": "98945d5d7165155fc505c89566be10a24b930cccf2687fc2f2168ea577bdc1f7",
+    "source_type": "assumption",
+    "threshold_mw": 42064.0228,
+    "reference_start": "2019-01-01 06:00:00+00:00",
+    "reference_end_exclusive": "2022-01-01T00:00:00+00:00"
+  },
+  "before": {
+    "confirmed_eea_intervals": 1,
+    "observed_eea_minutes": 150,
+    "hourly_buckets_touched": 3
+  },
+  "after": {
+    "confirmed_eea_intervals": 15,
+    "observed_eea_minutes": 5908.0,
+    "hourly_buckets_touched": 102,
+    "dataset_rows": 61362,
+    "unreported_rows_remaining_unknown": 61260,
+    "confirmed_negative_hours": 0,
+    "training_labels_created": false
+  },
+  "by_year": {
+    "2021": {
+      "observed_eea_minutes": 5485.0,
+      "observed_eea_hours": 91.41666666666667,
+      "hourly_buckets_touched": 93,
+      "buckets_with_observed_load": 93,
+      "buckets_above_demand_threshold": 10,
+      "eea_minutes_in_buckets_above_demand_threshold": 600.0,
+      "fraction_of_documented_eea_minutes_in_high_demand_buckets": 0.10938924339106655
+    },
+    "2022": {
+      "observed_eea_minutes": 273.0,
+      "observed_eea_hours": 4.55,
+      "hourly_buckets_touched": 6,
+      "buckets_with_observed_load": 6,
+      "buckets_above_demand_threshold": 6,
+      "eea_minutes_in_buckets_above_demand_threshold": 273.0,
+      "fraction_of_documented_eea_minutes_in_high_demand_buckets": 1.0
+    },
+    "2024": {
+      "observed_eea_minutes": 150.0,
+      "observed_eea_hours": 2.5,
+      "hourly_buckets_touched": 3,
+      "buckets_with_observed_load": 3,
+      "buckets_above_demand_threshold": 3,
+      "eea_minutes_in_buckets_above_demand_threshold": 150.0,
+      "fraction_of_documented_eea_minutes_in_high_demand_buckets": 1.0
+    }
+  },
+  "limitations": [
+    "Selected documented events, not a complete archive or an estimate of annual emergency frequency.",
+    "Unreported hours remain unknown. Precision, specificity, and false-alarm rates cannot be computed.",
+    "Demand values are hourly averages; minutes are interval-overlap weights, not minute-resolution load observations.",
+    "2021 and 2022 are within model fitting history; this is a target-validity case analysis, not held-out model validation.",
+    "EEA status is a system emergency observation, not a measurement of site interruptions. No training labels were created."
+  ],
+  "sources": {
+    "winter2021_comprehensive": {
+      "ref": "https://www.spp.org/documents/65037/comprehensive%20review%20of%20spp's%20response%20to%20the%20feb.%202021%20winter%20storm%202021%2007%2019.pdf",
+      "requested_url": "https://www.spp.org/documents/65037/comprehensive%20review%20of%20spp's%20response%20to%20the%20feb.%202021%20winter%20storm%202021%2007%2019.pdf",
+      "retrieved_utc": "2026-09-13T22:34:08.349667+00:00",
+      "sha256": "415a6d3df3a6fe2e14faa50bde8e2902a0bebc72ce9b5223917f5344a132b19a"
+    },
+    "winter2022_comprehensive": {
+      "ref": "https://www.spp.org/documents/69218/review%20of%20spp%27s%20response%20to%20the%20dec.%202022%20winter%20storm.pdf",
+      "requested_url": "https://www.spp.org/documents/69218/review%20of%20spp%27s%20response%20to%20the%20dec.%202022%20winter%20storm.pdf",
+      "retrieved_utc": "2026-09-13T22:34:50.724982+00:00",
+      "sha256": "1349172a67167a61d2875d5f71d0eef9f2416405edbc1ab65c68d07f49fc7778"
+    },
+    "summer_report_2024": {
+      "ref": "https://spp.org/documents/72631/20241101_2024%20summer%20quarterly%20report_08-136-u.pdf",
+      "retrieved_utc": "2026-09-13T01:03:33.303055+00:00",
+      "sha256": "5d531c8c4d71fa1a470cf2aa8caeec9895b3fdaba8081119135c7a60c80172b3"
+    }
+  },
+  "matching_hours": [
+    {
+      "timestamp_utc": "2021-02-15T11:00:00.000Z",
+      "load_mw": 40914.922,
+      "wind_mw": 4951.6583333333,
+      "solar_mw": 0.0083333333,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210215_0500_eea1",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-15T12:00:00.000Z",
+      "load_mw": 42349.681,
+      "wind_mw": 4582.5833333333,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210215_0500_eea1",
+      "above_frozen_demand_threshold": true
+    },
+    {
+      "timestamp_utc": "2021-02-15T13:00:00.000Z",
+      "load_mw": 43319.614,
+      "wind_mw": 4317.6083333333,
+      "solar_mw": 0.475,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210215_0500_eea1;spp_20210215_0722_eea2",
+      "above_frozen_demand_threshold": true
+    },
+    {
+      "timestamp_utc": "2021-02-15T14:00:00.000Z",
+      "load_mw": 43766.192,
+      "wind_mw": 4271.1916666667,
+      "solar_mw": 18.4916666667,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210215_0722_eea2",
+      "above_frozen_demand_threshold": true
+    },
+    {
+      "timestamp_utc": "2021-02-15T15:00:00.000Z",
+      "load_mw": 43703.603,
+      "wind_mw": 4402.375,
+      "solar_mw": 103.5583333333,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210215_0722_eea2",
+      "above_frozen_demand_threshold": true
+    },
+    {
+      "timestamp_utc": "2021-02-15T16:00:00.000Z",
+      "load_mw": 43445.349,
+      "wind_mw": 4151.725,
+      "solar_mw": 175.3083333333,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210215_0722_eea2;spp_20210215_1008_eea3",
+      "above_frozen_demand_threshold": true
+    },
+    {
+      "timestamp_utc": "2021-02-15T17:00:00.000Z",
+      "load_mw": 42986.793,
+      "wind_mw": 3541.65,
+      "solar_mw": 176.05,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210215_1008_eea3",
+      "above_frozen_demand_threshold": true
+    },
+    {
+      "timestamp_utc": "2021-02-15T18:00:00.000Z",
+      "load_mw": 41783.258,
+      "wind_mw": 3298.35,
+      "solar_mw": 167.3166666667,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210215_1008_eea3",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-15T19:00:00.000Z",
+      "load_mw": 41114.804,
+      "wind_mw": 3055.6083333333,
+      "solar_mw": 185.2833333333,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210215_1008_eea3",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-15T20:00:00.000Z",
+      "load_mw": 40546.463,
+      "wind_mw": 3395.7583333333,
+      "solar_mw": 186.45,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210215_1400_eea2",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-15T21:00:00.000Z",
+      "load_mw": 40206.06,
+      "wind_mw": 3313.45,
+      "solar_mw": 189.0333333333,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210215_1400_eea2",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-15T22:00:00.000Z",
+      "load_mw": 40260.25,
+      "wind_mw": 2987.4666666667,
+      "solar_mw": 155.3666666667,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210215_1400_eea2",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-15T23:00:00.000Z",
+      "load_mw": 41148.436,
+      "wind_mw": 2955.6583333333,
+      "solar_mw": 116.175,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210215_1400_eea2",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-16T00:00:00.000Z",
+      "load_mw": 42559.244,
+      "wind_mw": 2995.4833333333,
+      "solar_mw": 20.75,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210215_1400_eea2",
+      "above_frozen_demand_threshold": true
+    },
+    {
+      "timestamp_utc": "2021-02-16T01:00:00.000Z",
+      "load_mw": 42730.789,
+      "wind_mw": 3196.3916666667,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210215_1400_eea2",
+      "above_frozen_demand_threshold": true
+    },
+    {
+      "timestamp_utc": "2021-02-16T02:00:00.000Z",
+      "load_mw": 42364.678,
+      "wind_mw": 3373.3416666667,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210215_1400_eea2",
+      "above_frozen_demand_threshold": true
+    },
+    {
+      "timestamp_utc": "2021-02-16T03:00:00.000Z",
+      "load_mw": 41858.906,
+      "wind_mw": 3697.65,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210215_1400_eea2",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-16T04:00:00.000Z",
+      "load_mw": 40933.149,
+      "wind_mw": 4070.0,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210215_1400_eea2",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-16T05:00:00.000Z",
+      "load_mw": 40232.516,
+      "wind_mw": 4167.8833333333,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210215_1400_eea2",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-16T06:00:00.000Z",
+      "load_mw": 39813.63,
+      "wind_mw": 4170.05,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210215_1400_eea2",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-16T07:00:00.000Z",
+      "load_mw": 39909.232,
+      "wind_mw": 4514.3333333333,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210215_1400_eea2",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-16T08:00:00.000Z",
+      "load_mw": 40072.807,
+      "wind_mw": 4554.4583333333,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210215_1400_eea2",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-16T09:00:00.000Z",
+      "load_mw": 40274.347,
+      "wind_mw": 4640.0916666667,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210215_1400_eea2",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-16T10:00:00.000Z",
+      "load_mw": 40639.451,
+      "wind_mw": null,
+      "solar_mw": null,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210215_1400_eea2",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-16T11:00:00.000Z",
+      "load_mw": 41464.418,
+      "wind_mw": 4653.0333333333,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210215_1400_eea2",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-16T12:00:00.000Z",
+      "load_mw": 42663.717,
+      "wind_mw": 4338.1333333333,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210215_1400_eea2;spp_20210216_0615_eea3",
+      "above_frozen_demand_threshold": true
+    },
+    {
+      "timestamp_utc": "2021-02-16T13:00:00.000Z",
+      "load_mw": 41201.455,
+      "wind_mw": 4469.2833333333,
+      "solar_mw": 0.2583333333,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210216_0615_eea3",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-16T14:00:00.000Z",
+      "load_mw": 39739.479,
+      "wind_mw": null,
+      "solar_mw": null,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210216_0615_eea3",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-16T15:00:00.000Z",
+      "load_mw": 39164.355,
+      "wind_mw": null,
+      "solar_mw": null,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210216_0615_eea3",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-16T16:00:00.000Z",
+      "load_mw": 39942.106,
+      "wind_mw": 4428.8666666667,
+      "solar_mw": 30.0333333333,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210216_0615_eea3",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-16T17:00:00.000Z",
+      "load_mw": 39654.703,
+      "wind_mw": 4212.9166666667,
+      "solar_mw": 50.7083333333,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210216_0615_eea3;spp_20210216_1130_eea2",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-16T18:00:00.000Z",
+      "load_mw": 38682.453,
+      "wind_mw": 4093.5166666667,
+      "solar_mw": 75.6833333333,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210216_1130_eea2;spp_20210216_1231_eea1",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-16T19:00:00.000Z",
+      "load_mw": 37860.67,
+      "wind_mw": 5063.1916666667,
+      "solar_mw": 123.675,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210216_1231_eea1",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-16T20:00:00.000Z",
+      "load_mw": 37393.128,
+      "wind_mw": 5345.7,
+      "solar_mw": 134.825,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210216_1231_eea1",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-16T21:00:00.000Z",
+      "load_mw": 36854.259,
+      "wind_mw": 5300.775,
+      "solar_mw": 114.45,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210216_1231_eea1",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-16T22:00:00.000Z",
+      "load_mw": 37459.272,
+      "wind_mw": 5195.325,
+      "solar_mw": 163.8416666667,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210216_1231_eea1",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-16T23:00:00.000Z",
+      "load_mw": 38603.752,
+      "wind_mw": 5070.0583333333,
+      "solar_mw": 123.4333333333,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210216_1231_eea1",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-17T00:00:00.000Z",
+      "load_mw": 39785.223,
+      "wind_mw": 4947.7583333333,
+      "solar_mw": 15.3833333333,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210216_1231_eea1;spp_20210216_1828_eea2",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-17T01:00:00.000Z",
+      "load_mw": 39518.937,
+      "wind_mw": null,
+      "solar_mw": null,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210216_1828_eea2",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-17T02:00:00.000Z",
+      "load_mw": 39041.61,
+      "wind_mw": 4751.2583333333,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210216_1828_eea2",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-17T03:00:00.000Z",
+      "load_mw": 38404.139,
+      "wind_mw": 4332.075,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210216_1828_eea2",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-17T04:00:00.000Z",
+      "load_mw": 37219.663,
+      "wind_mw": 3788.0333333333,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210216_1828_eea2",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-17T05:00:00.000Z",
+      "load_mw": 36327.604,
+      "wind_mw": 3019.325,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210216_1828_eea2",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-17T06:00:00.000Z",
+      "load_mw": 35691.208,
+      "wind_mw": 2704.8166666667,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210216_1828_eea2",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-17T07:00:00.000Z",
+      "load_mw": 35364.041,
+      "wind_mw": 2409.4916666667,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210216_1828_eea2",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-17T08:00:00.000Z",
+      "load_mw": 35203.339,
+      "wind_mw": 2078.6,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210216_1828_eea2",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-17T09:00:00.000Z",
+      "load_mw": 35292.179,
+      "wind_mw": 1879.625,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210216_1828_eea2",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-17T10:00:00.000Z",
+      "load_mw": 35643.139,
+      "wind_mw": null,
+      "solar_mw": null,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210216_1828_eea2",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-17T11:00:00.000Z",
+      "load_mw": 36283.299,
+      "wind_mw": 1658.3666666667,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210216_1828_eea2",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-17T12:00:00.000Z",
+      "load_mw": 37539.618,
+      "wind_mw": 1495.1833333333,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210216_1828_eea2",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-17T13:00:00.000Z",
+      "load_mw": 38428.206,
+      "wind_mw": 1399.1,
+      "solar_mw": 0.6166666667,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210216_1828_eea2",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-17T14:00:00.000Z",
+      "load_mw": 38628.313,
+      "wind_mw": null,
+      "solar_mw": null,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210216_1828_eea2",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-17T15:00:00.000Z",
+      "load_mw": 38386.203,
+      "wind_mw": 867.6,
+      "solar_mw": 132.5416666667,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210216_1828_eea2",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-17T16:00:00.000Z",
+      "load_mw": 37611.7,
+      "wind_mw": 731.3,
+      "solar_mw": 179.9,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210216_1828_eea2",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-17T17:00:00.000Z",
+      "load_mw": 36704.215,
+      "wind_mw": 586.8833333333,
+      "solar_mw": 188.7166666667,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210216_1828_eea2",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-17T18:00:00.000Z",
+      "load_mw": 35816.548,
+      "wind_mw": 482.4916666667,
+      "solar_mw": 199.1416666667,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210216_1828_eea2",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-17T19:00:00.000Z",
+      "load_mw": 35129.467,
+      "wind_mw": 513.8,
+      "solar_mw": 208.6,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210216_1828_eea2;spp_20210217_1315_eea1",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-17T20:00:00.000Z",
+      "load_mw": 34698.916,
+      "wind_mw": 635.0166666667,
+      "solar_mw": 220.5166666667,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210217_1315_eea1",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-17T21:00:00.000Z",
+      "load_mw": 34609.448,
+      "wind_mw": 648.3333333333,
+      "solar_mw": 220.1916666667,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210217_1315_eea1",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-17T22:00:00.000Z",
+      "load_mw": 34895.706,
+      "wind_mw": 689.75,
+      "solar_mw": 204.3333333333,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210217_1315_eea1",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-17T23:00:00.000Z",
+      "load_mw": 35784.185,
+      "wind_mw": 789.5,
+      "solar_mw": 132.9083333333,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210217_1315_eea1",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-18T00:00:00.000Z",
+      "load_mw": 36957.032,
+      "wind_mw": 985.2166666667,
+      "solar_mw": 10.1833333333,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210217_1315_eea1;spp_20210217_1820_eea2",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-18T01:00:00.000Z",
+      "load_mw": 36871.374,
+      "wind_mw": 882.95,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210217_1820_eea2",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-18T02:00:00.000Z",
+      "load_mw": 36413.577,
+      "wind_mw": null,
+      "solar_mw": null,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210217_1820_eea2",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-18T03:00:00.000Z",
+      "load_mw": 35626.321,
+      "wind_mw": null,
+      "solar_mw": null,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210217_1820_eea2",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-18T04:00:00.000Z",
+      "load_mw": 34651.991,
+      "wind_mw": 2122.325,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210217_1820_eea2;spp_20210217_2259_eea1",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-18T05:00:00.000Z",
+      "load_mw": 33871.264,
+      "wind_mw": 2532.15,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210217_2259_eea1",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-18T06:00:00.000Z",
+      "load_mw": 33391.855,
+      "wind_mw": 2821.7166666667,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210217_2259_eea1",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-18T07:00:00.000Z",
+      "load_mw": 33374.278,
+      "wind_mw": 3104.3333333333,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210217_2259_eea1",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-18T08:00:00.000Z",
+      "load_mw": 33445.289,
+      "wind_mw": 3549.825,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210217_2259_eea1",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-18T09:00:00.000Z",
+      "load_mw": 33727.525,
+      "wind_mw": 4315.8666666667,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210217_2259_eea1",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-18T10:00:00.000Z",
+      "load_mw": 34341.448,
+      "wind_mw": null,
+      "solar_mw": null,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210217_2259_eea1",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-18T11:00:00.000Z",
+      "load_mw": 35385.889,
+      "wind_mw": 5534.7916666667,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210217_2259_eea1",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-18T12:00:00.000Z",
+      "load_mw": 36970.377,
+      "wind_mw": 5820.2083333333,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210217_2259_eea1",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-18T13:00:00.000Z",
+      "load_mw": 38063.123,
+      "wind_mw": 5431.5333333333,
+      "solar_mw": 0.5166666667,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210217_2259_eea1",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-18T14:00:00.000Z",
+      "load_mw": 37922.042,
+      "wind_mw": null,
+      "solar_mw": null,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210217_2259_eea1",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-18T15:00:00.000Z",
+      "load_mw": 37216.986,
+      "wind_mw": 3927.8833333333,
+      "solar_mw": 29.1666666667,
+      "observed_eea_minutes": 30.0,
+      "observed_eea_event_ids": "spp_20210217_2259_eea1",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-19T00:00:00.000Z",
+      "load_mw": 36239.109,
+      "wind_mw": 2413.4166666667,
+      "solar_mw": 14.4083333333,
+      "observed_eea_minutes": 35.0,
+      "observed_eea_event_ids": "spp_20210218_1825_eea1",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-19T01:00:00.000Z",
+      "load_mw": 36735.189,
+      "wind_mw": 2498.1083333333,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210218_1825_eea1",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-19T02:00:00.000Z",
+      "load_mw": 36625.203,
+      "wind_mw": 2420.4916666667,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210218_1825_eea1",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-19T03:00:00.000Z",
+      "load_mw": 36045.877,
+      "wind_mw": 2266.9583333333,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210218_1825_eea1",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-19T04:00:00.000Z",
+      "load_mw": 35028.139,
+      "wind_mw": 2213.7416666667,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210218_1825_eea1",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-19T05:00:00.000Z",
+      "load_mw": 34357.248,
+      "wind_mw": 2660.3416666667,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210218_1825_eea1",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-19T06:00:00.000Z",
+      "load_mw": 34099.118,
+      "wind_mw": 3247.525,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210218_1825_eea1",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-19T07:00:00.000Z",
+      "load_mw": 34169.865,
+      "wind_mw": 3770.375,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210218_1825_eea1",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-19T08:00:00.000Z",
+      "load_mw": 34386.993,
+      "wind_mw": 4248.95,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210218_1825_eea1",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-19T09:00:00.000Z",
+      "load_mw": 34794.491,
+      "wind_mw": 4548.0666666667,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210218_1825_eea1",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-19T10:00:00.000Z",
+      "load_mw": 35502.261,
+      "wind_mw": null,
+      "solar_mw": null,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210218_1825_eea1",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-19T11:00:00.000Z",
+      "load_mw": 36673.664,
+      "wind_mw": 4334.175,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210218_1825_eea1",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-19T12:00:00.000Z",
+      "load_mw": 38352.386,
+      "wind_mw": 4912.6083333333,
+      "solar_mw": 0.0,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210218_1825_eea1",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-19T13:00:00.000Z",
+      "load_mw": 39270.957,
+      "wind_mw": 5903.575,
+      "solar_mw": 0.0916666667,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210218_1825_eea1",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-19T14:00:00.000Z",
+      "load_mw": 38547.225,
+      "wind_mw": null,
+      "solar_mw": null,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20210218_1825_eea1",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2021-02-19T15:00:00.000Z",
+      "load_mw": 37114.17,
+      "wind_mw": 5796.05,
+      "solar_mw": 201.9916666667,
+      "observed_eea_minutes": 20.0,
+      "observed_eea_event_ids": "spp_20210218_1825_eea1",
+      "above_frozen_demand_threshold": false
+    },
+    {
+      "timestamp_utc": "2022-12-23T14:00:00.000Z",
+      "load_mw": 45243.734,
+      "wind_mw": 13690.6416666667,
+      "solar_mw": 5.7833333333,
+      "observed_eea_minutes": 33.0,
+      "observed_eea_event_ids": "spp_20221223_0827_eea1",
+      "above_frozen_demand_threshold": true
+    },
+    {
+      "timestamp_utc": "2022-12-23T15:00:00.000Z",
+      "load_mw": 44964.808,
+      "wind_mw": 13202.2333333333,
+      "solar_mw": 49.825,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20221223_0827_eea1",
+      "above_frozen_demand_threshold": true
+    },
+    {
+      "timestamp_utc": "2022-12-23T23:00:00.000Z",
+      "load_mw": 42761.735,
+      "wind_mw": 10405.425,
+      "solar_mw": 9.4833333333,
+      "observed_eea_minutes": 40.0,
+      "observed_eea_event_ids": "spp_20221223_1720_eea1",
+      "above_frozen_demand_threshold": true
+    },
+    {
+      "timestamp_utc": "2022-12-24T00:00:00.000Z",
+      "load_mw": 43053.9,
+      "wind_mw": 9516.5583333333,
+      "solar_mw": 1.4583333333,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20221223_1720_eea1",
+      "above_frozen_demand_threshold": true
+    },
+    {
+      "timestamp_utc": "2022-12-24T01:00:00.000Z",
+      "load_mw": 42710.886,
+      "wind_mw": 9298.7333333333,
+      "solar_mw": 1.425,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20221223_1720_eea1",
+      "above_frozen_demand_threshold": true
+    },
+    {
+      "timestamp_utc": "2022-12-24T02:00:00.000Z",
+      "load_mw": 42416.55,
+      "wind_mw": 9181.3833333333,
+      "solar_mw": 1.4833333333,
+      "observed_eea_minutes": 20.0,
+      "observed_eea_event_ids": "spp_20221223_1720_eea1",
+      "above_frozen_demand_threshold": true
+    },
+    {
+      "timestamp_utc": "2024-08-26T17:00:00.000Z",
+      "load_mw": 48570.31,
+      "wind_mw": 1568.4333333333,
+      "solar_mw": 404.425,
+      "observed_eea_minutes": 30.0,
+      "observed_eea_event_ids": "spp_20240826_eea1",
+      "above_frozen_demand_threshold": true
+    },
+    {
+      "timestamp_utc": "2024-08-26T18:00:00.000Z",
+      "load_mw": 50114.133,
+      "wind_mw": 2563.0666666667,
+      "solar_mw": 398.225,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20240826_eea1",
+      "above_frozen_demand_threshold": true
+    },
+    {
+      "timestamp_utc": "2024-08-26T19:00:00.000Z",
+      "load_mw": 50887.832,
+      "wind_mw": 4029.65,
+      "solar_mw": 371.3916666667,
+      "observed_eea_minutes": 60.0,
+      "observed_eea_event_ids": "spp_20240826_eea1",
+      "above_frozen_demand_threshold": true
+    }
+  ]
+}

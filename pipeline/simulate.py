@@ -36,6 +36,8 @@ def longest_run(values: np.ndarray) -> int:
 def simulate_exposure(predictions: pd.DataFrame, confidence: dict, model_version: str,
                       *, seed: int = 2026, simulations: int = 2000, years: int = 7,
                       block_hours: int = 168) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
+    from pipeline.confidence import CONFIDENCE_POLICY, confidence_from_evidence
+
     if simulations < 1000:
         raise ValueError("Use at least 1,000 simulations when reporting p99; it remains an uncertain tail estimate.")
     if not 1 <= years <= 7 or not 24 <= block_hours <= 168 or block_hours % 24:
@@ -56,6 +58,14 @@ def simulate_exposure(predictions: pd.DataFrame, confidence: dict, model_version
             raise ValueError("Simulation reference must use hourly interval-start timestamps.")
         if (times[-1] - times[0]).total_seconds() < 365 * 86400:
             raise ValueError(f"{location}: simulation needs at least one year of held-out reference history covering all seasons.")
+        info = confidence[location]
+        try:
+            expected_confidence = confidence_from_evidence(info["mean_ensemble_probability_std"],
+                info["n_similar_historical_hours"], info["limitations"])
+            if info != expected_confidence:
+                raise ValueError("Confidence evidence or policy differs.")
+        except (KeyError, TypeError, ValueError) as error:
+            raise ValueError(f"{location}: stale or invalid confidence. Recompute confidence with the current policy before simulation.") from error
         probability = group[member_columns].to_numpy(dtype=float)
         mean = group.probability.to_numpy(dtype=float)
         target = group.target.to_numpy()
@@ -96,7 +106,6 @@ def simulate_exposure(predictions: pd.DataFrame, confidence: dict, model_version
                                "longest_episode_hours": int(longest[trial, year])})
         for year in range(years):
             quantiles = np.quantile(annual[:, year], [.5, .9, .99])
-            info = confidence[location]
             rows.append({"location_id": location, "year_offset": year + 1,
                          "p50_hours": float(quantiles[0]), "p90_hours": float(quantiles[1]),
                          "p99_hours": float(quantiles[2]),
@@ -111,13 +120,14 @@ def simulate_exposure(predictions: pd.DataFrame, confidence: dict, model_version
         "simulations": simulations, "years": years, "seed": seed, "block_hours": block_hours,
         "hours_per_year": 8760, "site_exposure_applied": False,
         "source_type": "model", "ref": f"pipeline/simulate.py model_version={model_version}",
+        "confidence_policy": CONFIDENCE_POLICY,
         "assumptions": [
             "Stationary month-specific grid conditions and label definition; no load-growth or climate forecast.",
             "Seven-day blocks preserve within-block episodes; resampling can split or join episodes at block boundaries.",
             "One ensemble member per simulated contract; independently resampled seasonal blocks across years.",
             "365-day comparison years, with February fixed to 28 days.",
             "worst_contiguous_hours is the p99 of annual longest modeled episodes, not a guaranteed upper bound.",
-            "Annual exposure confidence is capped Low until annual tail validation; its numeric score describes classifier agreement only.",
+            "Annual exposure confidence is capped Low until annual tail validation; its numeric score combines classifier agreement with same-location historical support and validation limits.",
             "Quantiles describe the selected system-event/proxy target, not an individual site's actual interruption.",
         ],
     }

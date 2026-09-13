@@ -94,6 +94,16 @@ async function runEstimatorChecks(source, html) {
   assert(env.node("annual-hours").textContent === "150" && env.node("stale-result").hidden, "Show the matching completed output automatically");
   assert(env.data.posts.length === 2, "Refreshing a completed result must never resubmit it"); count++;
 
+  const approximate = {...clone(transfer), coverage: {status: "regional_spp_comparison"},
+    location_data_note: "Nearby weather 12 km from the selected city; historical SPP regional comparison."};
+  env = environment({approximate, exact: transfer}); await env.api.initialize();
+  assert(!env.node("location-data-note").hidden && env.node("location-data-note").textContent === approximate.location_data_note,
+    "Show the nearby-data assumption with the estimate");
+  assert(env.api.estimateText(approximate).includes(approximate.location_data_note), "Preserve the nearby-data note in exports");
+  assert(env.node("coverage-confirmation").hidden && env.node("annual-hours").textContent === "150", "Regional matches show hours without a manual grid confirmation");
+  await env.api.loadReport("exact");
+  assert(env.node("location-data-note").hidden, "Do not leave an old approximation note on another result"); count++;
+
   env = environment(); await env.api.initialize(); env.input("location-query", "Springfield"); await env.submit();
   env.finishSearch([point, {...point, name: "Another match"}]); await env.api.refresh();
   assert(env.data.posts.length === 1 && !env.node("candidate-block").hidden, "Ambiguous locations must wait for selection");

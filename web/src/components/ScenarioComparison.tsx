@@ -15,6 +15,7 @@ export function ScenarioComparison() {
     deleteScenario,
     loadScenario,
     clearAllScenarios,
+    location,
   } = useScenario()
 
   const [customName, setCustomName] = useState('')
@@ -50,7 +51,7 @@ export function ScenarioComparison() {
               onChange={e => setCustomName(e.target.value)}
               maxLength={45}
             />
-            <button type="submit" className="button button-save-scen" aria-live="polite">
+            <button type="submit" className="button button-save-scen" aria-live="polite" disabled={location.enabled && !location.result}>
               {justSaved ? <Check size={13} className="text-mint" /> : <span aria-hidden="true">➕</span>}
               {justSaved ? 'Saved to Comparison' : 'Save Active Scenario'}
             </button>
@@ -117,7 +118,7 @@ export function ScenarioComparison() {
                 <th scope="row" className="row-header">Location</th>
                 {savedScenarios.map(scen => {
                   const locId = scen.inputs.location_id
-                  const label = locId === 'SPP_SYSTEM' ? 'SPP System' : locId.replace('spp-', '').replace('-demo', '').toUpperCase()
+                  const label = scen.locationEstimate?.location.name ?? (locId === 'SPP_SYSTEM' ? 'SPP System' : locId.replace('spp-', '').replace('-demo', '').toUpperCase())
                   return <td key={scen.id}><strong>{label}</strong></td>
                 })}
               </tr>
@@ -144,24 +145,25 @@ export function ScenarioComparison() {
               </tr>
               <tr>
                 <th scope="row" className="row-header">p50 scenario (median)</th>
-                {savedScenarios.map(scen => <td key={scen.id}>{numeric.format(scen.result.annual_exposure.p50.value)} h/yr</td>)}
+                {savedScenarios.map(scen => <td key={scen.id}>{scen.locationEstimate ? 'Unavailable' : `${numeric.format(scen.result.annual_exposure.p50.value)} h/yr`}</td>)}
               </tr>
               <tr>
                 <th scope="row" className="row-header">p90 scenario (upper-tail)</th>
-                {savedScenarios.map(scen => <td key={scen.id}>{numeric.format(scen.result.annual_exposure.p90.value)} h/yr</td>)}
+                {savedScenarios.map(scen => <td key={scen.id}>{scen.locationEstimate ? 'Unavailable' : `${numeric.format(scen.result.annual_exposure.p90.value)} h/yr`}</td>)}
               </tr>
               <tr>
                 <th scope="row" className="row-header">p99 scenario (extreme-tail)</th>
-                {savedScenarios.map(scen => <td key={scen.id}>{numeric.format(scen.result.annual_exposure.p99.value)} h/yr</td>)}
+                {savedScenarios.map(scen => <td key={scen.id}>{scen.locationEstimate ? 'Unavailable' : `${numeric.format(scen.result.annual_exposure.p99.value)} h/yr`}</td>)}
               </tr>
+              {savedScenarios.some(scen => scen.locationEstimate) && <tr><th scope="row" className="row-header">Expected location exposure</th>{savedScenarios.map(scen => <td key={scen.id}>{scen.locationEstimate ? `${numeric.format(scen.locationEstimate.exposure.annual_expected_hours)} h/yr` : 'Unavailable'}</td>)}</tr>}
               <tr>
                 <th scope="row" className="row-header">Break-even exposure</th>
                 {savedScenarios.map(scen => (
                   <td key={scen.id}>
-                    {scen.result.economics.break_even_exposure_hours.value === null ? (
+                    {(scen.locationEstimate ? scen.locationEstimate.economics.break_even_hours : scen.result.economics.break_even_exposure_hours.value) === null ? (
                       <span className="muted">No cost</span>
                     ) : (
-                      `${integer.format(scen.result.economics.break_even_exposure_hours.value as number)} h/yr`
+                      `${integer.format((scen.locationEstimate ? scen.locationEstimate.economics.break_even_hours : scen.result.economics.break_even_exposure_hours.value) as number)} h/yr`
                     )}
                   </td>
                 ))}
@@ -175,22 +177,22 @@ export function ScenarioComparison() {
                 <th scope="row" className="row-header">Earlier-access gain</th>
                 {savedScenarios.map(scen => (
                   <td key={scen.id} className="text-mint">
-                    +{money(scen.result.economics.early_access_value_usd.value)}
+                    +{money(scen.locationEstimate ? scen.locationEstimate.economics.early_access_value_usd : scen.result.economics.early_access_value_usd.value)}
                   </td>
                 ))}
               </tr>
               <tr>
-                <th scope="row" className="row-header">Median interruption loss</th>
+                <th scope="row" className="row-header">Interruption loss (median / expected)</th>
                 {savedScenarios.map(scen => (
                   <td key={scen.id} className="text-amber">
-                    −{money(scen.result.economics.term_loss_usd.value)}
+                    −{money(scen.locationEstimate ? scen.locationEstimate.economics.term_cost_usd : scen.result.economics.term_loss_usd.value)}
                   </td>
                 ))}
               </tr>
               <tr className="ledger-total-row">
                 <th scope="row" className="row-header">Net Scenario Value</th>
                 {savedScenarios.map(scen => {
-                  const val = scen.result.economics.net_value_usd.value
+                  const val = scen.locationEstimate ? scen.locationEstimate.economics.net_value_usd : scen.result.economics.net_value_usd.value
                   const stateClass = val > 0 ? 'text-mint' : val < 0 ? 'text-negative' : 'muted'
                   return (
                     <td key={scen.id} className={stateClass}>
@@ -202,7 +204,7 @@ export function ScenarioComparison() {
               <tr className="decision-row">
                 <th scope="row" className="row-header">Recommendation</th>
                 {savedScenarios.map(scen => {
-                  const decision = scen.result.decision
+                  const decision = scen.locationEstimate ? 'Expected value only' : scen.result.decision
                   const stateClass = decision === 'worth it' ? 'pos' : decision === 'not worth it' ? 'neg' : 'neu'
                   return (
                     <td key={scen.id}>

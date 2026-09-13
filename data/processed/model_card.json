@@ -1009,259 +1009,347 @@
   "confidence": {
     "CSWS": {
       "level": "Low",
-      "score": 0.9881483523908665,
+      "score": 0.08983166839916969,
+      "agreement_score": 0.9881483523908665,
+      "historical_support_score": 0.09090909090909091,
       "n_similar_historical_hours": 2,
       "mean_ensemble_probability_std": 0.0059258238045667155,
       "limitations": [
         "does_not_beat_baseline",
         "less_than_one_year_of_heldout_history",
-        "fewer_than_20_positive_test_hours"
+        "fewer_than_20_positive_test_hours",
+        "insufficient_same_location_precedent"
       ],
+      "policy_version": 2,
       "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
     },
     "EDE": {
       "level": "Low",
-      "score": 0.9882494317244821,
+      "score": 0.0,
+      "agreement_score": 0.9882494317244821,
+      "historical_support_score": 0.0,
       "n_similar_historical_hours": 0,
       "mean_ensemble_probability_std": 0.00587528413775894,
       "limitations": [
         "does_not_beat_baseline",
         "less_than_one_year_of_heldout_history",
-        "fewer_than_20_positive_test_hours"
+        "fewer_than_20_positive_test_hours",
+        "insufficient_same_location_precedent"
       ],
+      "policy_version": 2,
       "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
     },
     "GRDA": {
       "level": "Low",
-      "score": 0.9881483523908665,
+      "score": 0.08983166839916969,
+      "agreement_score": 0.9881483523908665,
+      "historical_support_score": 0.09090909090909091,
       "n_similar_historical_hours": 2,
       "mean_ensemble_probability_std": 0.0059258238045667155,
       "limitations": [
         "does_not_beat_baseline",
         "less_than_one_year_of_heldout_history",
-        "fewer_than_20_positive_test_hours"
+        "fewer_than_20_positive_test_hours",
+        "insufficient_same_location_precedent"
       ],
+      "policy_version": 2,
       "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
     },
     "INDN": {
       "level": "Low",
-      "score": 0.9883274447826448,
+      "score": 0.0,
+      "agreement_score": 0.9883274447826448,
+      "historical_support_score": 0.0,
       "n_similar_historical_hours": 0,
       "mean_ensemble_probability_std": 0.005836277608677623,
       "limitations": [
         "does_not_beat_baseline",
         "less_than_one_year_of_heldout_history",
-        "fewer_than_20_positive_test_hours"
+        "fewer_than_20_positive_test_hours",
+        "insufficient_same_location_precedent"
       ],
+      "policy_version": 2,
       "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
     },
     "KACY": {
       "level": "Low",
-      "score": 0.9883274447826448,
+      "score": 0.0,
+      "agreement_score": 0.9883274447826448,
+      "historical_support_score": 0.0,
       "n_similar_historical_hours": 0,
       "mean_ensemble_probability_std": 0.005836277608677623,
       "limitations": [
         "does_not_beat_baseline",
         "less_than_one_year_of_heldout_history",
-        "fewer_than_20_positive_test_hours"
+        "fewer_than_20_positive_test_hours",
+        "insufficient_same_location_precedent"
       ],
+      "policy_version": 2,
       "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
     },
     "KCPL": {
       "level": "Low",
-      "score": 0.9882494317244821,
+      "score": 0.0,
+      "agreement_score": 0.9882494317244821,
+      "historical_support_score": 0.0,
       "n_similar_historical_hours": 0,
       "mean_ensemble_probability_std": 0.00587528413775894,
       "limitations": [
         "does_not_beat_baseline",
         "less_than_one_year_of_heldout_history",
-        "fewer_than_20_positive_test_hours"
+        "fewer_than_20_positive_test_hours",
+        "insufficient_same_location_precedent"
       ],
+      "policy_version": 2,
       "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
     },
     "LES": {
       "level": "Low",
-      "score": 0.9883264935215795,
+      "score": 0.0,
+      "agreement_score": 0.9883264935215795,
+      "historical_support_score": 0.0,
       "n_similar_historical_hours": 0,
       "mean_ensemble_probability_std": 0.0058367532392102454,
       "limitations": [
         "does_not_beat_baseline",
         "less_than_one_year_of_heldout_history",
-        "fewer_than_20_positive_test_hours"
+        "fewer_than_20_positive_test_hours",
+        "insufficient_same_location_precedent"
       ],
+      "policy_version": 2,
       "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
     },
     "MPS": {
       "level": "Low",
-      "score": 0.9882494317244821,
+      "score": 0.0,
+      "agreement_score": 0.9882494317244821,
+      "historical_support_score": 0.0,
       "n_similar_historical_hours": 0,
       "mean_ensemble_probability_std": 0.00587528413775894,
       "limitations": [
         "does_not_beat_baseline",
         "less_than_one_year_of_heldout_history",
-        "fewer_than_20_positive_test_hours"
+        "fewer_than_20_positive_test_hours",
+        "insufficient_same_location_precedent"
       ],
+      "policy_version": 2,
       "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
     },
     "NPPD": {
       "level": "Low",
-      "score": 0.9883274447826448,
+      "score": 0.0,
+      "agreement_score": 0.9883274447826448,
+      "historical_support_score": 0.0,
       "n_similar_historical_hours": 0,
       "mean_ensemble_probability_std": 0.005836277608677623,
       "limitations": [
         "does_not_beat_baseline",
         "less_than_one_year_of_heldout_history",
-        "fewer_than_20_positive_test_hours"
+        "fewer_than_20_positive_test_hours",
+        "insufficient_same_location_precedent"
       ],
+      "policy_version": 2,
       "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
     },
     "OKGE": {
       "level": "Low",
-      "score": 0.9881483523908665,
+      "score": 0.08983166839916969,
+      "agreement_score": 0.9881483523908665,
+      "historical_support_score": 0.09090909090909091,
       "n_similar_historical_hours": 2,
       "mean_ensemble_probability_std": 0.0059258238045667155,
       "limitations": [
         "does_not_beat_baseline",
         "less_than_one_year_of_heldout_history",
-        "fewer_than_20_positive_test_hours"
+        "fewer_than_20_positive_test_hours",
+        "insufficient_same_location_precedent"
       ],
+      "policy_version": 2,
       "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
     },
     "OPPD": {
       "level": "Low",
-      "score": 0.9883274447826448,
+      "score": 0.0,
+      "agreement_score": 0.9883274447826448,
+      "historical_support_score": 0.0,
       "n_similar_historical_hours": 0,
       "mean_ensemble_probability_std": 0.005836277608677623,
       "limitations": [
         "does_not_beat_baseline",
         "less_than_one_year_of_heldout_history",
-        "fewer_than_20_positive_test_hours"
+        "fewer_than_20_positive_test_hours",
+        "insufficient_same_location_precedent"
       ],
+      "policy_version": 2,
       "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
     },
     "SECI": {
       "level": "Low",
-      "score": 0.9882463149525026,
+      "score": 0.19764926299050053,
+      "agreement_score": 0.9882463149525026,
+      "historical_support_score": 0.2,
       "n_similar_historical_hours": 5,
       "mean_ensemble_probability_std": 0.005876842523748718,
       "limitations": [
         "does_not_beat_baseline",
         "less_than_one_year_of_heldout_history",
-        "fewer_than_20_positive_test_hours"
+        "fewer_than_20_positive_test_hours",
+        "insufficient_same_location_precedent"
       ],
+      "policy_version": 2,
       "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
     },
     "SPP_SYSTEM": {
       "level": "Low",
-      "score": 0.9884000636573165,
+      "score": 0.0,
+      "agreement_score": 0.9884000636573165,
+      "historical_support_score": 0.0,
       "n_similar_historical_hours": 0,
       "mean_ensemble_probability_std": 0.005799968171341778,
       "limitations": [
         "does_not_beat_baseline",
         "less_than_one_year_of_heldout_history",
-        "fewer_than_20_positive_test_hours"
+        "fewer_than_20_positive_test_hours",
+        "insufficient_same_location_precedent"
       ],
+      "policy_version": 2,
       "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
     },
     "SPRM": {
       "level": "Low",
-      "score": 0.9881483523908665,
+      "score": 0.08983166839916969,
+      "agreement_score": 0.9881483523908665,
+      "historical_support_score": 0.09090909090909091,
       "n_similar_historical_hours": 2,
       "mean_ensemble_probability_std": 0.0059258238045667155,
       "limitations": [
         "does_not_beat_baseline",
         "less_than_one_year_of_heldout_history",
-        "fewer_than_20_positive_test_hours"
+        "fewer_than_20_positive_test_hours",
+        "insufficient_same_location_precedent"
       ],
+      "policy_version": 2,
       "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
     },
     "SPS": {
       "level": "Low",
-      "score": 0.9882463149525026,
+      "score": 0.16470771915875043,
+      "agreement_score": 0.9882463149525026,
+      "historical_support_score": 0.16666666666666666,
       "n_similar_historical_hours": 4,
       "mean_ensemble_probability_std": 0.005876842523748718,
       "limitations": [
         "does_not_beat_baseline",
         "less_than_one_year_of_heldout_history",
-        "fewer_than_20_positive_test_hours"
+        "fewer_than_20_positive_test_hours",
+        "insufficient_same_location_precedent"
       ],
+      "policy_version": 2,
       "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
     },
     "WAUE": {
       "level": "Low",
-      "score": 0.9884139688128984,
+      "score": 0.0,
+      "agreement_score": 0.9884139688128984,
+      "historical_support_score": 0.0,
       "n_similar_historical_hours": 0,
       "mean_ensemble_probability_std": 0.005793015593550797,
       "limitations": [
         "does_not_beat_baseline",
         "less_than_one_year_of_heldout_history",
-        "fewer_than_20_positive_test_hours"
+        "fewer_than_20_positive_test_hours",
+        "insufficient_same_location_precedent"
       ],
+      "policy_version": 2,
       "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
     },
     "WFEC": {
       "level": "Low",
-      "score": 0.9882463149525026,
+      "score": 0.19764926299050053,
+      "agreement_score": 0.9882463149525026,
+      "historical_support_score": 0.2,
       "n_similar_historical_hours": 5,
       "mean_ensemble_probability_std": 0.005876842523748718,
       "limitations": [
         "does_not_beat_baseline",
         "less_than_one_year_of_heldout_history",
-        "fewer_than_20_positive_test_hours"
+        "fewer_than_20_positive_test_hours",
+        "insufficient_same_location_precedent"
       ],
+      "policy_version": 2,
       "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
     },
     "WR": {
       "level": "Low",
-      "score": 0.9882494317244821,
+      "score": 0.0,
+      "agreement_score": 0.9882494317244821,
+      "historical_support_score": 0.0,
       "n_similar_historical_hours": 0,
       "mean_ensemble_probability_std": 0.00587528413775894,
       "limitations": [
         "does_not_beat_baseline",
         "less_than_one_year_of_heldout_history",
-        "fewer_than_20_positive_test_hours"
+        "fewer_than_20_positive_test_hours",
+        "insufficient_same_location_precedent"
       ],
+      "policy_version": 2,
       "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
     },
     "spp-lincoln-demo": {
       "level": "Low",
-      "score": 0.9883264935215795,
+      "score": 0.0,
+      "agreement_score": 0.9883264935215795,
+      "historical_support_score": 0.0,
       "n_similar_historical_hours": 0,
       "mean_ensemble_probability_std": 0.0058367532392102454,
       "limitations": [
         "does_not_beat_baseline",
         "less_than_one_year_of_heldout_history",
-        "fewer_than_20_positive_test_hours"
+        "fewer_than_20_positive_test_hours",
+        "insufficient_same_location_precedent"
       ],
+      "policy_version": 2,
       "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
     },
     "spp-oklahoma-city-demo": {
       "level": "Low",
-      "score": 0.9881483523908665,
+      "score": 0.08983166839916969,
+      "agreement_score": 0.9881483523908665,
+      "historical_support_score": 0.09090909090909091,
       "n_similar_historical_hours": 2,
       "mean_ensemble_probability_std": 0.0059258238045667155,
       "limitations": [
         "does_not_beat_baseline",
         "less_than_one_year_of_heldout_history",
-        "fewer_than_20_positive_test_hours"
+        "fewer_than_20_positive_test_hours",
+        "insufficient_same_location_precedent"
       ],
+      "policy_version": 2,
       "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
     },
     "spp-wichita-demo": {
       "level": "Low",
-      "score": 0.9882494317244821,
+      "score": 0.0,
+      "agreement_score": 0.9882494317244821,
+      "historical_support_score": 0.0,
       "n_similar_historical_hours": 0,
       "mean_ensemble_probability_std": 0.00587528413775894,
       "limitations": [
         "does_not_beat_baseline",
         "less_than_one_year_of_heldout_history",
-        "fewer_than_20_positive_test_hours"
+        "fewer_than_20_positive_test_hours",
+        "insufficient_same_location_precedent"
       ],
+      "policy_version": 2,
       "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
     }
   },
   "confidence_policy": {
+    "version": 2,
     "agreement_score": "clip(1 - 2 * mean(ensemble probability standard deviation), 0, 1)",
+    "historical_support_score": "n_similar_historical_hours / (n_similar_historical_hours + medium_precedent_min)",
+    "confidence_score": "agreement_score * historical_support_score; capped at low_score_max when validation/coverage limitations apply",
+    "support_scale_source": "Heuristic using the existing 20-hour minimum precedent policy; not fitted to test outcomes or a calibrated probability.",
     "similarity_radius_rms_standard_deviations": 0.5,
     "query_sample_limit": 256,
     "precedent_count_aggregation": "median count of same-location training hours within radius of sampled test hours",
@@ -1269,6 +1357,7 @@
     "medium_score_min": 0.7,
     "high_precedent_min": 100,
     "medium_precedent_min": 20,
+    "low_score_max": 0.69,
     "minimum_heldout_span_days_for_above_low": 365,
     "minimum_positive_test_hours_for_above_low": 20,
     "meaning": "Ensemble agreement and historical support for the proxy classifier, not a probability of correctness or calibrated coverage of annual tails."
@@ -1285,6 +1374,62 @@
       "cutoff": "All observed temperature features end before the target hour; no same-hour temperatures or future daily extrema.",
       "effect": "Learned by the classifier from independent event/proxy labels; no hardcoded hot/cold cutoff probability or monotonicity assumption.",
       "availability": "Reanalysis inputs support retrospective study; historical timestamps alone do not verify real-time availability."
+    }
+  },
+  "confidence_revision": {
+    "method": "rescore_saved_ensemble_spread_and_precedent_counts",
+    "policy_version": 2,
+    "source_artifact_sha256": {
+      "exposure_by_location.parquet": "ffe0e5e3f633fd19065611cae868f6066bb77dfc1803a271d955f4213671ce35",
+      "model_card.json": "e6735c8a54b30d999e6ef7b99dcecf5e2563a28bc55a876cec6bb62e9d5c2e86",
+      "simulation_metadata.json": "bf3a15309de2e0f8356ec90020f8314a9761f716c1e57efe553cc200ea4014ab"
+    },
+    "retrained": false,
+    "resimulated": false,
+    "precedent_recomputed": false,
+    "limitation": "Original run inputs/model unavailable. Recorded same-location neighbor counts and ensemble spreads reused; exposure hours and original coverage limitations preserved.",
+    "independent_pipeline_validation": {
+      "scope": "Separate reproducible six-year SPP high-demand-proxy run; does not replace or validate the published 2024 observed-event exposure hours.",
+      "run_directory": "data/processed/workbench/runs/confidence_v2_20260913",
+      "model_version": "spp_lgbm_20260913T215248_30b0029de7",
+      "input_hashes": {
+        "hourly_sha256": "30b0029de7b7d0f8b884ceef918a8f3d12dc48c328297d7c85abd805d416a993",
+        "policy_sha256": "f8a67011ea4346036e31486f54fb97374cb3de08f63473c9ea5df53e7d7e2fc2"
+      },
+      "training_command": "python -m pipeline.workflow train --hourly data/processed/ml_inputs/spp_2019_2024_demand_proxy.parquet --policy data/processed/ml_inputs/spp_2019_2024_demand_proxy.policy.json --run-dir data/processed/workbench/runs/confidence_v2_20260913",
+      "simulation_command": "python -m pipeline.workflow simulate --run-dir data/processed/workbench/runs/confidence_v2_20260913 --simulations 2000 --years 7",
+      "usable_location_hours": 52250,
+      "test": {
+        "start": "2023-10-21 17:00:00+00:00",
+        "end": "2025-01-01 05:00:00+00:00",
+        "rows": 10426,
+        "positive_hours": 835
+      },
+      "brier_score": 0.003015828394369256,
+      "baseline_brier_score": 0.0741305418469926,
+      "confidence": {
+        "SPP_SYSTEM": {
+          "level": "Low",
+          "score": 0.0,
+          "agreement_score": 0.9976631414546541,
+          "historical_support_score": 0.0,
+          "n_similar_historical_hours": 0,
+          "mean_ensemble_probability_std": 0.0011684292726729674,
+          "limitations": [
+            "insufficient_same_location_precedent"
+          ],
+          "policy_version": 2,
+          "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
+        }
+      },
+      "artifacts_sha256": {
+        "model_card.json": "0e94f189576e9791307e32480132d83285309c8163772d603e45558faff713b1",
+        "test_predictions.parquet": "0d59c61d9e4d1b5882635480d2014e48b59df05c02b7a7a61fcf2ccf7b41010b",
+        "exposure_by_location.parquet": "080457027041f86559005663ff713fffbad97b911c571acbbec1041075b61b77",
+        "simulation_metadata.json": "d5874d397f7cc19ccd9633b4b61234e913a30f14be9fc3bbd71f0a9a8cada715"
+      },
+      "api_provenance_passed": true,
+      "annual_reference_readiness_passed": true
     }
   }
 }

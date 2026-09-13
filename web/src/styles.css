@@ -79,6 +79,14 @@ h1 { font-size: clamp(28px, 2.6vw, 36px); letter-spacing: -.03em; line-height: 1
 .select-wrap svg { position: absolute; top: 9px; right: 0; pointer-events: none; color: var(--text-muted); }
 select option { background: var(--raised); font-size: 14px; }
 .field-note { display: block; font-size: 11px; line-height: 1.5; color: var(--text-muted); margin-top: 4px; }
+.location-search { display: grid; gap: 8px; margin-top: 12px; }
+.location-search input, .location-search select { width: 100%; min-width: 0; background: var(--raised); color: var(--text-primary); border: 1px solid var(--border-strong); border-radius: 2px; padding: 9px; font-size: 12px; }
+.location-search .button { justify-self: start; }
+.location-pending { min-height: 380px; }
+.location-pending > p, .location-pending > .metric-number { margin: 28px; color: var(--text-muted); }
+.location-evidence { border-top: 1px solid var(--border); padding: 16px 24px; color: var(--text-secondary); font-size: 12px; line-height: 1.65; }
+.location-evidence summary { cursor: pointer; }
+.button:disabled { opacity: .5; }
 .input-with-unit { display: flex; gap: 9px; align-items: baseline; }
 .input-with-unit input { background: transparent; color: var(--text-primary); border: none; border-bottom: 1px solid transparent; border-radius: 0; width: 100%; min-width: 32px; max-width: 125px; font-family: var(--font-mono); font-size: 30px; font-weight: 500; letter-spacing: 0; padding: 1px 0; -moz-appearance: textfield; transition: border-color 220ms var(--ease-out), color 220ms var(--ease-out); }
 .input-with-unit input::-webkit-inner-spin-button, .input-with-unit input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
@@ -640,5 +648,4 @@ button.confidence-badge { font: 600 11px var(--font-heading); color: var(--text-
   .leaderboard-table-wrap { font-size: 10px; }
   .leaderboard-table th, .leaderboard-table td { padding: 8px 10px; }
 }
-
 

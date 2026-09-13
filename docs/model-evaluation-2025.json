@@ -1,0 +1,351 @@
+{
+  "status": "retrospective_high_demand_proxy_comparison",
+  "hourly_sha256": "84d0f3f5fbd6c57555d2c0c45e15b2b2e9904a351d0e419a5bee2ba5404620fc",
+  "hourly_path": "data\\processed\\ml_inputs\\spp_2019_2025_multifactor.parquet",
+  "start_utc": "2025-01-01T06:00:00+00:00",
+  "end_exclusive_utc": "2026-01-01T00:00:00+00:00",
+  "expected_hours": 8754,
+  "scored_hours": 8729,
+  "unscored_hours": 25,
+  "frozen_target": {
+    "thresholds_mw": {
+      "SPP_SYSTEM": 42064.0228
+    },
+    "quantile": 0.95,
+    "reference_start": "2019-01-01 06:00:00+00:00",
+    "reference_end_exclusive": "2022-01-01T00:00:00+00:00"
+  },
+  "runs": [
+    {
+      "run_dir": "data\\processed\\workbench\\runs\\confidence_v2_20260913",
+      "model_version": "spp_lgbm_20260913T215248_30b0029de7",
+      "model_sha256": "ef84a0c885c7f912c13a2bfa94f926a8178f380e95e633166be6ece8d92cbe81",
+      "model_card_sha256": "0e94f189576e9791307e32480132d83285309c8163772d603e45558faff713b1",
+      "training_hours": 31350,
+      "metrics": {
+        "brier_score": 0.003901555115878137,
+        "log_loss": 0.014181380641826077,
+        "event_rate": 0.10012601672585635,
+        "mean_prediction": 0.09836018235666058,
+        "n_hours": 8729,
+        "positive_hours": 874,
+        "roc_auc": 0.9996901797015995,
+        "average_precision": 0.9974112022059001,
+        "reliability_bins": [
+          {
+            "n": 7785,
+            "mean_prediction": 0.000567455347112736,
+            "observed_fraction": 0.000899165061014772
+          },
+          {
+            "n": 28,
+            "mean_prediction": 0.15307719766945235,
+            "observed_fraction": 0.14285714285714285
+          },
+          {
+            "n": 23,
+            "mean_prediction": 0.25075497913341765,
+            "observed_fraction": 0.17391304347826086
+          },
+          {
+            "n": 13,
+            "mean_prediction": 0.3493113204061128,
+            "observed_fraction": 0.38461538461538464
+          },
+          {
+            "n": 16,
+            "mean_prediction": 0.4495003185081675,
+            "observed_fraction": 0.5
+          },
+          {
+            "n": 14,
+            "mean_prediction": 0.5380877100437556,
+            "observed_fraction": 0.42857142857142855
+          },
+          {
+            "n": 15,
+            "mean_prediction": 0.6510767730696199,
+            "observed_fraction": 0.8
+          },
+          {
+            "n": 21,
+            "mean_prediction": 0.7488251914376438,
+            "observed_fraction": 0.9047619047619048
+          },
+          {
+            "n": 53,
+            "mean_prediction": 0.8590763738009856,
+            "observed_fraction": 0.9245283018867925
+          },
+          {
+            "n": 761,
+            "mean_prediction": 0.9905730055578116,
+            "observed_fraction": 0.9986859395532195
+          }
+        ]
+      },
+      "training_prevalence_baseline": {
+        "brier_score": 0.09181491762212468,
+        "log_loss": 0.33830722453775314,
+        "event_rate": 0.10012601672585635,
+        "mean_prediction": 0.05872408293460924,
+        "n_hours": 8729,
+        "positive_hours": 874,
+        "roc_auc": 0.5,
+        "average_precision": 0.10012601672585635,
+        "reliability_bins": [
+          {
+            "n": 8729,
+            "mean_prediction": 0.05872408293460924,
+            "observed_fraction": 0.10012601672585635
+          }
+        ]
+      }
+    },
+    {
+      "run_dir": "data\\processed\\workbench\\runs\\history_2025_20260913",
+      "model_version": "spp_lgbm_20260913T222517_37b750a063",
+      "model_sha256": "1c53ec7c7939ee902a437db06d715da9aa436620f01282025ca018dee03e76bc",
+      "model_card_sha256": "832ddb59f28e2c8e1d5f663e508d9abae7072e2c8fe7c3dc8468168f10bde8bb",
+      "training_hours": 36587,
+      "metrics": {
+        "brier_score": 0.003661044424147149,
+        "log_loss": 0.013198426568647056,
+        "event_rate": 0.10012601672585635,
+        "mean_prediction": 0.09950440330514086,
+        "n_hours": 8729,
+        "positive_hours": 874,
+        "roc_auc": 0.9997236816614642,
+        "average_precision": 0.9976661007275306,
+        "reliability_bins": [
+          {
+            "n": 7780,
+            "mean_prediction": 0.0006116951381523098,
+            "observed_fraction": 0.0006426735218508997
+          },
+          {
+            "n": 22,
+            "mean_prediction": 0.1456610188544083,
+            "observed_fraction": 0.09090909090909091
+          },
+          {
+            "n": 20,
+            "mean_prediction": 0.239024288702364,
+            "observed_fraction": 0.1
+          },
+          {
+            "n": 16,
+            "mean_prediction": 0.3442695270411626,
+            "observed_fraction": 0.375
+          },
+          {
+            "n": 23,
+            "mean_prediction": 0.45133322962403744,
+            "observed_fraction": 0.34782608695652173
+          },
+          {
+            "n": 11,
+            "mean_prediction": 0.5455127270059972,
+            "observed_fraction": 0.5454545454545454
+          },
+          {
+            "n": 13,
+            "mean_prediction": 0.656713105240301,
+            "observed_fraction": 0.9230769230769231
+          },
+          {
+            "n": 20,
+            "mean_prediction": 0.7503791532371992,
+            "observed_fraction": 0.7
+          },
+          {
+            "n": 42,
+            "mean_prediction": 0.8639624611021894,
+            "observed_fraction": 0.9285714285714286
+          },
+          {
+            "n": 782,
+            "mean_prediction": 0.9899092411466345,
+            "observed_fraction": 0.9974424552429667
+          }
+        ]
+      },
+      "training_prevalence_baseline": {
+        "brier_score": 0.09192652909013557,
+        "log_loss": 0.33932773038551206,
+        "event_rate": 0.10012601672585635,
+        "mean_prediction": 0.05739743624784759,
+        "n_hours": 8729,
+        "positive_hours": 874,
+        "roc_auc": 0.5,
+        "average_precision": 0.10012601672585635,
+        "reliability_bins": [
+          {
+            "n": 8729,
+            "mean_prediction": 0.05739743624784759,
+            "observed_fraction": 0.10012601672585635
+          }
+        ]
+      }
+    }
+  ],
+  "paired_brier_changes_vs_first_run": [
+    {
+      "candidate_minus_baseline": -0.00024051069173098894,
+      "n_blocks": 53,
+      "method": "Paired seven-day block bootstrap; descriptive retrospective proxy comparison.",
+      "seed": 2026,
+      "replicates": 2000,
+      "interval_95": [
+        -0.0007707114881023319,
+        0.00011889966621996566
+      ]
+    }
+  ],
+  "limitations": [
+    "High demand is an assumed stress proxy, not an observed emergency or site interruption.",
+    "Reanalysis weather is retrospective; historical publication availability is not established.",
+    "All models use the identical observed evaluation hours. No fitting or calibration occurs here.",
+    "Comparison does not promote a model or validate annual exposure tails."
+  ],
+  "predictions_sha256": "7c7419947a052c3ccf172ea84787063a9e8f38a3190af31966048a1707800598",
+  "candidate_artifacts": {
+    "model.joblib": {
+      "path": "data\\processed\\workbench\\runs\\history_2025_20260913\\model.joblib",
+      "sha256": "1c53ec7c7939ee902a437db06d715da9aa436620f01282025ca018dee03e76bc"
+    },
+    "model_card.json": {
+      "path": "data\\processed\\workbench\\runs\\history_2025_20260913\\model_card.json",
+      "sha256": "832ddb59f28e2c8e1d5f663e508d9abae7072e2c8fe7c3dc8468168f10bde8bb"
+    },
+    "simulation_metadata.json": {
+      "path": "data\\processed\\workbench\\runs\\history_2025_20260913\\simulation_metadata.json",
+      "sha256": "e8d60a4dc43bcce6e985be10ceecd5c961d441d4d327bee50cf0bac4e09149ce"
+    },
+    "exposure_by_location.parquet": {
+      "path": "data\\processed\\workbench\\runs\\history_2025_20260913\\exposure_by_location.parquet",
+      "sha256": "1a39dcb42f8fce07db2cca22e6141e9eb787a0ea1cb95e8743391261511557f5"
+    }
+  },
+  "new_public_sources": [
+    {
+      "source_type": "data",
+      "ref": "https://portal.spp.org/file-browser-api/download/hourly-load?path=/2025/HOURLY_LOAD-202501.csv",
+      "retrieved_utc": "2026-09-13T22:22:03.971313+00:00",
+      "sha256": "931c91a40da6880b3f3afac46fc1af5b6cefd1d4b5c5990d3dabefc8651b36fd"
+    },
+    {
+      "source_type": "data",
+      "ref": "https://portal.spp.org/file-browser-api/download/hourly-load?path=/2025/HOURLY_LOAD-202502.csv",
+      "retrieved_utc": "2026-09-13T22:22:05.186110+00:00",
+      "sha256": "ed3d6bc411bd9e1c56cc8f3c79a76ead05e8d9380a3b8970ed6d2ffe5b648e9c"
+    },
+    {
+      "source_type": "data",
+      "ref": "https://portal.spp.org/file-browser-api/download/hourly-load?path=/2025/HOURLY_LOAD-202503.csv",
+      "retrieved_utc": "2026-09-13T22:22:05.435606+00:00",
+      "sha256": "1dde0083acdc76dc0548f3aa3a6f610e8ba2427315491174674ce82414cefc0d"
+    },
+    {
+      "source_type": "data",
+      "ref": "https://portal.spp.org/file-browser-api/download/hourly-load?path=/2025/HOURLY_LOAD-202504.csv",
+      "retrieved_utc": "2026-09-13T22:22:07.045088+00:00",
+      "sha256": "39a2dc8572962a482ece12eedd96f4bfb1d6b12487883acbaba0d599e73596f5"
+    },
+    {
+      "source_type": "data",
+      "ref": "https://portal.spp.org/file-browser-api/download/hourly-load?path=/2025/HOURLY_LOAD-202505.csv",
+      "retrieved_utc": "2026-09-13T22:22:07.248449+00:00",
+      "sha256": "294c7396180d1d93ad798e3052af156a6db56e63bae6d6e8c8a2aa34c5c92ce2"
+    },
+    {
+      "source_type": "data",
+      "ref": "https://portal.spp.org/file-browser-api/download/hourly-load?path=/2025/HOURLY_LOAD-202506.csv",
+      "retrieved_utc": "2026-09-13T22:22:08.731009+00:00",
+      "sha256": "3fee5c3845c57ca4258252261b23270734914e8155d131660b1456119c3fb720"
+    },
+    {
+      "source_type": "data",
+      "ref": "https://portal.spp.org/file-browser-api/download/hourly-load?path=/2025/HOURLY_LOAD-202507.csv",
+      "retrieved_utc": "2026-09-13T22:22:08.885974+00:00",
+      "sha256": "b88230e712e07afe57fc38c798c27a5baf22fac6e548dd44150832e04658b1ce"
+    },
+    {
+      "source_type": "data",
+      "ref": "https://portal.spp.org/file-browser-api/download/hourly-load?path=/2025/HOURLY_LOAD-202508.csv",
+      "retrieved_utc": "2026-09-13T22:22:11.049125+00:00",
+      "sha256": "e5c97111acd0a151c68ee72ac5eb540355124a0deb4b4fea040e8f6f1bf5b559"
+    },
+    {
+      "source_type": "data",
+      "ref": "https://portal.spp.org/file-browser-api/download/hourly-load?path=/2025/HOURLY_LOAD-202509.csv",
+      "retrieved_utc": "2026-09-13T22:22:11.048134+00:00",
+      "sha256": "ec6aa318aca6f099606418f247540e519f9d2f872bfb6298959693bd64e57899"
+    },
+    {
+      "source_type": "data",
+      "ref": "https://portal.spp.org/file-browser-api/download/hourly-load?path=/2025/HOURLY_LOAD-202510.csv",
+      "retrieved_utc": "2026-09-13T22:22:12.921015+00:00",
+      "sha256": "230fba2545f024e063d13c6c705355371bee721258c18e4898d6f844b4fa1a03"
+    },
+    {
+      "source_type": "data",
+      "ref": "https://portal.spp.org/file-browser-api/download/hourly-load?path=/2025/HOURLY_LOAD-202511.csv",
+      "retrieved_utc": "2026-09-13T22:22:13.074912+00:00",
+      "sha256": "5bd2605cb8f33c509bc69470057af82c96d244340910dee9fbc98dba50d54786"
+    },
+    {
+      "source_type": "data",
+      "ref": "https://portal.spp.org/file-browser-api/download/hourly-load?path=/2025/HOURLY_LOAD-202512.csv",
+      "retrieved_utc": "2026-09-13T22:22:14.759487+00:00",
+      "sha256": "7e2e20f18784e6c12cd1fae14d0f865a242dfab8e7264d0165ba887a514bae28"
+    },
+    {
+      "source_type": "data",
+      "ref": "https://portal.spp.org/file-browser-api/download/generation-mix-historical?path=/GenMix_2025.csv",
+      "retrieved_utc": "2026-09-13T22:22:36.679745+00:00",
+      "sha256": "120bf355b38833110a4cb67fd02f06f212207b9ec9f70d1be71a2402b2defa64"
+    }
+  ],
+  "canonical_artifacts_replaced": false,
+  "candidate_confidence": {
+    "SPP_SYSTEM": {
+      "level": "Low",
+      "score": 0.0,
+      "agreement_score": 0.9953742540862066,
+      "historical_support_score": 0.0,
+      "n_similar_historical_hours": 0,
+      "mean_ensemble_probability_std": 0.002312872956896689,
+      "limitations": [
+        "insufficient_same_location_precedent"
+      ],
+      "policy_version": 2,
+      "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
+    }
+  },
+  "api_provenance_and_annual_readiness": "passed",
+  "data_coverage": {
+    "spp_2019_2024_multifactor": {
+      "rows": 52608,
+      "start": "2019-01-01 06:00:00+00:00",
+      "end": "2025-01-01 05:00:00+00:00",
+      "observed": {
+        "load_mw": 52541,
+        "temperature_c": 52608,
+        "wind_mw": 51579,
+        "solar_mw": 51579
+      }
+    },
+    "spp_2019_2025_multifactor": {
+      "rows": 61362,
+      "start": "2019-01-01 06:00:00+00:00",
+      "end": "2025-12-31 23:00:00+00:00",
+      "observed": {
+        "load_mw": 61294,
+        "temperature_c": 61362,
+        "wind_mw": 60259,
+        "solar_mw": 60259
+      }
+    }
+  }
+}
