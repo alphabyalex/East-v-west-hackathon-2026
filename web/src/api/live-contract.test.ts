@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { postEstimate } from './client';
 import { getLocations } from './locations';
+import { getGridImpact, powerScenario } from './grid-impact';
 import { getEconomicsAssumptions, validateEconomicConsistency } from './assumptions';
 import { buildEstimateSensitivity } from './sensitivity';
 import { adaptEstimateResponse, createMockEstimate, defaultInputs, toEstimateRequest } from '../model';
@@ -21,6 +22,24 @@ const cases = [
 ];
 
 describe.skipIf(!baseUrl)('live FastAPI / frontend contract parity', () => {
+  it.each([['LES', 397026.85], ['OKGE', 103089.76]] as const)('fetches %s grid impact and derives the real-priced capacity scenario', async (location, usd) => {
+    const data = await getGridImpact(location, {
+      fetchImpl: ((input, init) => fetch(new URL(new URL(String(input), 'http://127.0.0.1:8000').pathname, baseUrl), init)) as typeof fetch,
+      signal: AbortSignal.timeout(5000),
+    });
+    expect(data.cheap_power.status).toBe('observed_hours_only');
+    if (data.cheap_power.status !== 'observed_hours_only') throw new Error('No live price evidence');
+    expect(powerScenario(data.cheap_power, 100, .5).dollars.value).toBeCloseTo(usd, 6);
+    expect(data.carbon_shifted_tonnes_in_observed_hours.value).toBeNull();
+  });
+  it('fetches an honest unavailable grid-impact response for EDE', async () => {
+    const data = await getGridImpact('EDE', {
+      fetchImpl: ((input, init) => fetch(new URL(new URL(String(input), 'http://127.0.0.1:8000').pathname, baseUrl), init)) as typeof fetch,
+      signal: AbortSignal.timeout(5000),
+    });
+    expect(data.cheap_power.status).toBe('unavailable');
+    expect(data.wind_absorption_mwh_in_observed_hours.value).toBeNull();
+  });
   it('loads real zone IDs and the three named scenarios from the running API', async () => {
     const locations = await getLocations({
       fetchImpl: ((input, init) => fetch(new URL(new URL(String(input), 'http://127.0.0.1:8000').pathname, baseUrl), init)) as typeof fetch,

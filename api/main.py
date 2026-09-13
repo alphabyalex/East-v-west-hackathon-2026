@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .economics import ArithmeticRangeError, AssumptionsError, EconomicsAssumptions, load_assumptions
 from .estimate import build_estimate
 from .grid_impact import GridImpactSnapshotCache, LIVE_LOCATION_PATTERN, read_live_grid_impact
+from .grid_power import attach_power
 from .locations import LocationsResponse, get_locations
 from .mock_provider import LocationNotFoundError, LocationProvider
 from .pipeline_provider import PipelineDataError, get_pipeline_location
@@ -56,12 +57,15 @@ def grid_impact(location_id: Annotated[str, Path(pattern=LIVE_LOCATION_PATTERN)]
     unavailable, never zero. A 200 may contain partial or unavailable coverage.
     This scenario has its own declared capacity; /api/estimate inputs do not
     change it. Reviewed zone references add location_mapping identifying the
-    source point and scope; unavailable mapped evidence stays null. Unknown IDs
+    source point and scope. The additive cheap_power field supplies precompiled
+    observed month/hour price bins per available MW (or explicit unavailable),
+    bound to that snapshot. It does not rescale the six published quantities.
+    Unavailable mapped evidence stays null. Unknown IDs
     without snapshots are 404; invalid/unreadable snapshots are 503.
     """
     response.headers["Cache-Control"] = "no-store"
     try:
-        return read_live_grid_impact(location_id, cache=grid_impact_cache)
+        return attach_power(read_live_grid_impact(location_id, cache=grid_impact_cache))
     except FileNotFoundError as error:
         raise HTTPException(status_code=404, detail="No precompiled grid-impact snapshot for this exact location",
                             headers={"Cache-Control": "no-store"}) from error

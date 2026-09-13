@@ -28,7 +28,7 @@ function readProvenance() {
 beforeEach(() => {
   vi.stubGlobal('WebGL2RenderingContext', class {});
   vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('prefers-reduced-motion'), media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
-  controller = { update: vi.fn(), select: vi.fn(), reset: vi.fn(), rotate: vi.fn(), zoom: vi.fn(), dispose: vi.fn() };
+  controller = { update: vi.fn(), updateGrid: vi.fn(), select: vi.fn(), reset: vi.fn(), rotate: vi.fn(), zoom: vi.fn(), dispose: vi.fn() };
   rendererMock.mockReset();
   rendererMock.mockImplementation((_host, suppliedCallbacks) => { callbacks = suppliedCallbacks; return controller; });
 });

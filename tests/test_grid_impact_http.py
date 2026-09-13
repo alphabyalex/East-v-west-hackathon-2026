@@ -81,7 +81,9 @@ def test_complete_authored_snapshot_is_served_exactly_without_composition(bundle
         assert response.status_code == 200
         assert response.headers["cache-control"] == "no-store"
         assert response.headers["access-control-allow-origin"] == "http://127.0.0.1:5174"
-        assert response.json() == expected
+        served = response.json()
+        assert served.pop("cheap_power")["status"] == "unavailable"
+        assert served == expected
     assert validation.call_count == 1
     forbidden.assert_not_called()
     assert path.read_bytes() == original
@@ -101,6 +103,7 @@ def test_incomplete_snapshot_preserves_nulls_and_coverage(bundle, client, case):
     response = client.get("/api/grid-impact/TEST_ZONE")
     assert response.status_code == 200
     result = response.json()
+    assert result.pop("cheap_power")["status"] == "unavailable"
     assert result == impact.read_grid_impact_snapshot("TEST_ZONE", path, required=True)
     assert_sources(result)
     assert all(result[field]["value"] is None for field in impact.UNITS if field.endswith("per_year"))

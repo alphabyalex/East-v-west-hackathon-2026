@@ -7,5 +7,7 @@ export function withEconomics(post: typeof fetch, assumptions: unknown = snapsho
     ? Promise.resolve(new Response(JSON.stringify(assumptions), { status: 200 }))
     : String(url).endsWith('/api/locations')
       ? Promise.resolve(new Response(JSON.stringify({ locations: offlineLocations }), { status: 200 }))
-      : post(url, options)
+      : String(url).includes('/api/grid-impact/')
+        ? Promise.resolve(new Response('{}', { status: 404 }))
+        : post(url, options)
 }
