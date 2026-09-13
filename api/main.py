@@ -2,13 +2,14 @@
 
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException, Request, Response
+from fastapi import Depends, FastAPI, HTTPException, Path, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from .economics import ArithmeticRangeError, AssumptionsError, EconomicsAssumptions, load_assumptions
 from .estimate import build_estimate
+from .grid_impact import GridImpactSnapshotCache, LIVE_LOCATION_PATTERN, read_live_grid_impact
 from .locations import LocationsResponse, get_locations
 from .mock_provider import LocationNotFoundError, LocationProvider
 from .pipeline_provider import PipelineDataError, get_pipeline_location
@@ -28,6 +29,7 @@ app.add_middleware(
     allow_headers=["Content-Type"],
     expose_headers=["X-Headroom-Exposure-Source"],
 )
+grid_impact_cache = GridImpactSnapshotCache(max_entries=32)
 
 
 def get_location_provider() -> LocationProvider:
@@ -43,6 +45,27 @@ def locations(response: Response) -> LocationsResponse:
         return get_locations()
     except PipelineDataError as error:
         raise HTTPException(status_code=503, detail=str(error)) from error
+
+
+@app.get("/api/grid-impact/{location_id}")
+def grid_impact(location_id: Annotated[str, Path(pattern=LIVE_LOCATION_PATTERN)], response: Response) -> dict:
+    """Read a fixed precompiled grid-impact-v1 scenario with its complete evidence.
+
+    Each of the six wind/carbon quantities is {value, source_type, ref}; units,
+    basis, coverage and the local evidence graph accompany them. Null means
+    unavailable, never zero. A 200 may contain partial or unavailable coverage.
+    This scenario has its own declared capacity; /api/estimate inputs do not
+    change it. Missing snapshots are 404; invalid/unreadable snapshots are 503.
+    """
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        return read_live_grid_impact(location_id, cache=grid_impact_cache)
+    except FileNotFoundError as error:
+        raise HTTPException(status_code=404, detail="No precompiled grid-impact snapshot for this exact location",
+                            headers={"Cache-Control": "no-store"}) from error
+    except (OSError, ValueError) as error:
+        raise HTTPException(status_code=503, detail="Precompiled grid-impact snapshot is invalid or unreadable",
+                            headers={"Cache-Control": "no-store"}) from error
 
 
 @app.get("/api/economics-assumptions", response_model=EconomicsAssumptions)

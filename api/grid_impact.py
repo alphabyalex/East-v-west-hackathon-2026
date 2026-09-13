@@ -1,4 +1,4 @@
-"""Standalone composition of precomputed grid-impact scenarios; no API wiring.
+"""Offline grid-impact composition and read-only snapshot serving.
 
 ``compose_grid_impact(location_id, wind_summary=..., carbon_shift=...,
 shift_coverage=...)`` accepts one ``summarize_wind`` record and one
@@ -48,7 +48,11 @@ location returns sourced unavailable values. The entire envelope and unique
 location identifiers are checked, then only the selected location is composed.
 Malformed selected data raises; other locations' payloads are validated when
 selected. Offline producers should validate all records before publishing them.
-This module does not register a route or modify the /api/estimate contract.
+This module does not modify the /api/estimate contract. api.main registers the
+additive GET /api/grid-impact/{location_id} route through read_live_grid_impact.
+It serves the unchanged grid-impact-v1 result, including all evidence and nulls.
+The response is a fixed, explicitly sourced offline capacity scenario; it does
+not inherit load size, flexibility or site_exposure from an estimate request.
 
 Demo read path: compile_grid_impact_snapshot(location_id, path, ...) runs offline
 and publishes an immutable single-location snapshot. read_grid_impact_snapshot
@@ -99,9 +103,13 @@ These commands reject missing files/locations instead of publishing a fallback.
 Valid unavailable observations and partial-year nulls remain valid. Compilation
 refuses existing destinations; checking performs no writes or recomputation.
 Neither command fetches, trains, or changes the canonical estimate endpoint.
-Runtime artifacts are ignored by git: transfer reviewed snapshots or their full
-prepared envelopes separately, and compare sender-provided file hashes. Passing
-check establishes structural integrity, not authenticity or complete coverage.
+The selected live_v1 snapshot bundle is committed with the API wiring. Other
+research artifacts remain ignored and require separate transfer. Compare file
+hashes; check establishes structural integrity, not authenticity or coverage.
+FLUXLINE_GRID_IMPACT_DIR can select a different already-compiled bundle directory.
+Files are named <exact_location_id>.snapshot.json. Missing snapshots raise for
+HTTP 404; valid unavailable snapshots return 200 with sourced nulls; malformed
+files fail as HTTP 503. No zone-to-settlement-point aliases are inferred.
 """
 from __future__ import annotations
 
@@ -112,6 +120,7 @@ import json
 import hashlib
 import math
 import os
+import re
 from pathlib import Path
 import tempfile
 import threading
@@ -123,6 +132,8 @@ from pipeline.wind_signal import finite_number, source, wind_scenario_mwh
 
 
 DEFAULT_PATH = Path(__file__).resolve().parents[1] / "data/processed/grid_impact_by_location.json"
+LIVE_SNAPSHOT_DIRECTORY = Path(__file__).resolve().parents[1] / "data/processed/grid_impact/live_v1"
+LIVE_LOCATION_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$"
 COUNT_KEYS = ("observed_hours", "evaluable_hours", "unknown_hours", "missing_interval_hours")
 UNITS = {
     "wind_absorption_mwh_in_observed_hours": "MWh",
@@ -870,6 +881,23 @@ def read_grid_impact_snapshot(location_id, path, *, cache=None, required=False):
     if cache is not None:
         cache._put(key, result, len(content))
     return deepcopy(result)
+
+
+def read_live_grid_impact(location_id, *, cache=None):
+    """Serve one exact ID from a precompiled bundle; never compose or alias it.
+
+    The configured directory is local deployment configuration, not user input.
+    Missing files raise FileNotFoundError; malformed files raise ValueError or
+    OSError. Unavailable observations in a valid snapshot remain sourced nulls.
+    """
+    location_id = _location(location_id)
+    if re.fullmatch(LIVE_LOCATION_PATTERN, location_id) is None:
+        raise ValueError("Unsupported grid-impact location identifier")
+    directory = Path(os.environ.get("FLUXLINE_GRID_IMPACT_DIR", LIVE_SNAPSHOT_DIRECTORY)).resolve()
+    path = directory / f"{location_id}.snapshot.json"
+    if path.resolve().parent != directory:
+        raise ValueError("Grid-impact snapshot must remain inside its configured directory")
+    return read_grid_impact_snapshot(location_id, path, cache=cache, required=True)
 
 
 def read_wind_scenario(location_id, path, *, flexible_load_mw, available_fraction, cache=None):
