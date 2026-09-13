@@ -1,106 +1,47 @@
-# Kristian's local model workspace
+# Use the location estimator
 
-Open **http://127.0.0.1:8765** on this computer.
+Open **http://127.0.0.1:8765** on this computer. To start the app later, double-click **Open ML Workspace.cmd** in the repository. The launcher starts the service in the background and opens your browser; running it again reuses the service.
 
-To start it again later, double-click **Open ML Workspace.cmd** in the repository
-folder. It starts the workspace in the background and opens your browser. Running
-the launcher again reuses the existing service. You do not need to type Python
-commands, activate the environment, install Node, or set up an API key.
+## Enter your inputs
 
-## What you can do
+1. Enter a **Location**: a US city and state, or latitude and longitude for a particular site.
+2. Set **Facility power demand (MW)** and **Flexible share of power (%)**.
+3. Set the **Site-exposure assumption**: the share of regional high-demand hours you assume applies to the site.
+4. Choose **Years to estimate**, from 1 to 7.
+5. Select **Estimate hours**. The app finds the location, checks historical SPP coverage, retrieves historical weather and calculates the result. If several places match, choose one and select **Estimate hours** again.
 
-1. **Explore the real data.** The prepared Amarillo example is selected initially.
-   Inspect daily temperature and grid-load charts, hourly coverage, and the exact
-   source and preparation records. Select another prepared dataset to compare it.
-2. **Enter an area.** Enter a US city and state under Prepare an area, choose the
-   original grid observations and grid ID, and click Prepare temperature data.
-   The existing offline command resolves the city, reuses cached downloads, and
-   creates a new temperature-enabled dataset. Its progress appears in the job log.
-3. **Supply event labels.** Choose the prepared temperature dataset, select your
-   reviewed event CSV, and provide its source and coverage reference. The download
-   link gives you a header-only CSV template. No example labels are invented.
-4. **Train and inspect.** Click Train a research model. The workspace runs the
-   existing evidence join and chronological train/calibration/test workflow.
-   After successful training, the saved run appears with evaluation, confidence,
-   warnings, the full report, and download links for the model and test predictions.
+The model approach is selected automatically. Temperature, load, wind and solar histories do not need manual entry. The first preparation can take several minutes; cached data and the shared fitted model are reused.
 
-The label CSV must contain exactly:
+## Read your output
 
-```csv
-timestamp_utc,location_id,event_active
-```
+The largest number is **Estimated site exposure per year**, in hours. Below it are the estimated site hours over your selected term, annual energy exposure in MWh, and the regional high-demand hours before the site assumption is applied.
 
-Use UTC hour-start timestamps with an explicit offset, the same grid ID as the
-selected observations, and `1` for reviewed event hours, `0` for confirmed covered
-non-event hours, or blank for unknown. Uploads are limited to 5 MB. They stay in this
-repository; they are not sent to a hosted service. The weather provider receives
-only city searches and coordinate/date requests when you explicitly prepare an area.
+**Inputs used for this estimate** records the exact saved assumptions. Editing the form does not silently change a saved result: select **Estimate hours** to generate an updated result. A notice identifies when displayed results belong to earlier inputs.
 
-The first workspace training form uses the existing `observed_event` target.
-The other explicit proxy targets remain available through
-[the command-line workflow](ML_WALKTHROUGH.md). Neither temperature nor the workspace
-changes the label rule, calibration, or simulation implementation.
+Use **View a saved estimate** to reopen a result. The app restores that result's inputs. **Save estimate (.txt)** saves a readable summary; **Download full result (.json)** includes the complete saved evidence and unrounded values. The source links beside the outputs open **Data sources and calculation**.
 
-## Current model status
+Older SPP-wide simulation results remain readable and explicitly show **Typical ... (P50)**, the middle simulated outcome. They are not relabeled as expected-value estimates. New requests use the regional comparison model.
 
-Real SPP load and historical temperature data are available. **Reviewed matching
-event labels are still missing, so there is no model trained on real event data
-yet.** The workspace shows this state explicitly. Software tests create temporary
-synthetic models solely to verify training and download behavior; those files are
-removed after the tests and never displayed here.
+## What the result means
 
-The prediction target is system-level modeled exposure. A city's weather does not
-establish a site's actual cutoff probability. Model outputs remain research results
-pending label/calibration review and validation of their intended use.
+All hours are **modeled exposure to high-demand conditions**, with **Low confidence**. They are not actual cutoff durations or future interruption dates. Local transmission constraints and site interruption records are unavailable.
 
-## Files and execution
+Site hours multiply regional modeled hours by your site-exposure assumption. Energy exposure also multiplies by facility MW and flexible share, assuming that flexible portion is interrupted throughout the assumed site hours. Changing facility size affects energy, not grid-stress hours. The new model compares historical monthly conditions with a stationary 365-day year, without growth or climate projections.
 
-This is a local research authoring tool, separate from the team's demo at `/web`
-and estimate API at `/api`. Page loads, charts and report views only read cached
-files. Preparing data and training are explicit background jobs that invoke
-`pipeline.workflow` outside the HTTP request. The demo app's read-only behavior and
-existing response contract are unchanged.
+Historical SPP grid inputs cover 2019–2024. An apparent match to another grid produces no estimate. An inconclusive coverage lookup exposes an optional confirmation only if you independently know the point belongs to the historical SPP footprint; this is recorded as your assumption.
 
-| Location | Contents |
-|---|---|
-| `data/processed/ml_inputs/` | Existing prepared hourly datasets |
-| `data/processed/workbench/inputs/` | New weather and evidence-joined datasets |
-| `data/processed/workbench/jobs/` | Uploaded evidence, label policies and job logs |
-| `data/processed/workbench/runs/` | Saved models, predictions and reports |
-| `data/processed/workbench/server.log` | Startup output |
-| `data/processed/workbench/server-error.log` | HTTP request log and server errors |
+## Local operation
 
-All these data folders are gitignored. The workspace never overwrites an existing
-dataset or model. One job runs at a time, and closing the browser does not stop an
-active job. Reopening the workspace reconnects to the running job. After restarting
-the service, existing datasets and completed runs are rediscovered; prior job logs
-remain in their folders.
+Opening or refreshing the app only reads saved data. Selecting **Estimate hours** explicitly authorizes the location lookup followed by the report job. Only an unambiguous match continues automatically. The service accepts one background job at a time.
 
-The service listens only on `127.0.0.1:8765`. This URL is for this computer; it is not
-a publicly hosted website. To run in a visible terminal instead of the background
-launcher, use:
+If the browser is closed during location search, reopen it and select **Estimate hours** again to continue; a reopened page does not silently start the next job. If it is closed during report generation, that job continues and its saved result becomes available when it finishes.
 
-```powershell
-.\.venv\Scripts\python.exe -m pipeline.workbench
-```
+Use **Refresh results** to reconnect after a connection problem. Failed jobs expose **Processing details**; successful downloads remain cached. The app is local to this computer, not a publicly hosted website.
 
-Press Ctrl+C in that terminal to stop that foreground instance. If the browser says
-the site is unavailable, run the launcher again. If a job fails, read its log, fix
-the input and retry; successful weather downloads remain cached. Use Refresh files
-to pick up files created by the command-line workflow while the page is open.
+Manual data preparation, reviewed event-label training, saved model inspection and simulations remain available through the [command-line workflow](ML_WALKTHROUGH.md) and existing local API. Those developer controls and warning-sign explanations are no longer displayed on the estimator screen. The underlying learned relationships and complete evidence remain in saved model artifacts; see [model methodology](WARNING_SIGNS.md).
 
-## Verification
+The local service is separate from the team's demo at `/web` and `/api`. Its files are under ignored `data/processed/workbench/`; raw data and trained models are not published in Git.
 
-All 40 Python pipeline/workspace tests pass. The workspace tests cover read-only
-views, path restrictions, local request protection, rejected labels, single-job
-execution, failed jobs, and disposable model training with preserved provenance.
-A live HTTP job also prepared all 8,784 Amarillo temperature hours successfully
-through the running service. The browser loaded the application, fonts and data
-endpoints successfully; visual inspection was unavailable because browser control
-was not connected in the development session.
+## Checks
 
-
-Update (2026-09-13 UTC): the [multi-factor prediction model](MULTIFACTOR_PREDICTION.md) now uses real 2019?2024 load, temperature, wind and solar data to predict a high-demand stress proxy. Saved expected hours, annual scenarios and an explicit site-exposure slider are available in the local ML workspace. This is separate from the earlier emergency-only evidence catalog.
-# Automated location reports
-
-Use **Explore your location** to enter any US city/state or latitude/longitude and automatically collect its weather, fit a location-weather model, and generate a modeled-exposure report. Follow [Choose your own location](LOCATION_REPORTS.md) for the steps, source coverage and limitations. This flow uses the documented high-demand proxy and does not require uploading event labels.
+The simplified flow has nine JavaScript behavior checks, covering input/output units, saved-input integrity, automatic and ambiguous location search, stale responses, explicit SPP confirmation, legacy medians, missing values and safe source URLs. Run `node tests/test_estimator_ui.js` where Node is installed. The existing seven workspace and nine site Python tests also pass. Live static assets and saved results were checked; a connected browser was unavailable for visual inspection.

@@ -33,9 +33,9 @@ returns:
 
 ## The ML layer
 
-The local workspace can also [learn and explain stress signs across multiple areas](docs/WARNING_SIGNS.md), using separate load-area histories, tests on excluded areas, and per-hour model explanations.
+The local estimator uses a [model trained across multiple areas](docs/WARNING_SIGNS.md). Its main screen shows location/facility inputs and estimated hours; detailed model evidence is retained in downloads.
 
-**Choose your own location:** open `Open ML Workspace.cmd`, then use **Explore your location** at http://127.0.0.1:8765. Enter a city/state or parcel coordinates, choose the result, and generate a report from local historical temperature and SPP grid data. See [Location reports](docs/LOCATION_REPORTS.md) for the workflow, coverage checks and interpretation. The current model estimates a high-demand proxy with Low confidence; actual site cutoffs and future dates are not established.
+**Estimate hours for your location:** open `Open ML Workspace.cmd`, then visit http://127.0.0.1:8765. Enter a city/state or parcel coordinates, facility assumptions and years, then select **Estimate hours**. Matching locations are resolved automatically unless a choice is needed. Read the annual site hours at the top of **Your estimate**. See [Location reports](docs/LOCATION_REPORTS.md) for the workflow and interpretation. Results are modeled exposure to high demand, with Low confidence; actual site cutoffs and future dates are not established.
 
 The contracts are deliberately vague. SPP's says curtailment happens "when the
 transmission system is constrained or under emergency conditions." No number can be
@@ -95,8 +95,8 @@ product; they are not a claim that real outputs are already available.
 
 For Kristian's implemented offline ML workflow, start with the
 [local browser workspace](docs/ML_WORKSPACE.md): double-click **Open ML Workspace.cmd**
-and open **http://127.0.0.1:8765** to explore real inputs, enter an area, and train
-once reviewed event labels are available. For command-line use, follow the
+and open **http://127.0.0.1:8765** to enter a location and generate a modeled-exposure
+estimate. For manual preparation and reviewed event-label training, follow the
 [step-by-step walkthrough](docs/ML_WALKTHROUGH.md). It covers the local Python
 environment, real SPP load preparation, required event labels, training, evaluation,
 and the experimental simulation. Use `python -m pipeline.workflow --help` for its

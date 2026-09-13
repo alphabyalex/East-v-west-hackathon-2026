@@ -1,13 +1,13 @@
 # Learning stress signs across areas
 
-The local ML workspace now offers **Learn stress signs across areas** under **Model approach**. Enter a city/state or coordinates, select the location, set the facility assumptions, and click **Scan data & generate report**. The first run prepares reference data and trains the shared model; subsequent locations reuse it and retrieve their own historical weather.
+The local estimator now shows only inputs and outputs. Enter a city/state or coordinates, set facility assumptions, and select **Estimate hours**. It chooses the regional comparison model automatically. The first run prepares reference data and trains the shared model; subsequent locations reuse it and retrieve their own historical weather. See [the current screen guide](ML_WORKSPACE.md).
 
-To explain an existing SPP-wide report without retraining it, select that saved report and click **Explain this saved model's warning signs**. This saves a new report with explanations; the original report is retained.
+Warning-sign explanations remain in saved model evidence and the full JSON download; they are not displayed on the estimator screen. The existing `site-signals` API job can still explain a saved SPP-wide model without retraining it, preserving the original report.
 
-## What the screen tells you
+## What the saved evidence contains
 
 - **Signs associated with high demand:** combinations such as high temperature with high demand, cold with high demand, rising demand, high demand with low wind, and high demand after wind/solar. The table gives the actual comparison thresholds, matched historical hours/days, held-out high-demand frequency and a comparable baseline.
-- **Inspect a historical hour:** select an hour to see which groups of inputs raised or lowered that model prediction. The groups include temperature, demand, demand changes, their interaction, wind/solar, net demand and calendar patterns. All observed inputs end before the target hour.
+- **Explained historical hours:** the evidence records which groups of inputs raised or lowered each selected prediction. The groups include temperature, demand, demand changes, their interaction, wind/solar, net demand and calendar patterns. All observed inputs end before the target hour.
 - **Similar historical conditions:** training examples with similar temperature, SPP load, ramp, net demand and wind, including their area and whether its own high-demand proxy was active. No close examples means weak historical support; the software does not manufacture matches.
 - **Testing on excluded areas:** the regional report shows performance on areas that contributed no rows to that fold's model fitting or calibration. Both area and time separation matter.
 
@@ -54,7 +54,7 @@ Confidence stays **Low**. Inputs are historical 2019–2024 archives, with compl
 
 The [recorded Wichita example](regional-warning-summary.json) uses model `spp_regional_cc7d60f6ff429cb1e0cb`. Its highest-scored historical hour was 2024-08-26 20:00 UTC, using 34.5°C preceding-hour temperature and 50,887.832 MW of SPP demand. Temperature together with demand was the largest positive explanation group. This is a model explanation, not evidence that Wichita experienced a cutoff.
 
-Transfer accuracy varies materially by area: the excluded OPPD test estimated 302.5 high-demand-proxy hours against 1,181 observed in the same evaluation window. Beating a constant-prevalence baseline does not establish calibrated annual totals for a new site. The UI exposes each excluded area's predicted and observed hours; the snapshot retains those results alongside the low-confidence Wichita expectation.
+Transfer accuracy varies materially by area: the excluded OPPD test estimated 302.5 high-demand-proxy hours against 1,181 observed in the same evaluation window. Beating a constant-prevalence baseline does not establish calibrated annual totals for a new site. The full JSON and snapshot retain each excluded area's predicted and observed hours alongside the low-confidence Wichita expectation.
 
 - New modules: `pipeline/regional.py` and `pipeline/signals.py`. `pipeline/train.py` and `pipeline/label.py` are unchanged.
 - `features.build_features(..., require_target=False)` supports unlabeled inference while preserving unknown targets as missing.
