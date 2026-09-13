@@ -113,7 +113,10 @@ export function createMockEstimate(
       breakeven_exposure_hours_per_year: costPerExposureHour === 0
         ? null : benefit / (request.term_years * costPerExposureHour),
       decision,
-      source: { source_type: 'assumption', ref: `docs/ASSUMPTIONS.md?${economicsRef}#4-what-changes-in-the-app` },
+      // docs/ASSUMPTIONS.md status is "mixed" (4 of 6 inputs sourced, 2 remain
+      // explicit assumptions) - stays mock:// until the file is fully "sourced",
+      // matching api/economics.py's is_mock = status != "sourced" or placeholder_exposure.
+      source: { source_type: 'assumption', ref: `mock://economics-placeholder/docs/ASSUMPTIONS.md?${economicsRef}; status=mixed` },
     },
     tariff: {
       operator: 'SPP',

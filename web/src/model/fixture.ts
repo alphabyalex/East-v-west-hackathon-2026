@@ -71,10 +71,12 @@ export const mockResponse: MockResponse = {
     contract_years: mockAssumption(defaultInputs.contract_years, 'inputs/contract_years'),
     flexibility_percent: mockAssumption(defaultInputs.flexibility_percent, 'inputs/flexibility_percent'),
     site_exposure: mockAssumption(defaultInputs.site_exposure, 'inputs/site_exposure'),
-    firm_wait_years: citedAssumption(defaultInputs.firm_wait_years, '#3-value-of-connecting-early'),
-    gpu_per_mw: citedAssumption(defaultInputs.gpu_per_mw, '#1-hardware--power-conversion'),
-    gpu_hour_value_usd: citedAssumption(defaultInputs.gpu_hour_value_usd, '#2-cost-of-interrupted-compute'),
-    early_margin_usd_per_mw_year: citedAssumption(defaultInputs.early_margin_usd_per_mw_year, '#4-what-changes-in-the-app'),
+    firm_wait_years: citedAssumption(defaultInputs.firm_wait_years, '#early-connection-years'),
+    gpu_per_mw: citedAssumption(defaultInputs.gpu_per_mw, '#gpus-per-mw'),
+    gpu_hour_value_usd: citedAssumption(defaultInputs.gpu_hour_value_usd, '#gpu-rental-price'),
+    // Still placeholder-category: a 3% assumed margin on sourced revenue, not itself
+    // a direct citation - matches docs/ASSUMPTIONS.md's early_margin_usd_per_mw_year entry.
+    early_margin_usd_per_mw_year: mockAssumption(defaultInputs.early_margin_usd_per_mw_year, 'economics-placeholder/docs/ASSUMPTIONS.md#early-margin'),
   },
   decision_policy: {
     close_call_fraction: mockAssumption(0.05, 'decision_policy/close_call_fraction-of-early-access-value'),

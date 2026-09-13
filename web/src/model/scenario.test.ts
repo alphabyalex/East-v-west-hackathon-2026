@@ -142,14 +142,15 @@ describe('canonical offline estimate contract', () => {
 
   it('retains mock provenance for every canonical result block and never fabricates a clause citation', () => {
     const response = createMockEstimate(toEstimateRequest(defaultInputs))
-    // Exposure/confidence/tariff remain illustrative fixture output; economics is now
-    // sourced from docs/ASSUMPTIONS.md, so it is checked separately below.
+    // Exposure/confidence/tariff remain illustrative fixture output; economics is
+    // partially sourced (docs/ASSUMPTIONS.md status "mixed") but stays mock:// until
+    // that file is fully "sourced" - checked separately below with its own prefix.
     for (const source of [response.modeled_exposure.source, response.confidence.source, ...response.tariff.curtailment_triggers.map((trigger) => trigger.source)]) {
       expect(source.source_type).toBe('assumption')
       expect(source.ref).toMatch(/^mock:\/\/illustrative\//)
     }
     expect(response.economics.source.source_type).toBe('assumption')
-    expect(response.economics.source.ref).toMatch(/^docs\/ASSUMPTIONS\.md\?/)
+    expect(response.economics.source.ref).toMatch(/^mock:\/\/economics-placeholder\/docs\/ASSUMPTIONS\.md\?/)
     expect(response.tariff.service).toContain('mock; not extracted')
     expect(response.tariff.curtailment_triggers[0].text).toContain('no tariff clause has been extracted')
     expect(JSON.stringify(response)).not.toContain('FERC')
@@ -166,7 +167,7 @@ describe('canonical offline estimate contract', () => {
         const object = value as Record<string, unknown>
         if ('value' in object) {
           expect(object.source_type).toBe('assumption')
-          expect(object.ref).toMatch(/^(mock:\/\/illustrative\/|user:\/\/estimate\/|docs\/ASSUMPTIONS\.md)/)
+          expect(object.ref).toMatch(/^(mock:\/\/illustrative\/|mock:\/\/economics-placeholder\/|user:\/\/estimate\/|docs\/ASSUMPTIONS\.md)/)
           if (typeof object.value === 'number') expect(Number.isFinite(object.value)).toBe(true)
         } else Object.values(object).forEach(verify)
       } else expect(typeof value).not.toBe('number')
