@@ -399,6 +399,7 @@ def test_verified_egrid_schema_extracts_swpp_factors_with_exact_document_cells(t
                 "Natural Gas": (488.030508, "BAGCO2RT", "D3"),
                 "Oil": (1300.920264, "BAOCO2RT", "E3")}
     for fuel, (value, code, cell) in expected.items():
+        assert set(result[fuel]) == {"value", "source_type", "ref", "unit", "boundary"}
         assert result[fuel]["value"] == value
         assert result[fuel]["source_type"] == "data"
         assert result[fuel]["unit"] == FACTOR_UNIT and result[fuel]["boundary"] == BOUNDARY
@@ -407,12 +408,30 @@ def test_verified_egrid_schema_extracts_swpp_factors_with_exact_document_cells(t
         assert (ref["sheet"], ref["YEAR"], ref["BACODE"], ref["field"], ref["cell"]) == ("BA23", 2023, "SWPP", code, cell)
         assert ref["sha256"] == carbon.EGRID_METRIC_SHA256
         assert ref["retrieved_utc"] == "2026-09-13T08:06:02Z"
+        assert "excludes biogenic CO2" in ref["accounting_basis"]
+        assert "allocates CHP emissions to electricity" in ref["accounting_basis"]
+        assert "not all physical stack CO2" in ref["accounting_basis"]
+        assert "grouped by primary fuel" in ref["aggregation"]
+        assert "combustion net generation" in ref["aggregation"]
+        assert "egrid2023_technical_guide.pdf#page=25" in ref["methodology_ref"]
+        assert all(section in ref["methodology_ref"] for section in ("3.1.2.1", "3.1.2.2", "3.1.3.3"))
     for fuel in ("Wind", "Solar", "Hydro", "Nuclear"):
         assert result[fuel]["value"] == 0
         assert "egrid2023_technical_guide.pdf#page=21" in result[fuel]["ref"]
         assert "excludes lifecycle" in result[fuel]["ref"]
     assert set(result) == {"Coal", "Natural Gas", "Oil", "Wind", "Solar", "Hydro", "Nuclear"}
     assert json.dumps(result, allow_nan=False) == json.dumps(load_egrid_swpp_factors(path), allow_nan=False)
+
+
+def test_egrid_accounting_qualification_survives_hourly_intensity_provenance(tmp_path, monkeypatch):
+    factors = load_egrid_swpp_factors(epa_cache(tmp_path, monkeypatch))
+    frame = mix([(HOURS[0], "Coal", 30), (HOURS[0], "Wind", 70)])
+    result = fuel_mix_intensity(frame, factors, expected_fuels=["Coal", "Wind"], application_source=POLICY)[0]
+    assert result["boundary"] == BOUNDARY == "direct_operational_co2"
+    ref = result["intensity_kg_co2_per_mwh"]["ref"]
+    assert "excludes biogenic CO2" in ref and "allocates CHP emissions to electricity" in ref
+    assert "3.1.3.3" in ref
+    assert result["intensity_kg_co2_per_mwh"]["source_type"] == "assumption"
 
 
 def test_egrid_factors_are_parsed_not_hardcoded_and_leave_other_fuels_unknown(tmp_path, monkeypatch):

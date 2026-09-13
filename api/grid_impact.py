@@ -49,14 +49,28 @@ location identifiers are checked, then only the selected location is composed.
 Malformed selected data raises; other locations' payloads are validated when
 selected. Offline producers should validate all records before publishing them.
 This module does not register a route or modify the /api/estimate contract.
+
+Demo read path: compile_grid_impact_snapshot(location_id, path, ...) runs offline
+and publishes an immutable single-location snapshot. read_grid_impact_snapshot
+returns that already-computed result without calling the raw composer. Its
+optional GridImpactSnapshotCache is caller-owned; every read hashes fresh bytes,
+then reuses validation for the same path/content digest and returns a deep copy.
+Snapshot envelope: {snapshot_version:'grid-impact-snapshot-v1', location_id,
+result_sha256, result:<the unchanged grid-impact-v1 result including all evidence>}.
+Checksums establish integrity, not the authenticity of the underlying observations.
 """
 from __future__ import annotations
 
 from collections.abc import Mapping
+from collections import OrderedDict
+from copy import deepcopy
 import json
 import hashlib
 import math
+import os
 from pathlib import Path
+import tempfile
+import threading
 
 import pandas as pd
 
@@ -77,7 +91,7 @@ UNITS = {
 BASIS = {
     "wind": "Flexible-load energy scenario in evaluable high-wind/low-price hours; actual wind curtailment and local deliverability are unobserved.",
     "carbon_absorbed": "Compatibility metric: associated wind direct operational CO2. No atmospheric carbon removal, lifecycle emissions, or displaced-generation benefit is represented.",
-    "carbon_shifted": "Signed MWh times risk-hour minus makeup-hour average CO2 intensity. Positive means lower attributed makeup emissions; negative means higher. This is a conserved-energy scenario, not a causal dispatch estimate.",
+    "carbon_shifted": "Signed MWh times risk-hour minus makeup-hour average CO2 intensity under the supplied factors' accounting convention. eGRID-sourced rates exclude biogenic CO2 and allocate CHP emissions to electricity; they do not represent total physical stack CO2. Positive means lower attributed makeup emissions; negative means higher. This is a conserved-energy scenario, not a causal dispatch estimate.",
     "annual": "Annual values cover one complete evaluable UTC calendar year; partial observed periods are never extrapolated.",
 }
 SCENARIO_SOURCE = {"source_type": "assumption", "ref": "submitted grid-impact energy schedule; counterfactual site dispatch and local deliverability are not established"}
@@ -318,16 +332,20 @@ def _shift_total(evidence, raw, coverage):
     return evidence.derive(None if expected is None else expected / 1000, origins, "signed kilograms CO2 / 1000 = tonnes CO2; explicit conserved-energy pairs")
 
 
+def _empty_result(location_id, evidence, reason=None):
+    return {"schema_version": "grid-impact-v1", "location_id": location_id, "boundary": BOUNDARY,
+            "units": dict(UNITS), "basis": dict(BASIS), "evidence_context": {},
+            "coverage": {key: {"status": "unavailable", "reason": f"No {key} observations or schedule supplied"} for key in ("wind", "shift")},
+            **{key: _unavailable(evidence, reason or "no precomputed observations or explicit energy schedule supplied") for key in UNITS}}
+
+
 def compose_grid_impact(location_id, *, wind_summary=None, carbon_shift=None, shift_coverage=None, unavailable_reason=None):
     """Validate already computed inputs and return the standalone sourced contract."""
     location_id = _location(location_id)
     evidence = _Evidence()
     if unavailable_reason is not None and (not isinstance(unavailable_reason, str) or not unavailable_reason.strip()):
         raise ValueError("An unavailable reason must be nonempty text")
-    result = {"schema_version": "grid-impact-v1", "location_id": location_id, "boundary": BOUNDARY,
-              "units": dict(UNITS), "basis": dict(BASIS), "evidence_context": {},
-              "coverage": {key: {"status": "unavailable", "reason": f"No {key} observations or schedule supplied"} for key in ("wind", "shift")},
-              **{key: _unavailable(evidence, unavailable_reason or "no precomputed observations or explicit energy schedule supplied") for key in UNITS}}
+    result = _empty_result(location_id, evidence, unavailable_reason)
     if wind_summary is not None:
         if not isinstance(wind_summary, Mapping) or wind_summary.get("location_id") != location_id:
             raise ValueError("Wind summary location must exactly match the requested location")
@@ -421,3 +439,235 @@ def get_location_grid_impact(location_id, path=DEFAULT_PATH):
         except (KeyError, TypeError, OverflowError) as error:
             raise ValueError(f"Malformed grid-impact inputs for {location_id}") from error
     return compose_grid_impact(location_id, unavailable_reason=f"location {location_id} is absent from precomputed grid-impact file: {path}")
+
+
+SNAPSHOT_VERSION = "grid-impact-snapshot-v1"
+
+
+def _canonical_bytes(value):
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
+
+
+def _digest(value):
+    return hashlib.sha256(_canonical_bytes(value)).hexdigest()
+
+
+def _validate_snapshot_result(result, location_id):
+    """Validate the stored result and complete DAG without rerunning its models."""
+    required = {"schema_version", "location_id", "boundary", "units", "basis", "coverage", "evidence_context", "evidence", *UNITS}
+    if not isinstance(result, dict) or set(result) != required:
+        raise ValueError("Snapshot result does not match the pinned grid-impact schema")
+    if result["schema_version"] != "grid-impact-v1" or result["boundary"] != BOUNDARY or result["location_id"] != location_id:
+        raise ValueError("Snapshot result version, location or accounting boundary is inconsistent")
+    if result["units"] != UNITS or result["basis"] != BASIS:
+        raise ValueError("Snapshot units and honesty framing must match the pinned schema")
+    evidence = result["evidence"]
+    if not isinstance(evidence, dict) or not evidence:
+        raise ValueError("Snapshot requires its complete provenance evidence dictionary")
+    rank = {"data": 0, "model": 1, "assumption": 2}
+    visited, active = {}, set()
+
+    def pointer(ref):
+        if not isinstance(ref, str) or not ref.startswith(EVIDENCE_PREFIX):
+            raise ValueError("Snapshot scalar refs must point into their local evidence graph")
+        key = ref[len(EVIDENCE_PREFIX):]
+        if len(key) != 64 or any(char not in "0123456789abcdef" for char in key) or key not in evidence:
+            raise ValueError("Snapshot contains an invalid or dangling evidence pointer")
+        if key in active:
+            raise ValueError("Snapshot evidence must be an acyclic graph")
+        if key not in visited:
+            node = evidence[key]
+            if not isinstance(node, dict) or not isinstance(node.get("method"), str) or not node["method"].strip() or _digest(node) != key:
+                raise ValueError("Snapshot evidence node has invalid metadata or hash")
+            active.add(key)
+            visited[key] = walk(node)
+            active.remove(key)
+        return visited[key]
+
+    def walk(value):
+        if isinstance(value, dict):
+            if {"source_type", "ref"}.intersection(value):
+                origin = _source_info(value)
+                own_rank = rank[origin["source_type"]]
+                if "value" in value:
+                    _datum({key: value[key] for key in ("value", "source_type", "ref")}, "snapshot evidence value", nullable=True, signed=True)
+                dependencies = [walk(child) for key, child in value.items() if key not in {"source_type", "value"}]
+                if max(dependencies, default=-1) > own_rank:
+                    raise ValueError("Snapshot provenance upgrades a nested source")
+                return own_rank
+            return max((walk(child) for child in value.values()), default=-1)
+        if isinstance(value, list):
+            return max((walk(child) for child in value), default=-1)
+        if isinstance(value, str):
+            return pointer(value) if value.startswith(EVIDENCE_PREFIX) else -1
+        raise ValueError("Every snapshot number or null must be inside a sourced value")
+
+    scalars = {}
+    for key in UNITS:
+        scalars[key] = _datum(result[key], key, nullable=True, signed=key.startswith("carbon_shifted"))
+        pointer(scalars[key]["ref"])
+    if not isinstance(result["coverage"], dict) or set(result["coverage"]) != {"wind", "shift"}:
+        raise ValueError("Snapshot requires separate wind and shift coverage")
+    for name in ("wind", "shift"):
+        coverage = result["coverage"][name]
+        if not isinstance(coverage, dict):
+            raise ValueError("Snapshot coverage must be an object")
+        if coverage.get("status") == "unavailable":
+            if set(coverage) != {"status", "reason"} or not isinstance(coverage["reason"], str) or not coverage["reason"].strip():
+                raise ValueError("Unavailable coverage requires an explicit reason")
+        else:
+            expected_keys = {"status", "period_start_utc", "period_end_exclusive_utc", "schedule_scope", *COUNT_KEYS}
+            if set(coverage) != expected_keys:
+                raise ValueError("Snapshot coverage fields do not match the pinned schema")
+            checked = _coverage(coverage, schedule_scope=coverage["schedule_scope"])
+            if coverage != checked:
+                raise ValueError("Snapshot coverage status or counts are inconsistent")
+            if name == "wind" and coverage["schedule_scope"] != "complete_period":
+                raise ValueError("Wind coverage must describe its complete observed period")
+            for key in COUNT_KEYS:
+                pointer(coverage[key]["ref"])
+        fields = ("wind_absorption_mwh", "carbon_absorbed_tonnes") if name == "wind" else ("carbon_shifted_tonnes",)
+        for field in fields:
+            observed, annual = (scalars[field + suffix]["value"] for suffix in ("_in_observed_hours", "_per_year"))
+            if coverage["status"] == "unavailable" and observed is not None:
+                raise ValueError("Unavailable coverage cannot supply an observed numeric total")
+            if coverage["status"] != "unavailable" and coverage["evaluable_hours"]["value"] == 0 and observed is not None:
+                raise ValueError("Unevaluable coverage cannot supply an observed numeric total")
+            expected_annual = observed if coverage["status"] == "complete_calendar_year" else None
+            if annual != expected_annual:
+                raise ValueError("Snapshot annual values disagree with observed totals or coverage")
+    wind = scalars["wind_absorption_mwh_in_observed_hours"]["value"]
+    carbon = scalars["carbon_absorbed_tonnes_in_observed_hours"]["value"]
+    if carbon != (None if wind is None else 0):
+        raise ValueError("Wind operational carbon must be zero for known energy and null for unknown energy")
+    contexts = result["evidence_context"]
+    wind_available = result["coverage"]["wind"]["status"] != "unavailable"
+    if not isinstance(contexts, dict) or set(contexts) != ({"wind"} if wind_available else set()):
+        raise ValueError("Snapshot must preserve the available wind screening context")
+    if wind_available:
+        pointer(contexts["wind"])
+        context = evidence[contexts["wind"][len(EVIDENCE_PREFIX):]]
+        if not {"screen_method", "system_scope", "proxy_hours", "coverage"}.issubset(context) or any(
+            not isinstance(context[key], str) or not context[key].strip() for key in ("screen_method", "system_scope")
+        ):
+            raise ValueError("Snapshot wind context lacks its method, footprint or count")
+        proxy = _datum(context["proxy_hours"], "snapshot proxy_hours", nullable=True, integer=True)["value"]
+        counts = result["coverage"]["wind"]
+        if not isinstance(context["coverage"], dict) or any(
+            not isinstance(context["coverage"].get(key), dict)
+            or context["coverage"][key].get("value") != counts[key]["value"] for key in COUNT_KEYS
+        ):
+            raise ValueError("Snapshot wind context disagrees with its published coverage")
+        evaluable = counts["evaluable_hours"]["value"]
+        if ((proxy is None) != (evaluable == 0) or (wind is None) != (evaluable == 0)
+                or proxy is not None and proxy > evaluable or proxy == 0 and wind != 0):
+            raise ValueError("Snapshot wind proxy count disagrees with its energy or coverage")
+    walk({key: value for key, value in result.items() if key != "evidence"})
+    if set(visited) != set(evidence):
+        raise ValueError("Snapshot contains unreachable evidence nodes")
+
+
+def compile_grid_impact_snapshot(location_id, path, *, wind_summary=None, carbon_shift=None, shift_coverage=None):
+    """Offline immutable publication; a racing/existing destination is preserved.
+
+    A complete flushed sibling temp file is atomically hard-linked into place.
+    No replace/overwrite operation occurs. Filesystems must support hard links;
+    unsupported publication fails explicitly and leaves no partial destination.
+    Return the output Path. No timestamps/randomness are embedded in its content.
+    """
+    location_id = _location(location_id)
+    path = Path(path)
+    if path.exists():
+        raise FileExistsError(f"Snapshot already exists: {path}")
+    result = compose_grid_impact(location_id, wind_summary=wind_summary, carbon_shift=carbon_shift, shift_coverage=shift_coverage)
+    _validate_snapshot_result(result, location_id)
+    encoded = _canonical_bytes({"snapshot_version": SNAPSHOT_VERSION, "location_id": location_id,
+                                "result_sha256": _digest(result), "result": result})
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temporary = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    try:
+        with os.fdopen(fd, "wb") as stream:
+            stream.write(encoded)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.link(temporary, path)
+    finally:
+        Path(temporary).unlink(missing_ok=True)
+    return path
+
+
+class GridImpactSnapshotCache:
+    """Caller-owned LRU, bounded by count and serialized input bytes, not heap size.
+
+    No file-stat trust or global registry: read_grid_impact_snapshot hashes fresh
+    bytes on every access. Returned copies cannot mutate privately cached results.
+    Initialize once during application setup and optionally prewarm demo locations.
+    """
+
+    def __init__(self, *, max_entries=8, max_bytes=64 * 1024 * 1024):
+        if any(isinstance(value, bool) or not isinstance(value, int) or value <= 0 for value in (max_entries, max_bytes)):
+            raise ValueError("Snapshot cache limits must be positive integers")
+        self.max_entries, self.max_bytes = max_entries, max_bytes
+        self._entries, self._bytes = OrderedDict(), 0
+        self._lock = threading.RLock()
+
+    def _get(self, key):
+        with self._lock:
+            item = self._entries.get(key)
+            if item is None:
+                return None
+            self._entries.move_to_end(key)
+            result = item[0]
+        return deepcopy(result)
+
+    def _put(self, key, result, size):
+        with self._lock:
+            for old in [old for old in self._entries if old[0] == key[0]]:
+                self._bytes -= self._entries.pop(old)[1]
+            if size > self.max_bytes:
+                return
+            while self._entries and (len(self._entries) >= self.max_entries or self._bytes + size > self.max_bytes):
+                _, removed = self._entries.popitem(last=False)
+                self._bytes -= removed[1]
+            self._entries[key] = (result, size)
+            self._bytes += size
+
+
+def read_grid_impact_snapshot(location_id, path, *, cache=None):
+    """Read only one precompiled location; never invoke composition or a model.
+
+    Missing files return sourced unavailable values. A present file identifying a
+    different location is an error. Any changed content, even at unchanged size
+    and timestamps, is revalidated. The checksum is integrity, not a signature.
+    """
+    location_id = _location(location_id)
+    if cache is not None and not isinstance(cache, GridImpactSnapshotCache):
+        raise ValueError("cache must be a GridImpactSnapshotCache")
+    path = Path(path)
+    try:
+        content = path.read_bytes()
+    except FileNotFoundError:
+        evidence = _Evidence()
+        return evidence.finish(_empty_result(location_id, evidence, f"missing precompiled grid-impact snapshot: {path}"))
+    key = (str(path.resolve()), hashlib.sha256(content).hexdigest())
+    if cache is not None:
+        hit = cache._get(key)
+        if hit is not None:
+            if hit["location_id"] != location_id:
+                raise ValueError("Snapshot location does not match the requested location")
+            return hit
+    try:
+        document = json.loads(content, object_pairs_hook=_unique_object, parse_constant=_nonfinite_constant)
+        if not isinstance(document, dict) or set(document) != {"snapshot_version", "location_id", "result_sha256", "result"} or document["snapshot_version"] != SNAPSHOT_VERSION:
+            raise ValueError("Unsupported grid-impact snapshot envelope")
+        if document["location_id"] != location_id:
+            raise ValueError("Snapshot location does not match the requested location")
+        result = document["result"]
+        if document["result_sha256"] != _digest(result):
+            raise ValueError("Grid-impact snapshot result checksum mismatch")
+        _validate_snapshot_result(result, location_id)
+    except (KeyError, TypeError, OverflowError, RecursionError, UnicodeDecodeError) as error:
+        raise ValueError("Malformed grid-impact snapshot") from error
+    if cache is not None:
+        cache._put(key, result, len(content))
+    return deepcopy(result)

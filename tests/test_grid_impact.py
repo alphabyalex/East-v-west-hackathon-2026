@@ -3,12 +3,16 @@ from copy import deepcopy
 import hashlib
 import json
 import math
+import os
 from unittest.mock import patch
 
 import pandas as pd
 import pytest
 
-from api.grid_impact import EVIDENCE_PREFIX, UNITS, compose_grid_impact, get_location_grid_impact
+from api.grid_impact import (
+    EVIDENCE_PREFIX, UNITS, GridImpactSnapshotCache, compile_grid_impact_snapshot,
+    compose_grid_impact, get_location_grid_impact, read_grid_impact_snapshot,
+)
 from pipeline.carbon import BOUNDARY, FACTOR_UNIT, fuel_mix_intensity, shift_carbon
 from pipeline.wind_signal import summarize_wind
 
@@ -322,7 +326,7 @@ def test_compact_provenance_is_complete_resolvable_and_keeps_wind_context():
     assert context["coverage"]["evaluable_hours"]["value"] == 4
 
 
-def test_provenance_retains_factor_value_unit_boundary_and_original_refs():
+def test_provenance_retains_factor_value_unit_boundary_and_original_refs(tmp_path):
     risk, makeup = "2024-01-01T00:00:00Z", "2024-01-01T01:00:00Z"
     raw_mix = pd.DataFrame([
         {"timestamp_utc": stamp, "fuel": fuel, "generation_mwh": energy,
@@ -345,6 +349,11 @@ def test_provenance_retains_factor_value_unit_boundary_and_original_refs():
     assert "generation-weighted average; not marginal dispatch intensity" in evidence_text(result)
     assert risk in evidence_text(result) and makeup in evidence_text(result)
     assert result["carbon_shifted_tonnes_in_observed_hours"]["value"] == 1.2
+    path = snapshot(tmp_path / "factor-result.json", carbon_shift=shifted, shift_coverage=coverage())
+    assert read_grid_impact_snapshot("NODE", path) == result
+    assert "under the supplied factors' accounting convention" in result["basis"]["carbon_shifted"]
+    assert "exclude biogenic CO2 and allocate CHP emissions to electricity" in result["basis"]["carbon_shifted"]
+    assert "do not represent total physical stack CO2" in result["basis"]["carbon_shifted"]
 
 
 def test_opaque_ref_is_preserved_exactly_instead_of_interpreted_or_truncated():
@@ -449,3 +458,256 @@ def test_path_like_refs_are_preserved_as_text_without_resolution():
         result = compose_grid_impact("NODE", wind_summary=raw)
     assert any(item.get("ref") == original for node in result["evidence"].values() for item in node.get("inputs", []))
     assert_complete_evidence_graph(result)
+
+
+def snapshot(path, **inputs):
+    return compile_grid_impact_snapshot("NODE", path, **inputs)
+
+
+def rewrite_snapshot(path, transform, *, checksum=True):
+    """A corruption fixture, including deliberately recomputed outer checksums."""
+    document = json.loads(path.read_bytes())
+    transform(document["result"])
+    if checksum:
+        encoded = json.dumps(document["result"], sort_keys=True, separators=(",", ":"), allow_nan=False)
+        document["result_sha256"] = hashlib.sha256(encoded.encode()).hexdigest()
+    path.write_text(json.dumps(document), encoding="utf-8")
+
+
+@pytest.mark.parametrize("inputs", [
+    {}, {"wind_summary": wind()}, {"wind_summary": wind(price=float("nan"))},
+    {"carbon_shift": shift(), "shift_coverage": coverage(8784)},
+    {"carbon_shift": shift(makeup_intensity=None), "shift_coverage": coverage()},
+])
+def test_snapshot_roundtrip_preserves_every_value_and_graph(tmp_path, inputs):
+    path = snapshot(tmp_path / "result.json", **inputs)
+    result = read_grid_impact_snapshot("NODE", path)
+    assert result == compose_grid_impact("NODE", **inputs)
+    assert_complete_evidence_graph(result)
+
+
+def test_snapshot_bytes_are_deterministic_under_pair_permutation(tmp_path):
+    raw = scheduled_pairs(3)
+    first = snapshot(tmp_path / "first.json", carbon_shift=raw, shift_coverage=coverage(8784))
+    raw["pairs"].reverse()
+    second = snapshot(tmp_path / "second.json", carbon_shift=raw, shift_coverage=coverage(8784))
+    assert first.read_bytes() == second.read_bytes()
+
+
+def test_snapshot_read_cold_warm_and_missing_never_recompose(tmp_path):
+    path = snapshot(tmp_path / "result.json", wind_summary=wind(), carbon_shift=shift(), shift_coverage=coverage())
+    memo = GridImpactSnapshotCache()
+    with patch("api.grid_impact.compose_grid_impact", side_effect=AssertionError("must stay offline")), \
+         patch("api.grid_impact.wind_carbon", side_effect=AssertionError("must stay offline")), \
+         patch("api.grid_impact._shift_total", side_effect=AssertionError("must stay offline")):
+        first = read_grid_impact_snapshot("NODE", path, cache=memo)
+        assert read_grid_impact_snapshot("NODE", path, cache=memo) == first
+        missing = read_grid_impact_snapshot("OTHER", tmp_path / "missing.json", cache=memo)
+    assert first["carbon_shifted_tonnes_in_observed_hours"]["value"] == -2.
+    assert all(missing[field]["value"] is None and missing[field]["source_type"] == "assumption" for field in UNITS)
+    assert "missing precompiled" in evidence_text(missing)
+    assert_complete_evidence_graph(missing)
+
+
+def test_snapshot_existing_destination_is_preserved_before_composition(tmp_path):
+    path = tmp_path / "result.json"
+    path.write_bytes(b"owned by another publisher")
+    with patch("api.grid_impact.compose_grid_impact", side_effect=AssertionError("do not start")), pytest.raises(FileExistsError):
+        snapshot(path)
+    assert path.read_bytes() == b"owned by another publisher"
+
+
+def test_snapshot_publication_race_cannot_overwrite_existing_destination(tmp_path):
+    path = tmp_path / "result.json"
+    real_link = os.link
+    def competing_publication(source, destination):
+        destination.write_bytes(b"racing publisher")
+        real_link(source, destination)
+    with patch("api.grid_impact.os.link", side_effect=competing_publication), pytest.raises(FileExistsError):
+        snapshot(path)
+    assert path.read_bytes() == b"racing publisher"
+    assert list(tmp_path.iterdir()) == [path]
+
+
+@pytest.mark.parametrize("operation", ["fsync", "link"])
+def test_snapshot_failed_publication_leaves_no_partial_file_or_temp(tmp_path, operation):
+    with patch(f"api.grid_impact.os.{operation}", side_effect=OSError("simulated publication failure")), pytest.raises(OSError):
+        snapshot(tmp_path / "result.json")
+    assert not list(tmp_path.iterdir())
+
+
+@pytest.mark.parametrize("warm", [False, True])
+def test_snapshot_wrong_location_is_an_error_even_if_warm(tmp_path, warm):
+    path = snapshot(tmp_path / "result.json")
+    memo = GridImpactSnapshotCache()
+    if warm:
+        read_grid_impact_snapshot("NODE", path, cache=memo)
+    with pytest.raises(ValueError, match="location"):
+        read_grid_impact_snapshot("OTHER", path, cache=memo)
+
+
+@pytest.mark.parametrize("payload", [b"{", b"[]", b"\xff", b'{"x":1,"x":2}', b'{"x":NaN}',
+    b'{"snapshot_version":"grid-impact-snapshot-v0"}'])
+def test_snapshot_malformed_envelope_is_rejected(tmp_path, payload):
+    path = tmp_path / "bad.json"
+    path.write_bytes(payload)
+    with pytest.raises(ValueError):
+        read_grid_impact_snapshot("NODE", path)
+
+
+def test_snapshot_value_change_without_new_checksum_is_rejected(tmp_path):
+    path = snapshot(tmp_path / "result.json", wind_summary=wind())
+    rewrite_snapshot(path, lambda value: value["wind_absorption_mwh_in_observed_hours"].update(value=201.), checksum=False)
+    with pytest.raises(ValueError, match="checksum"):
+        read_grid_impact_snapshot("NODE", path)
+
+
+@pytest.mark.parametrize("field,value", [("value", True), ("value", "200"), ("source_type", []),
+    ("source_type", "data"), ("ref", None), ("ref", "../../other.json"),
+    ("ref", EVIDENCE_PREFIX + "0" * 64), ("ref", EVIDENCE_PREFIX + "../" * 20)])
+def test_snapshot_rehashed_invalid_scalars_still_fail(tmp_path, field, value):
+    path = snapshot(tmp_path / "result.json", wind_summary=wind())
+    rewrite_snapshot(path, lambda result: result["wind_absorption_mwh_in_observed_hours"].update({field: value}))
+    with pytest.raises(ValueError):
+        read_grid_impact_snapshot("NODE", path)
+
+
+def test_snapshot_rehashed_invalid_graph_node_still_fails(tmp_path):
+    path = snapshot(tmp_path / "result.json", wind_summary=wind())
+    def tamper(result):
+        next(iter(result["evidence"].values()))["method"] = "corrupted method"
+    rewrite_snapshot(path, tamper)
+    with pytest.raises(ValueError, match="hash"):
+        read_grid_impact_snapshot("NODE", path)
+
+
+def test_snapshot_rehashed_orphan_evidence_is_rejected(tmp_path):
+    path = snapshot(tmp_path / "result.json")
+    node = {"method": "orphaned", "inputs": [datum(1.)]}
+    digest = hashlib.sha256(json.dumps(node, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    rewrite_snapshot(path, lambda result: result["evidence"].update({digest: node}))
+    with pytest.raises(ValueError, match="unreachable"):
+        read_grid_impact_snapshot("NODE", path)
+
+
+def test_snapshot_rehashed_unsupported_annual_claim_is_rejected(tmp_path):
+    path = snapshot(tmp_path / "result.json", wind_summary=wind())
+    rewrite_snapshot(path, lambda result: result["wind_absorption_mwh_per_year"].update(value=200.))
+    with pytest.raises(ValueError, match="annual"):
+        read_grid_impact_snapshot("NODE", path)
+
+
+def test_snapshot_rehashed_wind_null_cannot_disagree_with_evaluable_history(tmp_path):
+    path = snapshot(tmp_path / "result.json", wind_summary=wind())
+    def tamper(result):
+        result["wind_absorption_mwh_in_observed_hours"]["value"] = None
+        result["carbon_absorbed_tonnes_in_observed_hours"]["value"] = None
+    rewrite_snapshot(path, tamper)
+    with pytest.raises(ValueError, match="coverage"):
+        read_grid_impact_snapshot("NODE", path)
+
+
+def test_snapshot_cache_validates_once_and_returns_isolated_copies(tmp_path):
+    import api.grid_impact as module
+    path = snapshot(tmp_path / "result.json", wind_summary=wind())
+    memo = GridImpactSnapshotCache()
+    with patch.object(module, "_validate_snapshot_result", wraps=module._validate_snapshot_result) as validate:
+        first = read_grid_impact_snapshot("NODE", path, cache=memo)
+        expected = deepcopy(first)
+        first["wind_absorption_mwh_in_observed_hours"]["value"] = 99999.
+        first["evidence"].clear()
+        assert read_grid_impact_snapshot("NODE", path, cache=memo) == expected
+        assert validate.call_count == 1
+
+
+def test_snapshot_cache_detects_same_size_mutation_with_restored_timestamp(tmp_path):
+    import api.grid_impact as module
+    path = snapshot(tmp_path / "result.json", wind_summary=wind())
+    memo = GridImpactSnapshotCache()
+    read_grid_impact_snapshot("NODE", path, cache=memo)
+    original = path.read_bytes()
+    stat = path.stat()
+    # Change a numeric value without changing byte count, then restore metadata.
+    damaged = original.replace(b'"value":200.0', b'"value":201.0')
+    assert damaged != original and len(damaged) == len(original)
+    path.write_bytes(damaged)
+    os.utime(path, ns=(stat.st_atime_ns, stat.st_mtime_ns))
+    with pytest.raises(ValueError, match="checksum"):
+        read_grid_impact_snapshot("NODE", path, cache=memo)
+    path.write_bytes(original)
+    with patch.object(module, "_validate_snapshot_result", side_effect=AssertionError("original content already validated")):
+        assert read_grid_impact_snapshot("NODE", path, cache=memo)["wind_absorption_mwh_in_observed_hours"]["value"] == 200.
+
+
+def test_snapshot_cache_never_returns_deleted_file(tmp_path):
+    path = snapshot(tmp_path / "result.json", wind_summary=wind())
+    memo = GridImpactSnapshotCache()
+    read_grid_impact_snapshot("NODE", path, cache=memo)
+    path.unlink()
+    result = read_grid_impact_snapshot("NODE", path, cache=memo)
+    assert all(result[field]["value"] is None for field in UNITS)
+
+
+@pytest.mark.parametrize("mode", ["entries", "bytes", "oversized"])
+def test_snapshot_cache_limits_evict_or_bypass(tmp_path, mode):
+    import api.grid_impact as module
+    first, second = snapshot(tmp_path / "a.json"), snapshot(tmp_path / "b.json")
+    size = first.stat().st_size
+    limits = {"max_entries": 1} if mode == "entries" else {"max_bytes": size if mode == "bytes" else size - 1}
+    memo = GridImpactSnapshotCache(**limits)
+    with patch.object(module, "_validate_snapshot_result", wraps=module._validate_snapshot_result) as validate:
+        read_grid_impact_snapshot("NODE", first, cache=memo)
+        read_grid_impact_snapshot("NODE", second, cache=memo)
+        read_grid_impact_snapshot("NODE", first, cache=memo)
+        assert validate.call_count == 3
+    assert memo._bytes <= memo.max_bytes and len(memo._entries) <= memo.max_entries
+
+
+@pytest.mark.parametrize("limits", [{"max_entries": True}, {"max_entries": 0}, {"max_bytes": -1}, {"max_bytes": 1.5}])
+def test_snapshot_cache_invalid_limits_are_rejected(limits):
+    with pytest.raises(ValueError):
+        GridImpactSnapshotCache(**limits)
+
+
+@pytest.mark.parametrize("bad", [None, [], {"evaluable_hours": 4}])
+def test_snapshot_rehashed_malformed_wind_context_is_rejected(tmp_path, bad):
+    path = snapshot(tmp_path / "result.json", wind_summary=wind())
+    def tamper(result):
+        old = result["evidence_context"]["wind"][len(EVIDENCE_PREFIX):]
+        node = result["evidence"].pop(old)
+        node["coverage"] = bad
+        key = hashlib.sha256(json.dumps(node, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+        result["evidence"][key] = node
+        result["evidence_context"]["wind"] = EVIDENCE_PREFIX + key
+    rewrite_snapshot(path, tamper)
+    with pytest.raises(ValueError):
+        read_grid_impact_snapshot("NODE", path)
+
+
+@pytest.mark.parametrize("key,value", [("units", {}), ("basis", {}), ("boundary", "lifecycle_co2e"),
+    ("evidence", []), ("evidence_context", []), ("location_id", "OTHER")])
+def test_snapshot_rehashed_incompatible_metadata_is_rejected(tmp_path, key, value):
+    path = snapshot(tmp_path / "result.json")
+    rewrite_snapshot(path, lambda result: result.update({key: value}))
+    with pytest.raises(ValueError):
+        read_grid_impact_snapshot("NODE", path)
+
+
+def test_snapshot_cache_revalidates_a_new_valid_version_and_evicts_old_version(tmp_path):
+    import api.grid_impact as module
+    path = snapshot(tmp_path / "result.json", wind_summary=wind())
+    next_path = snapshot(tmp_path / "new.json", wind_summary=wind(price=10.))
+    memo = GridImpactSnapshotCache()
+    with patch.object(module, "_validate_snapshot_result", wraps=module._validate_snapshot_result) as validate:
+        assert read_grid_impact_snapshot("NODE", path, cache=memo)["wind_absorption_mwh_in_observed_hours"]["value"] == 200.
+        path.write_bytes(next_path.read_bytes())
+        updated = read_grid_impact_snapshot("NODE", path, cache=memo)
+        assert updated["wind_absorption_mwh_in_observed_hours"]["value"] == 0.
+        assert read_grid_impact_snapshot("NODE", path, cache=memo) == updated
+        assert validate.call_count == 2
+    assert len(memo._entries) == 1
+
+
+def test_snapshot_invalid_cache_argument_is_explicit(tmp_path):
+    with pytest.raises(ValueError, match="cache"):
+        read_grid_impact_snapshot("NODE", tmp_path / "missing.json", cache={})

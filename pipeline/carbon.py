@@ -94,8 +94,15 @@ def load_egrid_swpp_factors(path=DEFAULT_EGRID_CACHE) -> dict[str, dict]:
     Both the declared digest and the independently verified release digest must
     match. A new release requires an explicit review, never a silent fallback.
 
-    Coal/Natural Gas/Oil factors are SWPP annual generation-weighted operational
-    CO2 rates, not hourly plant or marginal dispatch factors. Applying them to
+    Coal/Natural Gas/Oil factors are SWPP annual electricity-output CO2 rates for
+    plants grouped by primary fuel. eGRID excludes biogenic CO2 and allocates CHP
+    emissions to electricity (Technical Guide sections 3.1.2.1, 3.1.2.2, 3.1.3.3).
+    These are adjusted accounting rates, not all physical stack CO2, hourly plant
+    factors, or marginal dispatch factors. The coarse direct_operational_co2 tag
+    distinguishes them from lifecycle accounting; it does not remove those
+    adjustments. Do not implicitly mix these rates with unadjusted waste/biomass
+    combustion factors: a common reviewed accounting basis must be established.
+    Applying them to
     2024 generation or individual plants still requires the caller's explicit
     assumption in fuel_mix_intensity(application_source=...). Oil is not silently
     mapped to Diesel Fuel Oil; waste and Other receive no invented factors.
@@ -169,7 +176,10 @@ def load_egrid_swpp_factors(path=DEFAULT_EGRID_CACHE) -> dict[str, dict]:
         value = _number(selected.iloc[0, column], f"EPA SWPP {code}")
         ref = json.dumps({**origin, "sheet": "BA23", "YEAR": 2023, "BACODE": "SWPP",
                           "field": code, "cell": f"{get_column_letter(column + 1)}{row_index + 1}",
-                          "unit": FACTOR_UNIT, "boundary": BOUNDARY}, sort_keys=True)
+                          "unit": FACTOR_UNIT, "boundary": BOUNDARY,
+                          "accounting_basis": "eGRID adjusted electricity-output CO2: excludes biogenic CO2; allocates CHP emissions to electricity; not all physical stack CO2",
+                          "aggregation": "SWPP plants grouped by primary fuel; annual adjusted emissions / combustion net generation",
+                          "methodology_ref": "https://www.epa.gov/system/files/documents/2025-01/egrid2023_technical_guide.pdf#page=25; sections 3.1.2.1 (biomass), 3.1.2.2 (CHP), 3.1.3.3 (fuel-based output rates); printed pages 14-19"}, sort_keys=True)
         result[fuel] = {"value": value, "source_type": "data", "ref": ref,
                         "unit": FACTOR_UNIT, "boundary": BOUNDARY}
     for fuel in ("Wind", "Solar", "Hydro", "Nuclear"):
