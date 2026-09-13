@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from pipeline.confidence import CONFIDENCE_POLICY, confidence_from_evidence, estimate_confidence, rescore_saved_artifacts
+from pipeline.confidence import CONFIDENCE_POLICY, confidence_coverage, confidence_from_evidence, estimate_confidence, rescore_saved_artifacts
 from pipeline.common import fingerprint, write_json
 from pipeline.simulate import simulate_exposure
 
@@ -48,7 +48,7 @@ def test_real_neighbor_counts_are_local_and_drive_different_scores():
     # Two locations share the same feature value and identical model agreement.
     # Other-location reference rows must not inflate the sparse area's support.
     locations = np.array(["dense"] * 200 + ["sparse"] * 5)
-    times = pd.date_range("2023-01-01", periods=30, freq="14D", tz="UTC")
+    times = pd.date_range("2023-01-01", periods=8760, freq="h", tz="UTC")
     frame = pd.DataFrame([{"timestamp_utc": time, "location_id": location, "x": 0., "target": 1}
                           for location in ("dense", "sparse", "unseen") for time in times])
     bundle = {"feature_names": ["x"], "density_medians": np.zeros(1), "density_scales": np.ones(1),
@@ -62,6 +62,68 @@ def test_real_neighbor_counts_are_local_and_drive_different_scores():
     assert result["dense"]["score"] > result["sparse"]["score"] > result["unseen"]["score"]
     assert result["dense"]["level"] == "High"
     assert result["sparse"]["level"] == result["unseen"]["level"] == "Low"
+
+
+def confidence_fixture(times):
+    frame = pd.DataFrame({"timestamp_utc": times, "location_id": "test-only", "x": 0., "target": 1})
+    bundle = {"feature_names": ["x"], "density_medians": np.zeros(1), "density_scales": np.ones(1),
+              "density_training": np.zeros((200, 1)), "density_training_locations": np.array(["test-only"] * 200),
+              "report": {"test_by_location": {"test-only": {"brier_skill_vs_train_prevalence": .2}}}}
+    return bundle, frame
+
+
+def test_sparse_scored_hours_do_not_become_a_year_of_evidence():
+    bundle, frame = confidence_fixture(pd.date_range("2023-01-01", periods=30, freq="14D", tz="UTC"))
+    with patch("pipeline.confidence.predict_members", side_effect=lambda _, rows: np.full((len(rows), 2), .01)):
+        result = estimate_confidence(bundle, frame)["test-only"]
+    assert result["level"] == "Low"
+    assert result["score"] == .69
+    assert result["n_similar_historical_hours"] == 200
+    assert "fewer_than_one_year_of_scored_hours" in result["limitations"]
+    assert "less_than_one_year_of_heldout_history" not in result["limitations"]
+
+
+def test_exact_365_day_hourly_coverage_has_no_off_by_one_penalty():
+    bundle, frame = confidence_fixture(pd.date_range("2023-01-01", periods=8760, freq="h", tz="UTC"))
+    with patch("pipeline.confidence.predict_members", side_effect=lambda _, rows: np.full((len(rows), 2), .01)):
+        result = estimate_confidence(bundle, frame)["test-only"]
+    assert result["level"] == "High"
+    assert result["limitations"] == []
+    assert confidence_coverage(frame)["test-only"] == {
+        "scored_hours": 8760, "span_hours": 8760, "missing_hours_within_span": 0, "positive_hours": 8760}
+
+
+def test_local_coverage_does_not_pool_other_locations_or_hide_gaps():
+    _, frame = confidence_fixture(pd.date_range("2023-01-01", periods=8760, freq="h", tz="UTC"))
+    sparse = frame.iloc[[0, -1]].assign(location_id="sparse")
+    coverage = confidence_coverage(pd.concat([frame, sparse]))
+    assert coverage["sparse"]["scored_hours"] == 2
+    assert coverage["sparse"]["span_hours"] == 8760
+    assert coverage["sparse"]["missing_hours_within_span"] == 8758
+
+
+def test_explicit_dst_fold_hours_are_distinct_and_have_the_same_utc_coverage():
+    _, frame = confidence_fixture(pd.date_range("2024-11-03T05:00Z", periods=4, freq="h"))
+    expected = confidence_coverage(frame)
+    frame["timestamp_utc"] = frame.timestamp_utc.dt.tz_convert("America/Chicago")
+    assert confidence_coverage(frame) == expected
+    assert expected["test-only"]["scored_hours"] == 4
+
+
+@pytest.mark.parametrize("invalid", ["duplicate", "naive", "missing_time", "subhourly", "unknown_target", "nonbinary", "missing_location", "empty"])
+def test_unscored_or_ambiguous_hours_cannot_inflate_confidence(invalid):
+    bundle, frame = confidence_fixture(pd.date_range("2023-01-01", periods=30, freq="h", tz="UTC"))
+    if invalid == "duplicate": frame = pd.concat([frame, frame])
+    elif invalid == "naive": frame["timestamp_utc"] = frame.timestamp_utc.dt.tz_localize(None)
+    elif invalid == "missing_time": frame.loc[0, "timestamp_utc"] = pd.NaT
+    elif invalid == "subhourly": frame["timestamp_utc"] += pd.Timedelta(1, unit="m")
+    elif invalid == "unknown_target": frame["target"] = np.nan
+    elif invalid == "nonbinary": frame["target"] = 2
+    elif invalid == "missing_location": frame["location_id"] = None
+    elif invalid == "empty": frame = frame.iloc[:0]
+    with patch("pipeline.confidence.predict_members") as predict:
+        with pytest.raises(ValueError): estimate_confidence(bundle, frame)
+        predict.assert_not_called()
 
 
 def test_simulator_rejects_old_agreement_only_confidence():

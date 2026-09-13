@@ -15,9 +15,42 @@ from pipeline.train import predict_members
 from pipeline.confidence_policy import CONFIDENCE_POLICY, confidence_from_evidence
 
 
+CONFIDENCE_COVERAGE_POLICY = {
+    "ref": "pipeline/confidence.py:CONFIDENCE_COVERAGE_POLICY",
+    "minimum_scored_hours_for_above_low": 24 * CONFIDENCE_POLICY["minimum_heldout_span_days_for_above_low"],
+    "hour_identity": "Distinct location and timezone-aware hourly interval-start timestamp.",
+    "span": "Inclusive interval starts: (last - first) in hours plus one.",
+    "meaning": "Minimum classifier-validation coverage; not a test of annual-tail accuracy.",
+}
+
+
+def confidence_coverage(frame: pd.DataFrame) -> dict:
+    """Count actual local scored hours; elapsed calendar time is not evidence."""
+    if frame.empty or not {"timestamp_utc", "location_id", "target"}.issubset(frame):
+        raise ValueError("Confidence requires nonempty scored hourly observations.")
+    times = frame.timestamp_utc
+    if not isinstance(times.dtype, pd.DatetimeTZDtype) or times.isna().any():
+        raise ValueError("Confidence requires distinct timezone-aware location/hour observations.")
+    utc_times = times.dt.tz_convert("UTC")
+    if (not utc_times.eq(utc_times.dt.floor("h")).all()
+            or frame.duplicated(["location_id", "timestamp_utc"]).any()):
+        raise ValueError("Confidence requires distinct timezone-aware location/hour observations.")
+    if (frame.location_id.isna().any() or frame.location_id.astype(str).str.strip().eq("").any()
+            or not frame.target.isin([0, 1]).all()):
+        raise ValueError("Confidence requires known locations and observed binary targets.")
+    result = {}
+    for location, group in frame.groupby("location_id", sort=True):
+        span = int((group.timestamp_utc.max() - group.timestamp_utc.min()).total_seconds() / 3600) + 1
+        result[location] = {"scored_hours": len(group), "span_hours": span,
+                            "missing_hours_within_span": span - len(group),
+                            "positive_hours": int(group.target.sum())}
+    return result
+
+
 def estimate_confidence(bundle: dict, frame: pd.DataFrame) -> dict:
     output = {}
     policy = CONFIDENCE_POLICY
+    coverage = confidence_coverage(frame)
     for location, group in frame.groupby("location_id", sort=True):
         group = group.sort_values("timestamp_utc")
         sample = group.iloc[np.linspace(0, len(group) - 1, min(len(group), policy["query_sample_limit"]), dtype=int)]
@@ -35,9 +68,12 @@ def estimate_confidence(bundle: dict, frame: pd.DataFrame) -> dict:
         skill = bundle["report"]["test_by_location"].get(location, {}).get("brier_skill_vs_train_prevalence")
         if skill is None or not np.isfinite(skill) or skill <= 0:
             reasons.append("does_not_beat_baseline")
-        if (group.timestamp_utc.max() - group.timestamp_utc.min()).days < policy["minimum_heldout_span_days_for_above_low"]:
+        minimum_hours = CONFIDENCE_COVERAGE_POLICY["minimum_scored_hours_for_above_low"]
+        if coverage[location]["span_hours"] < minimum_hours:
             reasons.append("less_than_one_year_of_heldout_history")
-        if int(group.target.sum()) < policy["minimum_positive_test_hours_for_above_low"]:
+        if coverage[location]["scored_hours"] < minimum_hours:
+            reasons.append("fewer_than_one_year_of_scored_hours")
+        if coverage[location]["positive_hours"] < policy["minimum_positive_test_hours_for_above_low"]:
             reasons.append("fewer_than_20_positive_test_hours")
         output[location] = confidence_from_evidence(spread, precedent, reasons)
     return output
