@@ -1,6 +1,7 @@
 """Canonical HTTP contract from docs/BUILD_PLAN.md, section 2."""
 
-from typing import Annotated, Literal, Self
+from typing import Annotated, Literal
+from typing_extensions import Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 

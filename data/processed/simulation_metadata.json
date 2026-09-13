@@ -1,0 +1,41 @@
+{
+  "status": "experimental_unvalidated_annual_tails",
+  "method": "seasonal_joint_probability_and_randomized_residual_block_bootstrap",
+  "simulations": 2000,
+  "years": 7,
+  "seed": 2026,
+  "block_hours": 168,
+  "hours_per_year": 8760,
+  "site_exposure_applied": false,
+  "source_type": "model",
+  "ref": "pipeline/simulate.py model_version=spp_lgbm_20260913T060709_b63ee2577e",
+  "assumptions": [
+    "Stationary month-specific grid conditions and label definition; no load-growth or climate forecast.",
+    "Seven-day blocks preserve within-block episodes; resampling can split or join episodes at block boundaries.",
+    "One ensemble member per simulated contract; independently resampled seasonal blocks across years.",
+    "365-day comparison years, with February fixed to 28 days.",
+    "worst_contiguous_hours is the p99 of annual longest modeled episodes, not a guaranteed upper bound.",
+    "Annual exposure confidence is capped Low until annual tail validation; its numeric score describes classifier agreement only.",
+    "Quantiles describe the selected system-event/proxy target, not an individual site's actual interruption."
+  ],
+  "policy": {
+    "operator": "SPP",
+    "label_method": "observed_event",
+    "data_ref": "https://portal.spp.org/file-browser-api/download/hourly-load?path=/2024/2024.zip",
+    "label_ref": "local://spp_events.csv"
+  },
+  "temperature_data": {
+    "observed_hours": 184422,
+    "missing_hours": 0,
+    "source_refs": [
+      "data/processed/ml_inputs/spp_2024_multi_location_temperature.weather.json#hourly-temperature; map_sha256=31a59a6e3929512788008fd9c5030f3c6353c642cc4d0bb987e14b52a62acad0"
+    ],
+    "feature_policy": {
+      "ref": "pipeline/features.py:TEMPERATURE_FEATURE_POLICY",
+      "features": "1/24/168-hour lags and previous-24-hour mean/std for mean and regional min/max temperature; previous-day mean-temperature min/max and signed 24-hour change.",
+      "cutoff": "All observed temperature features end before the target hour; no same-hour temperatures or future daily extrema.",
+      "effect": "Learned by the classifier from independent event/proxy labels; no hardcoded hot/cold cutoff probability or monotonicity assumption.",
+      "availability": "Reanalysis inputs support retrospective study; historical timestamps alone do not verify real-time availability."
+    }
+  }
+}
