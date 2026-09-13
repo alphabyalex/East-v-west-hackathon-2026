@@ -13,7 +13,8 @@ from openpyxl import Workbook
 import pipeline.carbon as carbon
 from pipeline.carbon import (
     BOUNDARY, FACTOR_UNIT, WIND_OPERATIONAL_CO2_FACTOR,
-    fuel_mix_intensity, load_egrid_swpp_factors, shift_carbon, wind_carbon,
+    fuel_mix_intensity, load_egrid_swpp_factors, normalize_spp_generation_archive,
+    shift_carbon, wind_carbon,
 )
 
 
@@ -509,3 +510,218 @@ def test_egrid_loader_never_fetches_or_creates_a_missing_cache(tmp_path, monkeyp
     with pytest.raises(FileNotFoundError):
         load_egrid_swpp_factors(missing)
     assert not missing.exists()
+
+
+ARCHIVE_SOURCE = {"source_type": "data", "ref": "test-only cached full SPP-style fuel archive; digest identifies authored fixture"}
+TIMING_SOURCE = {"source_type": "assumption", "ref": "test-only declared left-closed UTC observation-time convention, not verified interval start/end"}
+
+
+def archive(periods=12, *, start=HOURS[0]):
+    frame = pd.DataFrame({"GMT MKT Interval": pd.date_range(start, periods=periods, freq="5min").astype(str)})
+    for number, fuel in enumerate(carbon.SPP_ARCHIVE_FUELS, start=1):
+        frame[fuel + " Market"] = float(number)
+        frame[("Gas" if fuel == "Natural Gas" else fuel) + " Self"] = float(number)
+    frame["Load"] = 10000.0  # Demand must never enter the generation denominator.
+    return frame
+
+
+def normalize_archive(raw, **kwargs):
+    return normalize_spp_generation_archive(raw, generation_source=ARCHIVE_SOURCE,
+                                            timing_source=TIMING_SOURCE, **kwargs)
+
+
+def archive_intensity(frame, factors=None):
+    return fuel_mix_intensity(frame, {} if factors is None else factors,
+                              expected_fuels=frame.attrs["expected_fuels"], application_source=POLICY)
+
+
+def test_archive_preserves_full_fuel_denominator_and_only_maps_the_documented_gas_alias():
+    result = normalize_archive(archive())
+    assert result.attrs["expected_fuels"] == sorted(carbon.SPP_ARCHIVE_FUELS)
+    assert len(result) == 10 and set(result.unit) == {"MWh"}
+    assert set(result.generation_status) == {"complete"}
+    assert set(result.source_type) == {"assumption"}
+    assert result.set_index("fuel").loc["Natural Gas", "generation_mwh"] == 8
+    assert set(result.fuel) >= {"Diesel Fuel Oil", "Waste Disposal Services", "Waste Heat", "Other"}
+    assert "Load" not in set(result.fuel) and "Oil" not in set(result.fuel)
+    calculated = archive_intensity(result, {fuel: factor(0 if fuel in {"Wind", "Solar"} else 1000)
+                                          for fuel in ("Coal", "Natural Gas", "Wind", "Solar", "Hydro", "Nuclear")})[0]
+    assert calculated["generation_mwh"]["value"] == 110
+    assert calculated["reported_generation_mwh"]["value"] == 110
+    assert calculated["missing_fuels"] == ["Diesel Fuel Oil", "Other", "Waste Disposal Services", "Waste Heat"]
+    assert calculated["intensity_kg_co2_per_mwh"]["value"] is None
+    natural_gas_ref = json.loads(result.set_index("fuel").loc["Natural Gas", "ref"])
+    assert natural_gas_ref["components"] == ["Natural Gas Market", "Gas Self"]
+    assert natural_gas_ref["complete_samples"] == 12
+    assert natural_gas_ref["input_unit"] == "MW" and natural_gas_ref["output_unit"] == "MWh"
+    assert ARCHIVE_SOURCE in natural_gas_ref["inputs"] and TIMING_SOURCE in natural_gas_ref["inputs"]
+
+
+def test_archive_keeps_additional_fuel_pairs_instead_of_silently_dropping_them():
+    raw = archive()
+    raw["New Fuel Market"], raw["New Fuel Self"] = 6.0, 4.0
+    result = normalize_archive(raw)
+    assert "New Fuel" in result.attrs["expected_fuels"]
+    assert result.set_index("fuel").loc["New Fuel", "generation_mwh"] == 10
+    calculated = archive_intensity(result)[0]
+    assert calculated["generation_mwh"]["value"] == 120
+    assert "New Fuel" in calculated["missing_fuels"]
+
+
+def test_archive_missing_component_stays_unknown_even_if_every_other_fuel_is_complete():
+    result = normalize_archive(archive().drop(columns="Coal Self"))
+    coal = result.set_index("fuel").loc["Coal"]
+    assert coal["generation_mwh"] is None and coal["generation_status"] == "missing_component"
+    calculated = archive_intensity(result)[0]
+    assert calculated["generation_mwh"]["value"] is None
+    assert calculated["missing_generation_fuels"] == ["Coal"]
+    assert calculated["reported_generation_mwh"]["value"] == 108
+
+
+def test_archive_wind_only_input_never_becomes_a_complete_zero_intensity_grid():
+    raw = archive()[["GMT MKT Interval", "Wind Market", "Wind Self"]]
+    result = normalize_archive(raw)
+    assert len(result) == 10
+    calculated = archive_intensity(result, {"Wind": factor(0)})[0]
+    assert calculated["generation_mwh"]["value"] is None
+    assert calculated["intensity_kg_co2_per_mwh"]["value"] is None
+    assert calculated["reported_generation_mwh"]["value"] == 16
+
+
+def test_archive_requires_twelve_complete_distinct_samples_for_each_fuel_independently():
+    raw = archive()
+    raw.loc[0, "Coal Self"] = float("nan")
+    result = normalize_archive(raw)
+    assert result.set_index("fuel").loc["Coal", "generation_mwh"] is None
+    assert result.set_index("fuel").loc["Wind", "generation_mwh"] == 16
+    coal_ref = json.loads(result.set_index("fuel").loc["Coal", "ref"])
+    assert coal_ref["complete_samples"] == 11
+    assert coal_ref["component_samples"] == {"Coal Market": 12, "Coal Self": 11}
+    missing_sample = normalize_archive(archive().iloc[:11])
+    assert missing_sample.generation_mwh.isna().all()
+    calculated = archive_intensity(missing_sample)[0]
+    assert calculated["generation_mwh"]["value"] is None
+    assert calculated["reported_generation_mwh"]["value"] is None
+    assert calculated["known_generation_mwh"]["value"] is None
+
+
+def test_archive_all_missing_observation_and_missing_whole_hour_are_not_zeros():
+    raw = archive(periods=36)
+    raw = raw.drop(index=range(12, 24))
+    raw.loc[0, raw.columns != "GMT MKT Interval"] = float("nan")
+    result = normalize_archive(raw)
+    assert len(result) == 30
+    hours = {item["timestamp_utc"]: item for item in archive_intensity(result)}
+    for time in HOURS[:2]:
+        assert hours[time]["generation_mwh"]["value"] is None
+        assert hours[time]["reported_generation_mwh"]["value"] is None
+    assert hours[HOURS[2]]["generation_mwh"]["value"] == 110
+
+
+def test_archive_keeps_signed_components_but_does_not_clamp_negative_fuel_net():
+    raw = archive()
+    raw["Hydro Market"], raw["Hydro Self"] = -10.0, 20.0
+    raw.loc[0, "Solar Market"], raw.loc[0, "Solar Self"] = 0.0, -0.1
+    result = normalize_archive(raw).set_index("fuel")
+    assert result.loc["Hydro", "generation_mwh"] == 10
+    hydro = json.loads(result.loc["Hydro", "ref"])
+    assert hydro["negative_component_samples"] == {"Hydro Market": 12, "Hydro Self": 0}
+    assert result.loc["Solar", "generation_mwh"] is None
+    assert result.loc["Solar", "generation_status"] == "negative_net_generation"
+    solar = json.loads(result.loc["Solar", "ref"])
+    assert solar["negative_net_samples"] == 1 and solar["complete_samples"] == 12
+    assert solar["negative_component_samples"]["Solar Self"] == 1
+
+
+def test_archive_deduplicates_exact_chunk_overlap_but_rejects_conflicting_revisions():
+    raw = archive()
+    expected = normalize_archive(raw)
+    repeated = pd.concat([raw, raw.iloc[[0, 1, 1]]], ignore_index=True)
+    pd.testing.assert_frame_equal(normalize_archive(repeated), expected)
+    repeated.loc[len(repeated) - 1, "Coal Market"] += 1
+    with pytest.raises(ValueError, match="Conflicting duplicate"):
+        normalize_archive(repeated)
+    repeated = pd.concat([raw, raw.iloc[[0]]], ignore_index=True)
+    repeated.loc[len(repeated) - 1, "Load"] += 1
+    with pytest.raises(ValueError, match="Conflicting duplicate"):
+        normalize_archive(repeated)
+
+
+def test_archive_row_and_column_permutations_are_byte_identical_and_inputs_are_unchanged():
+    raw = archive(periods=24)
+    raw.columns = [" " + name + " " for name in raw.columns]
+    original = raw.copy(deep=True)
+    expected = normalize_archive(raw)
+    shuffled = raw.sample(frac=1, random_state=17)[list(reversed(raw.columns))]
+    actual = normalize_archive(shuffled)
+    assert json.dumps(actual.to_dict("records"), allow_nan=False) == json.dumps(expected.to_dict("records"), allow_nan=False)
+    assert actual.attrs == expected.attrs
+    pd.testing.assert_frame_equal(raw, original)
+
+
+def test_archive_binning_does_not_shift_observation_timestamps_or_invent_utc_year_coverage():
+    result = normalize_archive(archive(periods=12, start="2024-12-31T23:05:00Z"))
+    assert set(result.timestamp_utc) == {"2024-12-31T23:00:00+00:00", "2025-01-01T00:00:00+00:00"}
+    assert result.generation_mwh.isna().all()
+    assert result.attrs["timing_convention"] == "observation_time_left_closed_utc_hour"
+    assert all("no interval-start/end claim" in ref for ref in result.ref)
+
+
+@pytest.mark.parametrize("value", ["2024-01-01T00:01:00Z", "2024-01-01T00:00:01Z", "2024-01-01T00:00:00", None])
+def test_archive_rejects_malformed_cadence_and_ambiguous_timezones(value):
+    raw = archive()
+    raw.loc[0, "GMT MKT Interval"] = value
+    with pytest.raises(ValueError, match="cadence|timezone"):
+        normalize_archive(raw)
+
+
+@pytest.mark.parametrize("value", [True, float("inf"), "not a number"])
+def test_archive_rejects_malformed_component_values(value):
+    raw = archive().astype({"Coal Market": object})
+    raw.loc[0, "Coal Market"] = value
+    with pytest.raises(ValueError):
+        normalize_archive(raw)
+
+
+def test_archive_rejects_ambiguous_columns_and_aliases_instead_of_double_counting():
+    raw = archive()
+    raw["Natural Gas Self"] = raw["Gas Self"]
+    with pytest.raises(ValueError, match="Ambiguous"):
+        normalize_archive(raw)
+    raw = archive()
+    raw[" Coal Market"] = raw["Coal Market"]
+    with pytest.raises(ValueError, match="unique columns"):
+        normalize_archive(raw)
+    raw = archive()
+    raw["Unexplained Total"] = 100
+    with pytest.raises(ValueError, match="Unknown archive column"):
+        normalize_archive(raw)
+
+
+@pytest.mark.parametrize("kind", ["data", "model"])
+def test_archive_binning_cannot_be_promoted_from_assumption_to_observation(kind):
+    with pytest.raises(ValueError, match="timing assumption"):
+        normalize_spp_generation_archive(archive(), generation_source=ARCHIVE_SOURCE,
+                                        timing_source={"source_type": kind, "ref": TIMING_SOURCE["ref"]})
+
+
+def test_marked_unknown_generation_survives_parquet_null_roundtrip_without_weakening_nan_validation(tmp_path):
+    original = normalize_archive(archive().iloc[:11])
+    path = tmp_path / "unknown-generation.parquet"
+    original.to_parquet(path, index=False)
+    restored = pd.read_parquet(path)
+    assert archive_intensity(original) == archive_intensity(restored)
+    restored.loc[0, "generation_status"] = "complete"
+    with pytest.raises(ValueError, match="finite number"):
+        archive_intensity(restored)
+    restored = original.copy()
+    restored.loc[0, "generation_mwh"] = 1.0
+    with pytest.raises(ValueError, match="requires a missing value"):
+        archive_intensity(restored)
+
+
+def test_generation_unit_is_checked_if_supplied():
+    frame = normalize_archive(archive())
+    frame.loc[0, "unit"] = "MW"
+    with pytest.raises(ValueError, match="energy in MWh"):
+        archive_intensity(frame)
