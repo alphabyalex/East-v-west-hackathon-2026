@@ -37,8 +37,9 @@ def normalize_generation(raw: pd.DataFrame) -> pd.DataFrame:
 
 
 def add_generation(hourly_path: Path, out: Path, *, start_year=2019, end_year=2024):
-    if not 2019 <= start_year <= end_year <= 2024:
-        raise ValueError("Use historical generation years from 2019 through 2024.")
+    if (type(start_year) is not int or type(end_year) is not int
+            or not 2019 <= start_year <= end_year <= 2025):
+        raise ValueError("Use historical generation years from 2019 through 2025.")
     if out.exists():
         raise ValueError("Choose a new output path.")
     hourly = read_hourly(hourly_path)
@@ -56,7 +57,12 @@ def add_generation(hourly_path: Path, out: Path, *, start_year=2019, end_year=20
             print(f"Generation archive: {year}", flush=True)
             content, source = fetch_public_evidence(
                 f"https://portal.spp.org/file-browser-api/download/generation-mix-historical?path=/GenMix_{year}.csv", f"genmix_{year}")
-            frame = normalize_generation(pd.read_csv(io.BytesIO(content)))
+            if year == 2025:
+                from pipeline.wind_signal import read_cached_generation_archive
+                raw, _ = read_cached_generation_archive(year)
+            else:
+                raw = pd.read_csv(io.BytesIO(content))
+            frame = normalize_generation(raw)
             path.parent.mkdir(parents=True, exist_ok=True)
             frame.to_parquet(path, index=False)
             write_json(path.with_suffix(".source.json"), source)
