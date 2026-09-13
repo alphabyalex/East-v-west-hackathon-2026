@@ -1,0 +1,4559 @@
+{
+  "audit_version": 1,
+  "conclusion": "blocked_missing_original_target_labels_and_zone_weather_mapping",
+  "retrained": false,
+  "readiness": {
+    "audited_at_utc": "2026-09-13T23:42:30.211961+00:00",
+    "model_version": "spp_lgbm_20260913T060709_b63ee2577e",
+    "canonical_artifact_sha256": {
+      "exposure_by_location.parquet": "1abaafa021c4c98339de67110dda107f806647b1d5281abbd66e8093385215b0",
+      "model_card.json": "a733e5da27d477471bd88593d84577f14e3028113714fd0be17710d56b279052",
+      "simulation_metadata.json": "6487e72c5900585e54b5a86f3808d75ad039f95cee8dedf4e39486e71a3cd049"
+    },
+    "target_policy": {
+      "operator": "SPP",
+      "label_method": "observed_event",
+      "data_ref": "https://portal.spp.org/file-browser-api/download/hourly-load?path=/2024/2024.zip",
+      "label_ref": "local://spp_events.csv"
+    },
+    "test_window": {
+      "start": "2024-10-20 10:00:00+00:00",
+      "end": "2024-12-31 23:00:00+00:00",
+      "rows": 36057,
+      "positive_hours": 105
+    },
+    "http_method": "POST",
+    "endpoint": "/api/estimate",
+    "server": "isolated loopback Uvicorn instance using api.main:app and unchanged canonical files; no mocks or dependency overrides",
+    "request_parameters": {
+      "load_mw": 100,
+      "term_years": 7,
+      "flexibility_split": 0.6,
+      "site_exposure": 0.5
+    },
+    "required_hours": 8760,
+    "retrained": false,
+    "reason": "Original observed-event labels and confirmed observation coverage are absent; cached proxy labels are a different target.",
+    "results": [
+      {
+        "location_id": "CSWS",
+        "location_kind": "component_load_zone",
+        "before_scored_hours": 1717,
+        "after_scored_hours": 1717,
+        "before_held_out_span_hours": 1742,
+        "after_held_out_span_hours": 1742,
+        "annual_ready_before": false,
+        "annual_ready_after": false,
+        "readiness_issue": "annual reference not ready: held-out span=1742 hours, local scored hours=1717 for CSWS; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted",
+        "http_status": 503,
+        "real_modeled_exposure": false,
+        "modeled_exposure_source": null,
+        "response_detail": "Precomputed location CSWS exists, but model_version=spp_lgbm_20260913T060709_b63ee2577e; annual reference not ready: held-out span=1742 hours, local scored hours=1717 for CSWS; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted"
+      },
+      {
+        "location_id": "EDE",
+        "location_kind": "component_load_zone",
+        "before_scored_hours": 1717,
+        "after_scored_hours": 1717,
+        "before_held_out_span_hours": 1742,
+        "after_held_out_span_hours": 1742,
+        "annual_ready_before": false,
+        "annual_ready_after": false,
+        "readiness_issue": "annual reference not ready: held-out span=1742 hours, local scored hours=1717 for EDE; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted",
+        "http_status": 503,
+        "real_modeled_exposure": false,
+        "modeled_exposure_source": null,
+        "response_detail": "Precomputed location EDE exists, but model_version=spp_lgbm_20260913T060709_b63ee2577e; annual reference not ready: held-out span=1742 hours, local scored hours=1717 for EDE; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted"
+      },
+      {
+        "location_id": "GRDA",
+        "location_kind": "component_load_zone",
+        "before_scored_hours": 1717,
+        "after_scored_hours": 1717,
+        "before_held_out_span_hours": 1742,
+        "after_held_out_span_hours": 1742,
+        "annual_ready_before": false,
+        "annual_ready_after": false,
+        "readiness_issue": "annual reference not ready: held-out span=1742 hours, local scored hours=1717 for GRDA; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted",
+        "http_status": 503,
+        "real_modeled_exposure": false,
+        "modeled_exposure_source": null,
+        "response_detail": "Precomputed location GRDA exists, but model_version=spp_lgbm_20260913T060709_b63ee2577e; annual reference not ready: held-out span=1742 hours, local scored hours=1717 for GRDA; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted"
+      },
+      {
+        "location_id": "INDN",
+        "location_kind": "component_load_zone",
+        "before_scored_hours": 1717,
+        "after_scored_hours": 1717,
+        "before_held_out_span_hours": 1742,
+        "after_held_out_span_hours": 1742,
+        "annual_ready_before": false,
+        "annual_ready_after": false,
+        "readiness_issue": "annual reference not ready: held-out span=1742 hours, local scored hours=1717 for INDN; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted",
+        "http_status": 503,
+        "real_modeled_exposure": false,
+        "modeled_exposure_source": null,
+        "response_detail": "Precomputed location INDN exists, but model_version=spp_lgbm_20260913T060709_b63ee2577e; annual reference not ready: held-out span=1742 hours, local scored hours=1717 for INDN; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted"
+      },
+      {
+        "location_id": "KACY",
+        "location_kind": "component_load_zone",
+        "before_scored_hours": 1717,
+        "after_scored_hours": 1717,
+        "before_held_out_span_hours": 1742,
+        "after_held_out_span_hours": 1742,
+        "annual_ready_before": false,
+        "annual_ready_after": false,
+        "readiness_issue": "annual reference not ready: held-out span=1742 hours, local scored hours=1717 for KACY; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted",
+        "http_status": 503,
+        "real_modeled_exposure": false,
+        "modeled_exposure_source": null,
+        "response_detail": "Precomputed location KACY exists, but model_version=spp_lgbm_20260913T060709_b63ee2577e; annual reference not ready: held-out span=1742 hours, local scored hours=1717 for KACY; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted"
+      },
+      {
+        "location_id": "KCPL",
+        "location_kind": "component_load_zone",
+        "before_scored_hours": 1717,
+        "after_scored_hours": 1717,
+        "before_held_out_span_hours": 1742,
+        "after_held_out_span_hours": 1742,
+        "annual_ready_before": false,
+        "annual_ready_after": false,
+        "readiness_issue": "annual reference not ready: held-out span=1742 hours, local scored hours=1717 for KCPL; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted",
+        "http_status": 503,
+        "real_modeled_exposure": false,
+        "modeled_exposure_source": null,
+        "response_detail": "Precomputed location KCPL exists, but model_version=spp_lgbm_20260913T060709_b63ee2577e; annual reference not ready: held-out span=1742 hours, local scored hours=1717 for KCPL; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted"
+      },
+      {
+        "location_id": "LES",
+        "location_kind": "component_load_zone",
+        "before_scored_hours": 1717,
+        "after_scored_hours": 1717,
+        "before_held_out_span_hours": 1742,
+        "after_held_out_span_hours": 1742,
+        "annual_ready_before": false,
+        "annual_ready_after": false,
+        "readiness_issue": "annual reference not ready: held-out span=1742 hours, local scored hours=1717 for LES; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted",
+        "http_status": 503,
+        "real_modeled_exposure": false,
+        "modeled_exposure_source": null,
+        "response_detail": "Precomputed location LES exists, but model_version=spp_lgbm_20260913T060709_b63ee2577e; annual reference not ready: held-out span=1742 hours, local scored hours=1717 for LES; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted"
+      },
+      {
+        "location_id": "MPS",
+        "location_kind": "component_load_zone",
+        "before_scored_hours": 1717,
+        "after_scored_hours": 1717,
+        "before_held_out_span_hours": 1742,
+        "after_held_out_span_hours": 1742,
+        "annual_ready_before": false,
+        "annual_ready_after": false,
+        "readiness_issue": "annual reference not ready: held-out span=1742 hours, local scored hours=1717 for MPS; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted",
+        "http_status": 503,
+        "real_modeled_exposure": false,
+        "modeled_exposure_source": null,
+        "response_detail": "Precomputed location MPS exists, but model_version=spp_lgbm_20260913T060709_b63ee2577e; annual reference not ready: held-out span=1742 hours, local scored hours=1717 for MPS; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted"
+      },
+      {
+        "location_id": "NPPD",
+        "location_kind": "component_load_zone",
+        "before_scored_hours": 1717,
+        "after_scored_hours": 1717,
+        "before_held_out_span_hours": 1742,
+        "after_held_out_span_hours": 1742,
+        "annual_ready_before": false,
+        "annual_ready_after": false,
+        "readiness_issue": "annual reference not ready: held-out span=1742 hours, local scored hours=1717 for NPPD; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted",
+        "http_status": 503,
+        "real_modeled_exposure": false,
+        "modeled_exposure_source": null,
+        "response_detail": "Precomputed location NPPD exists, but model_version=spp_lgbm_20260913T060709_b63ee2577e; annual reference not ready: held-out span=1742 hours, local scored hours=1717 for NPPD; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted"
+      },
+      {
+        "location_id": "OKGE",
+        "location_kind": "component_load_zone",
+        "before_scored_hours": 1717,
+        "after_scored_hours": 1717,
+        "before_held_out_span_hours": 1742,
+        "after_held_out_span_hours": 1742,
+        "annual_ready_before": false,
+        "annual_ready_after": false,
+        "readiness_issue": "annual reference not ready: held-out span=1742 hours, local scored hours=1717 for OKGE; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted",
+        "http_status": 503,
+        "real_modeled_exposure": false,
+        "modeled_exposure_source": null,
+        "response_detail": "Precomputed location OKGE exists, but model_version=spp_lgbm_20260913T060709_b63ee2577e; annual reference not ready: held-out span=1742 hours, local scored hours=1717 for OKGE; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted"
+      },
+      {
+        "location_id": "OPPD",
+        "location_kind": "component_load_zone",
+        "before_scored_hours": 1717,
+        "after_scored_hours": 1717,
+        "before_held_out_span_hours": 1742,
+        "after_held_out_span_hours": 1742,
+        "annual_ready_before": false,
+        "annual_ready_after": false,
+        "readiness_issue": "annual reference not ready: held-out span=1742 hours, local scored hours=1717 for OPPD; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted",
+        "http_status": 503,
+        "real_modeled_exposure": false,
+        "modeled_exposure_source": null,
+        "response_detail": "Precomputed location OPPD exists, but model_version=spp_lgbm_20260913T060709_b63ee2577e; annual reference not ready: held-out span=1742 hours, local scored hours=1717 for OPPD; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted"
+      },
+      {
+        "location_id": "SECI",
+        "location_kind": "component_load_zone",
+        "before_scored_hours": 1717,
+        "after_scored_hours": 1717,
+        "before_held_out_span_hours": 1742,
+        "after_held_out_span_hours": 1742,
+        "annual_ready_before": false,
+        "annual_ready_after": false,
+        "readiness_issue": "annual reference not ready: held-out span=1742 hours, local scored hours=1717 for SECI; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted",
+        "http_status": 503,
+        "real_modeled_exposure": false,
+        "modeled_exposure_source": null,
+        "response_detail": "Precomputed location SECI exists, but model_version=spp_lgbm_20260913T060709_b63ee2577e; annual reference not ready: held-out span=1742 hours, local scored hours=1717 for SECI; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted"
+      },
+      {
+        "location_id": "SPP_SYSTEM",
+        "location_kind": "system_aggregate",
+        "before_scored_hours": 1717,
+        "after_scored_hours": 1717,
+        "before_held_out_span_hours": 1742,
+        "after_held_out_span_hours": 1742,
+        "annual_ready_before": false,
+        "annual_ready_after": false,
+        "readiness_issue": "annual reference not ready: held-out span=1742 hours, local scored hours=1717 for SPP_SYSTEM; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted",
+        "http_status": 200,
+        "real_modeled_exposure": false,
+        "modeled_exposure_source": {
+          "source_type": "assumption",
+          "ref": "mock://placeholder/exposure; placeholder, pipeline not wired yet; model_version=spp_lgbm_20260913T060709_b63ee2577e; annual reference not ready: held-out span=1742 hours, local scored hours=1717 for SPP_SYSTEM; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted?location_id=SPP_SYSTEM&load_mw=100&term_years=7&flexibility_split=0.6&site_exposure=0.5&vpp_solar_homes=0"
+        },
+        "response_detail": null
+      },
+      {
+        "location_id": "SPRM",
+        "location_kind": "component_load_zone",
+        "before_scored_hours": 1717,
+        "after_scored_hours": 1717,
+        "before_held_out_span_hours": 1742,
+        "after_held_out_span_hours": 1742,
+        "annual_ready_before": false,
+        "annual_ready_after": false,
+        "readiness_issue": "annual reference not ready: held-out span=1742 hours, local scored hours=1717 for SPRM; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted",
+        "http_status": 503,
+        "real_modeled_exposure": false,
+        "modeled_exposure_source": null,
+        "response_detail": "Precomputed location SPRM exists, but model_version=spp_lgbm_20260913T060709_b63ee2577e; annual reference not ready: held-out span=1742 hours, local scored hours=1717 for SPRM; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted"
+      },
+      {
+        "location_id": "SPS",
+        "location_kind": "component_load_zone",
+        "before_scored_hours": 1717,
+        "after_scored_hours": 1717,
+        "before_held_out_span_hours": 1742,
+        "after_held_out_span_hours": 1742,
+        "annual_ready_before": false,
+        "annual_ready_after": false,
+        "readiness_issue": "annual reference not ready: held-out span=1742 hours, local scored hours=1717 for SPS; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted",
+        "http_status": 503,
+        "real_modeled_exposure": false,
+        "modeled_exposure_source": null,
+        "response_detail": "Precomputed location SPS exists, but model_version=spp_lgbm_20260913T060709_b63ee2577e; annual reference not ready: held-out span=1742 hours, local scored hours=1717 for SPS; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted"
+      },
+      {
+        "location_id": "WAUE",
+        "location_kind": "component_load_zone",
+        "before_scored_hours": 1717,
+        "after_scored_hours": 1717,
+        "before_held_out_span_hours": 1742,
+        "after_held_out_span_hours": 1742,
+        "annual_ready_before": false,
+        "annual_ready_after": false,
+        "readiness_issue": "annual reference not ready: held-out span=1742 hours, local scored hours=1717 for WAUE; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted",
+        "http_status": 503,
+        "real_modeled_exposure": false,
+        "modeled_exposure_source": null,
+        "response_detail": "Precomputed location WAUE exists, but model_version=spp_lgbm_20260913T060709_b63ee2577e; annual reference not ready: held-out span=1742 hours, local scored hours=1717 for WAUE; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted"
+      },
+      {
+        "location_id": "WFEC",
+        "location_kind": "component_load_zone",
+        "before_scored_hours": 1717,
+        "after_scored_hours": 1717,
+        "before_held_out_span_hours": 1742,
+        "after_held_out_span_hours": 1742,
+        "annual_ready_before": false,
+        "annual_ready_after": false,
+        "readiness_issue": "annual reference not ready: held-out span=1742 hours, local scored hours=1717 for WFEC; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted",
+        "http_status": 503,
+        "real_modeled_exposure": false,
+        "modeled_exposure_source": null,
+        "response_detail": "Precomputed location WFEC exists, but model_version=spp_lgbm_20260913T060709_b63ee2577e; annual reference not ready: held-out span=1742 hours, local scored hours=1717 for WFEC; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted"
+      },
+      {
+        "location_id": "WR",
+        "location_kind": "component_load_zone",
+        "before_scored_hours": 1717,
+        "after_scored_hours": 1717,
+        "before_held_out_span_hours": 1742,
+        "after_held_out_span_hours": 1742,
+        "annual_ready_before": false,
+        "annual_ready_after": false,
+        "readiness_issue": "annual reference not ready: held-out span=1742 hours, local scored hours=1717 for WR; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted",
+        "http_status": 503,
+        "real_modeled_exposure": false,
+        "modeled_exposure_source": null,
+        "response_detail": "Precomputed location WR exists, but model_version=spp_lgbm_20260913T060709_b63ee2577e; annual reference not ready: held-out span=1742 hours, local scored hours=1717 for WR; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted"
+      },
+      {
+        "location_id": "spp-lincoln-demo",
+        "location_kind": "scenario_alias",
+        "before_scored_hours": 1717,
+        "after_scored_hours": 1717,
+        "before_held_out_span_hours": 1742,
+        "after_held_out_span_hours": 1742,
+        "annual_ready_before": false,
+        "annual_ready_after": false,
+        "readiness_issue": "annual reference not ready: held-out span=1742 hours, local scored hours=1717 for spp-lincoln-demo; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted",
+        "http_status": 200,
+        "real_modeled_exposure": false,
+        "modeled_exposure_source": {
+          "source_type": "assumption",
+          "ref": "mock://placeholder/exposure; placeholder, pipeline not wired yet; model_version=spp_lgbm_20260913T060709_b63ee2577e; annual reference not ready: held-out span=1742 hours, local scored hours=1717 for spp-lincoln-demo; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted?location_id=spp-lincoln-demo&load_mw=100&term_years=7&flexibility_split=0.6&site_exposure=0.5&vpp_solar_homes=0"
+        },
+        "response_detail": null
+      },
+      {
+        "location_id": "spp-oklahoma-city-demo",
+        "location_kind": "scenario_alias",
+        "before_scored_hours": 1717,
+        "after_scored_hours": 1717,
+        "before_held_out_span_hours": 1742,
+        "after_held_out_span_hours": 1742,
+        "annual_ready_before": false,
+        "annual_ready_after": false,
+        "readiness_issue": "annual reference not ready: held-out span=1742 hours, local scored hours=1717 for spp-oklahoma-city-demo; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted",
+        "http_status": 200,
+        "real_modeled_exposure": false,
+        "modeled_exposure_source": {
+          "source_type": "assumption",
+          "ref": "mock://placeholder/exposure; placeholder, pipeline not wired yet; model_version=spp_lgbm_20260913T060709_b63ee2577e; annual reference not ready: held-out span=1742 hours, local scored hours=1717 for spp-oklahoma-city-demo; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted?location_id=spp-oklahoma-city-demo&load_mw=100&term_years=7&flexibility_split=0.6&site_exposure=0.5&vpp_solar_homes=0"
+        },
+        "response_detail": null
+      },
+      {
+        "location_id": "spp-wichita-demo",
+        "location_kind": "scenario_alias",
+        "before_scored_hours": 1717,
+        "after_scored_hours": 1717,
+        "before_held_out_span_hours": 1742,
+        "after_held_out_span_hours": 1742,
+        "annual_ready_before": false,
+        "annual_ready_after": false,
+        "readiness_issue": "annual reference not ready: held-out span=1742 hours, local scored hours=1717 for spp-wichita-demo; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted",
+        "http_status": 200,
+        "real_modeled_exposure": false,
+        "modeled_exposure_source": {
+          "source_type": "assumption",
+          "ref": "mock://placeholder/exposure; placeholder, pipeline not wired yet; model_version=spp_lgbm_20260913T060709_b63ee2577e; annual reference not ready: held-out span=1742 hours, local scored hours=1717 for spp-wichita-demo; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted?location_id=spp-wichita-demo&load_mw=100&term_years=7&flexibility_split=0.6&site_exposure=0.5&vpp_solar_homes=0"
+        },
+        "response_detail": null
+      }
+    ]
+  },
+  "raw_load_inventory": {
+    "annual_sources": [
+      {
+        "year": 2018,
+        "path": "data/raw/spp/access_check/2018_hourly_load.parquet",
+        "sha256": "aa08c4740264f0dae5f4e579aaedd8d1dd5233ffda9ddc023658d06299ef1b66",
+        "raw_rows": 8758,
+        "columns": [
+          "MarketHour",
+          "CSWS",
+          "EDE",
+          "GRDA",
+          "INDN",
+          "KACY",
+          "KCPL",
+          "LES",
+          "MPS",
+          "NPPD",
+          "OKGE",
+          "OPPD",
+          "SECI",
+          "SPRM",
+          "SPS",
+          "WAUE",
+          "WFEC",
+          "WR"
+        ],
+        "expected_hours": 8760,
+        "source_unique_hours": 8758,
+        "missing_timestamp_hours": 2,
+        "start": "2018-01-01 06:00:00+00:00",
+        "end_exclusive": "2019-01-01 06:00:00+00:00",
+        "known_load_hours": {
+          "CSWS": 8752,
+          "EDE": 8752,
+          "GRDA": 8758,
+          "INDN": 8752,
+          "KACY": 8752,
+          "KCPL": 8752,
+          "LES": 8752,
+          "MPS": 8752,
+          "NPPD": 8758,
+          "OKGE": 8752,
+          "OPPD": 8752,
+          "SECI": 8752,
+          "SPRM": 8752,
+          "SPS": 8752,
+          "WAUE": 8752,
+          "WFEC": 8752,
+          "WR": 8752,
+          "SPP_SYSTEM": 8752
+        },
+        "missing_or_conflicting_load_hours": {
+          "CSWS": 8,
+          "EDE": 8,
+          "GRDA": 2,
+          "INDN": 8,
+          "KACY": 8,
+          "KCPL": 8,
+          "LES": 8,
+          "MPS": 8,
+          "NPPD": 2,
+          "OKGE": 8,
+          "OPPD": 8,
+          "SECI": 8,
+          "SPRM": 8,
+          "SPS": 8,
+          "WAUE": 8,
+          "WFEC": 8,
+          "WR": 8,
+          "SPP_SYSTEM": 8
+        }
+      },
+      {
+        "year": 2019,
+        "path": "data/raw/spp/access_check/2019_hourly_load.parquet",
+        "sha256": "7d8b0ff94f03550f9784f819ca2a9e4e5f3901c15f231c0c72f0ca3eee285586",
+        "raw_rows": 11281,
+        "columns": [
+          "MarketHour",
+          "CSWS",
+          "EDE",
+          "GRDA",
+          "INDN",
+          "KACY",
+          "KCPL",
+          "LES",
+          "MPS",
+          "NPPD",
+          "OKGE",
+          "OPPD",
+          "SECI",
+          "SPRM",
+          "SPS",
+          "WAUE",
+          "WFEC",
+          "WR"
+        ],
+        "expected_hours": 8760,
+        "source_unique_hours": 8760,
+        "missing_timestamp_hours": 0,
+        "start": "2019-01-01 06:00:00+00:00",
+        "end_exclusive": "2020-01-01 06:00:00+00:00",
+        "known_load_hours": {
+          "CSWS": 8760,
+          "EDE": 8760,
+          "GRDA": 8760,
+          "INDN": 8760,
+          "KACY": 8760,
+          "KCPL": 8760,
+          "LES": 8760,
+          "MPS": 8760,
+          "NPPD": 8760,
+          "OKGE": 8760,
+          "OPPD": 8760,
+          "SECI": 8760,
+          "SPRM": 8760,
+          "SPS": 8760,
+          "WAUE": 8760,
+          "WFEC": 8760,
+          "WR": 8760,
+          "SPP_SYSTEM": 8760
+        },
+        "missing_or_conflicting_load_hours": {
+          "CSWS": 0,
+          "EDE": 0,
+          "GRDA": 0,
+          "INDN": 0,
+          "KACY": 0,
+          "KCPL": 0,
+          "LES": 0,
+          "MPS": 0,
+          "NPPD": 0,
+          "OKGE": 0,
+          "OPPD": 0,
+          "SECI": 0,
+          "SPRM": 0,
+          "SPS": 0,
+          "WAUE": 0,
+          "WFEC": 0,
+          "WR": 0,
+          "SPP_SYSTEM": 0
+        }
+      },
+      {
+        "year": 2020,
+        "path": "data/raw/spp/access_check/2020_hourly_load.parquet",
+        "sha256": "08431c8c3101ac56b80eadceba0d998b35b310316ab45a2f557276a6ffc993f2",
+        "raw_rows": 17544,
+        "columns": [
+          "MarketHour",
+          "CSWS",
+          "EDE",
+          "GRDA",
+          "INDN",
+          "KACY",
+          "KCPL",
+          "LES",
+          "MPS",
+          "NPPD",
+          "OKGE",
+          "OPPD",
+          "SECI",
+          "SPRM",
+          "SPS",
+          "WAUE",
+          "WFEC",
+          "WR"
+        ],
+        "expected_hours": 8784,
+        "source_unique_hours": 8784,
+        "missing_timestamp_hours": 0,
+        "start": "2020-01-01 06:00:00+00:00",
+        "end_exclusive": "2021-01-01 06:00:00+00:00",
+        "known_load_hours": {
+          "CSWS": 8784,
+          "EDE": 8784,
+          "GRDA": 8784,
+          "INDN": 8784,
+          "KACY": 8784,
+          "KCPL": 8784,
+          "LES": 8784,
+          "MPS": 8784,
+          "NPPD": 8784,
+          "OKGE": 8784,
+          "OPPD": 8784,
+          "SECI": 8784,
+          "SPRM": 8784,
+          "SPS": 8784,
+          "WAUE": 8784,
+          "WFEC": 8784,
+          "WR": 8784,
+          "SPP_SYSTEM": 8784
+        },
+        "missing_or_conflicting_load_hours": {
+          "CSWS": 0,
+          "EDE": 0,
+          "GRDA": 0,
+          "INDN": 0,
+          "KACY": 0,
+          "KCPL": 0,
+          "LES": 0,
+          "MPS": 0,
+          "NPPD": 0,
+          "OKGE": 0,
+          "OPPD": 0,
+          "SECI": 0,
+          "SPRM": 0,
+          "SPS": 0,
+          "WAUE": 0,
+          "WFEC": 0,
+          "WR": 0,
+          "SPP_SYSTEM": 0
+        }
+      },
+      {
+        "year": 2021,
+        "path": "data/raw/spp/access_check/2021_hourly_load.parquet",
+        "sha256": "c7aa2dc85c463de0f54abc35b3c21e4cc069f1366f48dda4c1e5e13268e28d48",
+        "raw_rows": 17517,
+        "columns": [
+          "MarketHour",
+          "CSWS",
+          "EDE",
+          "GRDA",
+          "INDN",
+          "KACY",
+          "KCPL",
+          "LES",
+          "MPS",
+          "NPPD",
+          "OKGE",
+          "OPPD",
+          "SECI",
+          "SPRM",
+          "SPS",
+          "WAUE",
+          "WFEC",
+          "WR"
+        ],
+        "expected_hours": 8760,
+        "source_unique_hours": 8758,
+        "missing_timestamp_hours": 2,
+        "start": "2021-01-01 06:00:00+00:00",
+        "end_exclusive": "2022-01-01 06:00:00+00:00",
+        "known_load_hours": {
+          "CSWS": 8758,
+          "EDE": 8758,
+          "GRDA": 8758,
+          "INDN": 8758,
+          "KACY": 8758,
+          "KCPL": 8758,
+          "LES": 8758,
+          "MPS": 8758,
+          "NPPD": 8758,
+          "OKGE": 8758,
+          "OPPD": 8758,
+          "SECI": 8758,
+          "SPRM": 8758,
+          "SPS": 8758,
+          "WAUE": 8758,
+          "WFEC": 8758,
+          "WR": 8758,
+          "SPP_SYSTEM": 8758
+        },
+        "missing_or_conflicting_load_hours": {
+          "CSWS": 2,
+          "EDE": 2,
+          "GRDA": 2,
+          "INDN": 2,
+          "KACY": 2,
+          "KCPL": 2,
+          "LES": 2,
+          "MPS": 2,
+          "NPPD": 2,
+          "OKGE": 2,
+          "OPPD": 2,
+          "SECI": 2,
+          "SPRM": 2,
+          "SPS": 2,
+          "WAUE": 2,
+          "WFEC": 2,
+          "WR": 2,
+          "SPP_SYSTEM": 2
+        }
+      },
+      {
+        "year": 2022,
+        "path": "data/raw/spp/access_check/2022_hourly_load.parquet",
+        "sha256": "c2a8423950021b789e49168b43c69f10c7d313ff485cc35dc0bf4b16bacef6c9",
+        "raw_rows": 17498,
+        "columns": [
+          "MarketHour",
+          "CSWS",
+          "EDE",
+          "GRDA",
+          "INDN",
+          "KACY",
+          "KCPL",
+          "LES",
+          "MPS",
+          "NPPD",
+          "OKGE",
+          "OPPD",
+          "SECI",
+          "SPRM",
+          "SPS",
+          "WAUE",
+          "WFEC",
+          "WR"
+        ],
+        "expected_hours": 8760,
+        "source_unique_hours": 8749,
+        "missing_timestamp_hours": 11,
+        "start": "2022-01-01 06:00:00+00:00",
+        "end_exclusive": "2023-01-01 06:00:00+00:00",
+        "known_load_hours": {
+          "CSWS": 8748,
+          "EDE": 8748,
+          "GRDA": 8749,
+          "INDN": 8748,
+          "KACY": 8748,
+          "KCPL": 8748,
+          "LES": 8748,
+          "MPS": 8748,
+          "NPPD": 8749,
+          "OKGE": 8748,
+          "OPPD": 8748,
+          "SECI": 8748,
+          "SPRM": 8748,
+          "SPS": 8748,
+          "WAUE": 8748,
+          "WFEC": 8748,
+          "WR": 8748,
+          "SPP_SYSTEM": 8748
+        },
+        "missing_or_conflicting_load_hours": {
+          "CSWS": 12,
+          "EDE": 12,
+          "GRDA": 11,
+          "INDN": 12,
+          "KACY": 12,
+          "KCPL": 12,
+          "LES": 12,
+          "MPS": 12,
+          "NPPD": 11,
+          "OKGE": 12,
+          "OPPD": 12,
+          "SECI": 12,
+          "SPRM": 12,
+          "SPS": 12,
+          "WAUE": 12,
+          "WFEC": 12,
+          "WR": 12,
+          "SPP_SYSTEM": 12
+        }
+      },
+      {
+        "year": 2023,
+        "path": "data/raw/spp/access_check/2023_hourly_load.parquet",
+        "sha256": "fabda4ce77e81e36174135b63474cf83a78b870e2ccaecb3f1468680f1009a37",
+        "raw_rows": 17514,
+        "columns": [
+          "MarketHour",
+          "CSWS",
+          "EDE",
+          "GRDA",
+          "INDN",
+          "KACY",
+          "KCPL",
+          "LES",
+          "MPS",
+          "NPPD",
+          "OKGE",
+          "OPPD",
+          "SECI",
+          "SPRM",
+          "SPS",
+          "WAUE",
+          "WFEC",
+          "WR"
+        ],
+        "expected_hours": 8760,
+        "source_unique_hours": 8757,
+        "missing_timestamp_hours": 3,
+        "start": "2023-01-01 06:00:00+00:00",
+        "end_exclusive": "2024-01-01 06:00:00+00:00",
+        "known_load_hours": {
+          "CSWS": 8757,
+          "EDE": 8757,
+          "GRDA": 8757,
+          "INDN": 8757,
+          "KACY": 8757,
+          "KCPL": 8757,
+          "LES": 8757,
+          "MPS": 8757,
+          "NPPD": 8757,
+          "OKGE": 8757,
+          "OPPD": 8757,
+          "SECI": 8757,
+          "SPRM": 8757,
+          "SPS": 8757,
+          "WAUE": 8757,
+          "WFEC": 8757,
+          "WR": 8757,
+          "SPP_SYSTEM": 8757
+        },
+        "missing_or_conflicting_load_hours": {
+          "CSWS": 3,
+          "EDE": 3,
+          "GRDA": 3,
+          "INDN": 3,
+          "KACY": 3,
+          "KCPL": 3,
+          "LES": 3,
+          "MPS": 3,
+          "NPPD": 3,
+          "OKGE": 3,
+          "OPPD": 3,
+          "SECI": 3,
+          "SPRM": 3,
+          "SPS": 3,
+          "WAUE": 3,
+          "WFEC": 3,
+          "WR": 3,
+          "SPP_SYSTEM": 3
+        }
+      },
+      {
+        "year": 2024,
+        "path": "data/raw/spp/access_check/2024_hourly_load.parquet",
+        "sha256": "9142040c00166449449683682778a87bcbb1e2f450355d23e6b4aac57180ecd4",
+        "raw_rows": 17562,
+        "columns": [
+          "MarketHour",
+          "CSWS",
+          "EDE",
+          "GRDA",
+          "INDN",
+          "KACY",
+          "KCPL",
+          "LES",
+          "MPS",
+          "NPPD",
+          "OKGE",
+          "OPPD",
+          "SECI",
+          "SPRM",
+          "SPS",
+          "WAUE",
+          "WFEC",
+          "WR"
+        ],
+        "expected_hours": 8784,
+        "source_unique_hours": 8782,
+        "missing_timestamp_hours": 2,
+        "start": "2024-01-01 06:00:00+00:00",
+        "end_exclusive": "2025-01-01 06:00:00+00:00",
+        "known_load_hours": {
+          "CSWS": 8781,
+          "EDE": 8781,
+          "GRDA": 8781,
+          "INDN": 8781,
+          "KACY": 8781,
+          "KCPL": 8781,
+          "LES": 8781,
+          "MPS": 8781,
+          "NPPD": 8781,
+          "OKGE": 8781,
+          "OPPD": 8781,
+          "SECI": 8781,
+          "SPRM": 8781,
+          "SPS": 8781,
+          "WAUE": 8781,
+          "WFEC": 8781,
+          "WR": 8781,
+          "SPP_SYSTEM": 8781
+        },
+        "missing_or_conflicting_load_hours": {
+          "CSWS": 3,
+          "EDE": 3,
+          "GRDA": 3,
+          "INDN": 3,
+          "KACY": 3,
+          "KCPL": 3,
+          "LES": 3,
+          "MPS": 3,
+          "NPPD": 3,
+          "OKGE": 3,
+          "OPPD": 3,
+          "SECI": 3,
+          "SPRM": 3,
+          "SPS": 3,
+          "WAUE": 3,
+          "WFEC": 3,
+          "WR": 3,
+          "SPP_SYSTEM": 3
+        }
+      },
+      {
+        "year": 2025,
+        "path": "data/raw/spp/access_check/2025_monthly_load.parquet",
+        "sha256": "18d1adf4f1ea70a48cd6cdb528d5ca9d935d7ea64300dcf9f8b8bc542b1505f9",
+        "raw_rows": 8760,
+        "columns": [
+          "MarketHour",
+          "CSWS",
+          "EDE",
+          "GRDA",
+          "INDN",
+          "KACY",
+          "KCPL",
+          "LES",
+          "MPS",
+          "NPPD",
+          "OKGE",
+          "OPPD",
+          "SECI",
+          "SPRM",
+          "SPS",
+          "WAUE",
+          "WFEC",
+          "WR"
+        ],
+        "expected_hours": 8760,
+        "source_unique_hours": 8760,
+        "missing_timestamp_hours": 0,
+        "start": "2025-01-01 06:00:00+00:00",
+        "end_exclusive": "2026-01-01 06:00:00+00:00",
+        "known_load_hours": {
+          "CSWS": 8759,
+          "EDE": 8759,
+          "GRDA": 8759,
+          "INDN": 8759,
+          "KACY": 8759,
+          "KCPL": 8759,
+          "LES": 8759,
+          "MPS": 8759,
+          "NPPD": 8760,
+          "OKGE": 8759,
+          "OPPD": 8760,
+          "SECI": 8759,
+          "SPRM": 8759,
+          "SPS": 8759,
+          "WAUE": 8760,
+          "WFEC": 8759,
+          "WR": 8759,
+          "SPP_SYSTEM": 8759
+        },
+        "missing_or_conflicting_load_hours": {
+          "CSWS": 1,
+          "EDE": 1,
+          "GRDA": 1,
+          "INDN": 1,
+          "KACY": 1,
+          "KCPL": 1,
+          "LES": 1,
+          "MPS": 1,
+          "NPPD": 0,
+          "OKGE": 1,
+          "OPPD": 0,
+          "SECI": 1,
+          "SPRM": 1,
+          "SPS": 1,
+          "WAUE": 0,
+          "WFEC": 1,
+          "WR": 1,
+          "SPP_SYSTEM": 1
+        }
+      }
+    ]
+  },
+  "prepared_system_input": {
+    "path": "data/processed/ml_inputs/spp_2019_2025_multifactor.parquet",
+    "sha256": "84d0f3f5fbd6c57555d2c0c45e15b2b2e9904a351d0e419a5bee2ba5404620fc",
+    "location_ids": [
+      "SPP_SYSTEM"
+    ],
+    "utc_year_counts": {
+      "2019": {
+        "hours": 8754,
+        "known_load": 8754,
+        "known_temperature": 8754,
+        "known_wind": 8645,
+        "known_solar": 8645
+      },
+      "2020": {
+        "hours": 8784,
+        "known_load": 8784,
+        "known_temperature": 8784,
+        "known_wind": 8665,
+        "known_solar": 8665
+      },
+      "2021": {
+        "hours": 8760,
+        "known_load": 8711,
+        "known_temperature": 8760,
+        "known_wind": 8641,
+        "known_solar": 8641
+      },
+      "2022": {
+        "hours": 8760,
+        "known_load": 8748,
+        "known_temperature": 8760,
+        "known_wind": 8409,
+        "known_solar": 8409
+      },
+      "2023": {
+        "hours": 8760,
+        "known_load": 8757,
+        "known_temperature": 8760,
+        "known_wind": 8499,
+        "known_solar": 8499
+      },
+      "2024": {
+        "hours": 8784,
+        "known_load": 8781,
+        "known_temperature": 8784,
+        "known_wind": 8714,
+        "known_solar": 8714
+      },
+      "2025": {
+        "hours": 8760,
+        "known_load": 8759,
+        "known_temperature": 8760,
+        "known_wind": 8686,
+        "known_solar": 8686
+      }
+    }
+  },
+  "weather_points": {
+    "(39.20194, -96.305)": {
+      "2019": 8760,
+      "2020": 8784,
+      "2021": 8760,
+      "2022": 8760,
+      "2023": 8760,
+      "2024": 8784,
+      "2025": 8760
+    },
+    "(37.69224, -97.33754)": {
+      "2019": 8760,
+      "2020": 8784,
+      "2021": 8760,
+      "2022": 8760,
+      "2023": 8760,
+      "2024": 8784,
+      "2025": 8760
+    },
+    "(36.91472, -111.45583)": {
+      "2019": 8760,
+      "2020": 8784,
+      "2021": 8760,
+      "2022": 8760,
+      "2023": 8760,
+      "2024": 8784,
+      "2025": 8760
+    },
+    "(39.73915, -104.9847)": {
+      "2019": 8760,
+      "2020": 8784,
+      "2021": 8760,
+      "2022": 8760,
+      "2023": 8760,
+      "2024": 8784,
+      "2025": 8760
+    },
+    "(38.83388, -104.82136)": {
+      "2019": 8760,
+      "2020": 8784,
+      "2021": 8760,
+      "2022": 8760,
+      "2023": 8760,
+      "2024": 8784,
+      "2025": 8760
+    },
+    "(41.25626, -95.94043)": {
+      "2019": 8760,
+      "2020": 8784,
+      "2021": 8760,
+      "2022": 8760,
+      "2023": 8760,
+      "2024": 8784,
+      "2025": 8760
+    },
+    "(35.46756, -97.51643)": {
+      "2019": 8760,
+      "2020": 8784,
+      "2021": 8760,
+      "2022": 8760,
+      "2023": 8760,
+      "2024": 8784,
+      "2025": 8760
+    },
+    "(35.222, -101.8313)": {
+      "2019": 8760,
+      "2020": 8784,
+      "2021": 8760,
+      "2022": 8760,
+      "2023": 8760,
+      "2024": 8784,
+      "2025": 8760
+    },
+    "(40.58526, -105.08442)": {
+      "2019": 8760,
+      "2020": 8784,
+      "2021": 8760,
+      "2022": 8760,
+      "2023": 8760,
+      "2024": 8784,
+      "2025": 8760
+    },
+    "(40.8, -96.66696)": {
+      "2019": 8760,
+      "2020": 8784,
+      "2021": 8760,
+      "2022": 8760,
+      "2023": 8760,
+      "2024": 8784,
+      "2025": 8760
+    }
+  },
+  "weather_files": [
+    {
+      "path": "data/raw/weather/open_meteo/era5_2019_1b649ceba13d90f1b070.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=39.20194&longitude=-96.305&start_date=2019-01-01&end_date=2019-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 39.20194,
+          "longitude": -96.305,
+          "start_date": "2019-01-01",
+          "end_date": "2019-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T08:14:13.358204+00:00",
+        "returned_grid_latitude": 39.25,
+        "returned_grid_longitude": -96.25,
+        "returned_elevation_m": 304.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2019-01-01 00:00:00+00:00",
+      "end": "2019-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "b821b38317491278b9498542e1c6a738bd795c3bf0affc0fcb7f80346ad24e90"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2019_250c5e899687443ef865.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=37.69224&longitude=-97.33754&start_date=2019-01-01&end_date=2019-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 37.69224,
+          "longitude": -97.33754,
+          "start_date": "2019-01-01",
+          "end_date": "2019-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T04:45:04.309541+00:00",
+        "returned_grid_latitude": 37.75,
+        "returned_grid_longitude": -97.25,
+        "returned_elevation_m": 398.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2019-01-01 00:00:00+00:00",
+      "end": "2019-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "9920e7fea53f13e5af97e85c5fe0bfdbc812025c24717f8bb901f359a45c573f"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2019_39bf157444cda020caf0.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=36.91472&longitude=-111.45583&start_date=2019-01-01&end_date=2019-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 36.91472,
+          "longitude": -111.45583,
+          "start_date": "2019-01-01",
+          "end_date": "2019-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T08:12:53.580685+00:00",
+        "returned_grid_latitude": 37.0,
+        "returned_grid_longitude": -111.5,
+        "returned_elevation_m": 1323.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2019-01-01 00:00:00+00:00",
+      "end": "2019-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "4ced080b2be06006353386968305e420f0779aa49f056f14fc6b181282209c75"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2019_52098917100ac24cd05b.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=39.73915&longitude=-104.9847&start_date=2019-01-01&end_date=2019-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 39.73915,
+          "longitude": -104.9847,
+          "start_date": "2019-01-01",
+          "end_date": "2019-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T08:43:57.150526+00:00",
+        "returned_grid_latitude": 39.75,
+        "returned_grid_longitude": -105.0,
+        "returned_elevation_m": 1615.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2019-01-01 00:00:00+00:00",
+      "end": "2019-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "a5879e002710d9c50c6e5a6b2fb279ec9bc061ce6e2db040039aefa62153eb11"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2019_89aa7315459bb3c983ba.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=38.83388&longitude=-104.82136&start_date=2019-01-01&end_date=2019-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 38.83388,
+          "longitude": -104.82136,
+          "start_date": "2019-01-01",
+          "end_date": "2019-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T07:48:34.947143+00:00",
+        "returned_grid_latitude": 38.75,
+        "returned_grid_longitude": -104.75,
+        "returned_elevation_m": 1832.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2019-01-01 00:00:00+00:00",
+      "end": "2019-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "76c4144584f09a1bfea240e49473b9548e019c5b9baec8b741de7901cebbcb29"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2019_941ab832c8225f8bebe8.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=41.25626&longitude=-95.94043&start_date=2019-01-01&end_date=2019-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 41.25626,
+          "longitude": -95.94043,
+          "start_date": "2019-01-01",
+          "end_date": "2019-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T05:49:36.400064+00:00",
+        "returned_grid_latitude": 41.25,
+        "returned_grid_longitude": -96.0,
+        "returned_elevation_m": 335.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2019-01-01 00:00:00+00:00",
+      "end": "2019-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "e87f3bde17f3adf45d2670a7efe1346c996e991cece0a88f1e1a70081031d03d"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2019_9cce5b08a54dbaf2ac20.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=35.46756&longitude=-97.51643&start_date=2019-01-01&end_date=2019-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 35.46756,
+          "longitude": -97.51643,
+          "start_date": "2019-01-01",
+          "end_date": "2019-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T05:48:35.265012+00:00",
+        "returned_grid_latitude": 35.5,
+        "returned_grid_longitude": -97.5,
+        "returned_elevation_m": 371.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2019-01-01 00:00:00+00:00",
+      "end": "2019-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "8ce830c5d7686c3b4c47d4ba84f0f85e4b6936195cd56f39662d23571b46808e"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2019_b292f6a601ee4a2ac0d9.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=35.222&longitude=-101.8313&start_date=2019-01-01&end_date=2019-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 35.222,
+          "longitude": -101.8313,
+          "start_date": "2019-01-01",
+          "end_date": "2019-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T03:48:06.021323+00:00",
+        "returned_grid_latitude": 35.25,
+        "returned_grid_longitude": -101.75,
+        "returned_elevation_m": 1119.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2019-01-01 00:00:00+00:00",
+      "end": "2019-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "115744a853e9122ecfee932d8b00cc0889e81d5201ac0676e066594f6815b27d"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2019_bfc32fbe565f553b51d4.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=40.58526&longitude=-105.08442&start_date=2019-01-01&end_date=2019-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 40.58526,
+          "longitude": -105.08442,
+          "start_date": "2019-01-01",
+          "end_date": "2019-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T08:14:16.518841+00:00",
+        "returned_grid_latitude": 40.5,
+        "returned_grid_longitude": -105.0,
+        "returned_elevation_m": 1528.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2019-01-01 00:00:00+00:00",
+      "end": "2019-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "863f0b7b5896cef9ee8819abd7045a0ec476bd15a4dc0c8b28b6891f4c683ad4"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2019_ca69da4653fb6b1128d4.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=40.8&longitude=-96.66696&start_date=2019-01-01&end_date=2019-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 40.8,
+          "longitude": -96.66696,
+          "start_date": "2019-01-01",
+          "end_date": "2019-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T05:49:07.162121+00:00",
+        "returned_grid_latitude": 40.75,
+        "returned_grid_longitude": -96.75,
+        "returned_elevation_m": 371.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2019-01-01 00:00:00+00:00",
+      "end": "2019-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "d1a9c9c694282d54e772503c50410e15b040437177347d79a612318694791a63"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2020_08f1a54e93a69b306ed8.parquet",
+      "rows": 8784,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=36.91472&longitude=-111.45583&start_date=2020-01-01&end_date=2020-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 36.91472,
+          "longitude": -111.45583,
+          "start_date": "2020-01-01",
+          "end_date": "2020-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T08:12:54.704514+00:00",
+        "returned_grid_latitude": 37.0,
+        "returned_grid_longitude": -111.5,
+        "returned_elevation_m": 1323.0,
+        "hours": 8784,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2020-01-01 00:00:00+00:00",
+      "end": "2020-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8784,
+      "sha256": "71ba3c9eeba01a32811ecc7a676c16f5019aae501215a7e3dc4e72fbea327cf1"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2020_1fb1cecdae1a5dad320e.parquet",
+      "rows": 8784,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=40.8&longitude=-96.66696&start_date=2020-01-01&end_date=2020-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 40.8,
+          "longitude": -96.66696,
+          "start_date": "2020-01-01",
+          "end_date": "2020-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T05:49:08.807053+00:00",
+        "returned_grid_latitude": 40.75,
+        "returned_grid_longitude": -96.75,
+        "returned_elevation_m": 371.0,
+        "hours": 8784,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2020-01-01 00:00:00+00:00",
+      "end": "2020-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8784,
+      "sha256": "4e01621c049d56df0e1958f0b9e0dd38ccfbe14fb378295d761986a5da98a435"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2020_49d87bdb2d42b64fc429.parquet",
+      "rows": 8784,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=39.20194&longitude=-96.305&start_date=2020-01-01&end_date=2020-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 39.20194,
+          "longitude": -96.305,
+          "start_date": "2020-01-01",
+          "end_date": "2020-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T08:14:15.170513+00:00",
+        "returned_grid_latitude": 39.25,
+        "returned_grid_longitude": -96.25,
+        "returned_elevation_m": 304.0,
+        "hours": 8784,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2020-01-01 00:00:00+00:00",
+      "end": "2020-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8784,
+      "sha256": "afe09da8f117489e1a5cc24126ee245beb94d7aded3e2dc407d066581c32b8cd"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2020_50f134e8de8033b5b32f.parquet",
+      "rows": 8784,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=38.83388&longitude=-104.82136&start_date=2020-01-01&end_date=2020-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 38.83388,
+          "longitude": -104.82136,
+          "start_date": "2020-01-01",
+          "end_date": "2020-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T07:48:36.125580+00:00",
+        "returned_grid_latitude": 38.75,
+        "returned_grid_longitude": -104.75,
+        "returned_elevation_m": 1832.0,
+        "hours": 8784,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2020-01-01 00:00:00+00:00",
+      "end": "2020-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8784,
+      "sha256": "b7e99e5c819cdef2349532bec590e72dedd19ecb15c2bacdc7002b334c273b62"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2020_514a579b50749b01028a.parquet",
+      "rows": 8784,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=40.58526&longitude=-105.08442&start_date=2020-01-01&end_date=2020-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 40.58526,
+          "longitude": -105.08442,
+          "start_date": "2020-01-01",
+          "end_date": "2020-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T08:14:18.238669+00:00",
+        "returned_grid_latitude": 40.5,
+        "returned_grid_longitude": -105.0,
+        "returned_elevation_m": 1528.0,
+        "hours": 8784,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2020-01-01 00:00:00+00:00",
+      "end": "2020-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8784,
+      "sha256": "3cd1826c145dc15921fee4981b691bd78f7d80d10e7fa457749b7557dd5b0ae1"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2020_73275fbc998b2f579ea7.parquet",
+      "rows": 8784,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=35.46756&longitude=-97.51643&start_date=2020-01-01&end_date=2020-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 35.46756,
+          "longitude": -97.51643,
+          "start_date": "2020-01-01",
+          "end_date": "2020-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T05:48:36.931782+00:00",
+        "returned_grid_latitude": 35.5,
+        "returned_grid_longitude": -97.5,
+        "returned_elevation_m": 371.0,
+        "hours": 8784,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2020-01-01 00:00:00+00:00",
+      "end": "2020-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8784,
+      "sha256": "b4430936972551cfb51df648038d12e95ef13d19508df06fb9bf1da04aaa66d7"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2020_9bbc6ceb8aea47df4e66.parquet",
+      "rows": 8784,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=37.69224&longitude=-97.33754&start_date=2020-01-01&end_date=2020-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 37.69224,
+          "longitude": -97.33754,
+          "start_date": "2020-01-01",
+          "end_date": "2020-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T04:45:06.691509+00:00",
+        "returned_grid_latitude": 37.75,
+        "returned_grid_longitude": -97.25,
+        "returned_elevation_m": 398.0,
+        "hours": 8784,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2020-01-01 00:00:00+00:00",
+      "end": "2020-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8784,
+      "sha256": "3d38600c6ad6123bff65f691ccdf82997f967c7fd5147c673f2ff8342fddd62b"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2020_b30504ec178ba299b298.parquet",
+      "rows": 8784,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=39.73915&longitude=-104.9847&start_date=2020-01-01&end_date=2020-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 39.73915,
+          "longitude": -104.9847,
+          "start_date": "2020-01-01",
+          "end_date": "2020-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T08:43:58.660408+00:00",
+        "returned_grid_latitude": 39.75,
+        "returned_grid_longitude": -105.0,
+        "returned_elevation_m": 1615.0,
+        "hours": 8784,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2020-01-01 00:00:00+00:00",
+      "end": "2020-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8784,
+      "sha256": "679ba8c05678767db803c5cb1f4da69c88c5f406e23c8bb14aa72ca68df97d15"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2020_da8da57d5f0042ffeee2.parquet",
+      "rows": 8784,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=41.25626&longitude=-95.94043&start_date=2020-01-01&end_date=2020-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 41.25626,
+          "longitude": -95.94043,
+          "start_date": "2020-01-01",
+          "end_date": "2020-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T05:49:37.955693+00:00",
+        "returned_grid_latitude": 41.25,
+        "returned_grid_longitude": -96.0,
+        "returned_elevation_m": 335.0,
+        "hours": 8784,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2020-01-01 00:00:00+00:00",
+      "end": "2020-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8784,
+      "sha256": "740970de555d10806983ce87d5fb179bbec89454f8cdfcb2722137fb8c75aa6f"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2020_ddd9833871839dac1f26.parquet",
+      "rows": 8784,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=35.222&longitude=-101.8313&start_date=2020-01-01&end_date=2020-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 35.222,
+          "longitude": -101.8313,
+          "start_date": "2020-01-01",
+          "end_date": "2020-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T03:48:09.601840+00:00",
+        "returned_grid_latitude": 35.25,
+        "returned_grid_longitude": -101.75,
+        "returned_elevation_m": 1119.0,
+        "hours": 8784,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2020-01-01 00:00:00+00:00",
+      "end": "2020-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8784,
+      "sha256": "9f8a37aaa570e8ef5486529ad1033b63bd67f66e71e8ebec63e45db06e9e75b3"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2021_017a04626bbd76521ec5.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=38.83388&longitude=-104.82136&start_date=2021-01-01&end_date=2021-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 38.83388,
+          "longitude": -104.82136,
+          "start_date": "2021-01-01",
+          "end_date": "2021-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T07:48:37.249343+00:00",
+        "returned_grid_latitude": 38.75,
+        "returned_grid_longitude": -104.75,
+        "returned_elevation_m": 1832.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2021-01-01 00:00:00+00:00",
+      "end": "2021-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "793d9be6b4702fc00efd4d5a47029716de680a52cf210c2d7a676a64f434304f"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2021_3c8adf7e4bbb181b176a.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=40.8&longitude=-96.66696&start_date=2021-01-01&end_date=2021-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 40.8,
+          "longitude": -96.66696,
+          "start_date": "2021-01-01",
+          "end_date": "2021-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T05:49:10.448803+00:00",
+        "returned_grid_latitude": 40.75,
+        "returned_grid_longitude": -96.75,
+        "returned_elevation_m": 371.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2021-01-01 00:00:00+00:00",
+      "end": "2021-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "b78a2fecc10f178b8bcb3e83c27f1d6f9dc9131ce0a66194c32c2cc06d9eff93"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2021_59ecb32d5a475ebb5e40.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=39.20194&longitude=-96.305&start_date=2021-01-01&end_date=2021-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 39.20194,
+          "longitude": -96.305,
+          "start_date": "2021-01-01",
+          "end_date": "2021-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T08:14:17.112300+00:00",
+        "returned_grid_latitude": 39.25,
+        "returned_grid_longitude": -96.25,
+        "returned_elevation_m": 304.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2021-01-01 00:00:00+00:00",
+      "end": "2021-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "f2533aae4a475fae0a6deccd19e772f02e4a7b12a16cab0076e2468e32dd7f06"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2021_6697d1820b36883a3b09.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=41.25626&longitude=-95.94043&start_date=2021-01-01&end_date=2021-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 41.25626,
+          "longitude": -95.94043,
+          "start_date": "2021-01-01",
+          "end_date": "2021-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T05:49:39.633191+00:00",
+        "returned_grid_latitude": 41.25,
+        "returned_grid_longitude": -96.0,
+        "returned_elevation_m": 335.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2021-01-01 00:00:00+00:00",
+      "end": "2021-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "660a808f67a12fc47aea200fdcfca8475ec7df1192aba65f601c466fdd02a904"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2021_6b88d1e0533a432ea307.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=35.222&longitude=-101.8313&start_date=2021-01-01&end_date=2021-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 35.222,
+          "longitude": -101.8313,
+          "start_date": "2021-01-01",
+          "end_date": "2021-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T03:48:14.261850+00:00",
+        "returned_grid_latitude": 35.25,
+        "returned_grid_longitude": -101.75,
+        "returned_elevation_m": 1119.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2021-01-01 00:00:00+00:00",
+      "end": "2021-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "4d40add5941227a705a2c68b8f5e10e749e731276c2478af3708add7b4a54ac2"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2021_a4fe640af82044f427d9.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=37.69224&longitude=-97.33754&start_date=2021-01-01&end_date=2021-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 37.69224,
+          "longitude": -97.33754,
+          "start_date": "2021-01-01",
+          "end_date": "2021-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T04:45:08.389174+00:00",
+        "returned_grid_latitude": 37.75,
+        "returned_grid_longitude": -97.25,
+        "returned_elevation_m": 398.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2021-01-01 00:00:00+00:00",
+      "end": "2021-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "107aa91d94525c3a2ac50ac9039f44d46084c39c991883107b4017da9a24991c"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2021_d288fa3220721f803255.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=36.91472&longitude=-111.45583&start_date=2021-01-01&end_date=2021-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 36.91472,
+          "longitude": -111.45583,
+          "start_date": "2021-01-01",
+          "end_date": "2021-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T08:12:55.812834+00:00",
+        "returned_grid_latitude": 37.0,
+        "returned_grid_longitude": -111.5,
+        "returned_elevation_m": 1323.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2021-01-01 00:00:00+00:00",
+      "end": "2021-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "87fc305b5217d853533476ea45f2bfe38b29cd2a80aba7de68d27868205ce167"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2021_d2afac67d80a35a81213.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=40.58526&longitude=-105.08442&start_date=2021-01-01&end_date=2021-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 40.58526,
+          "longitude": -105.08442,
+          "start_date": "2021-01-01",
+          "end_date": "2021-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T08:14:19.997309+00:00",
+        "returned_grid_latitude": 40.5,
+        "returned_grid_longitude": -105.0,
+        "returned_elevation_m": 1528.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2021-01-01 00:00:00+00:00",
+      "end": "2021-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "d070fa0ef61e04cf7c09cca9dd6b962aa666ed6a8c7317f9c720d9bce37faaa2"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2021_ee88f232e5b8594ea12a.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=35.46756&longitude=-97.51643&start_date=2021-01-01&end_date=2021-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 35.46756,
+          "longitude": -97.51643,
+          "start_date": "2021-01-01",
+          "end_date": "2021-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T05:48:38.753373+00:00",
+        "returned_grid_latitude": 35.5,
+        "returned_grid_longitude": -97.5,
+        "returned_elevation_m": 371.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2021-01-01 00:00:00+00:00",
+      "end": "2021-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "cc44c3216366064ae78dcb4dd87eb36d0484d4f1785f4327a4929ad541f6dd4c"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2021_fc146ac208933c458208.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=39.73915&longitude=-104.9847&start_date=2021-01-01&end_date=2021-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 39.73915,
+          "longitude": -104.9847,
+          "start_date": "2021-01-01",
+          "end_date": "2021-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T08:44:00.276832+00:00",
+        "returned_grid_latitude": 39.75,
+        "returned_grid_longitude": -105.0,
+        "returned_elevation_m": 1615.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2021-01-01 00:00:00+00:00",
+      "end": "2021-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "5b9a4bd78321377b23ddd623e7745a8e25e795e84c4ee248d2c14975bf8b44e8"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2022_25d4af55fed0befbdc54.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=41.25626&longitude=-95.94043&start_date=2022-01-01&end_date=2022-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 41.25626,
+          "longitude": -95.94043,
+          "start_date": "2022-01-01",
+          "end_date": "2022-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T05:49:41.163755+00:00",
+        "returned_grid_latitude": 41.25,
+        "returned_grid_longitude": -96.0,
+        "returned_elevation_m": 335.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2022-01-01 00:00:00+00:00",
+      "end": "2022-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "e7228bcd3743b3cf7d3ddf590dfc747d22dd70a9831577de6e155a3242de0016"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2022_2c4f106e9e2d44954df2.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=36.91472&longitude=-111.45583&start_date=2022-01-01&end_date=2022-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 36.91472,
+          "longitude": -111.45583,
+          "start_date": "2022-01-01",
+          "end_date": "2022-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T08:12:56.945149+00:00",
+        "returned_grid_latitude": 37.0,
+        "returned_grid_longitude": -111.5,
+        "returned_elevation_m": 1323.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2022-01-01 00:00:00+00:00",
+      "end": "2022-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "db58545416badfc29dd8560591a80065baa49976c7dd6f47520e59d28d49e047"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2022_6d2aa343b3bd5bd03f21.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=40.8&longitude=-96.66696&start_date=2022-01-01&end_date=2022-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 40.8,
+          "longitude": -96.66696,
+          "start_date": "2022-01-01",
+          "end_date": "2022-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T05:49:12.079679+00:00",
+        "returned_grid_latitude": 40.75,
+        "returned_grid_longitude": -96.75,
+        "returned_elevation_m": 371.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2022-01-01 00:00:00+00:00",
+      "end": "2022-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "eed6b1e9f7ba28cb89b0cdb7acd1ea1065f228927786a02ca33050e910dddfaa"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2022_99347ab58b11d6a3eafb.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=35.222&longitude=-101.8313&start_date=2022-01-01&end_date=2022-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 35.222,
+          "longitude": -101.8313,
+          "start_date": "2022-01-01",
+          "end_date": "2022-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T03:48:16.534497+00:00",
+        "returned_grid_latitude": 35.25,
+        "returned_grid_longitude": -101.75,
+        "returned_elevation_m": 1119.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2022-01-01 00:00:00+00:00",
+      "end": "2022-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "dbbdf186cdc7102a8d1276ed3a8ec1a78d0c6dfc6d295ac1ef5031846db96c0e"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2022_a3112fbd54adb5f8d757.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=39.20194&longitude=-96.305&start_date=2022-01-01&end_date=2022-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 39.20194,
+          "longitude": -96.305,
+          "start_date": "2022-01-01",
+          "end_date": "2022-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T08:14:18.772601+00:00",
+        "returned_grid_latitude": 39.25,
+        "returned_grid_longitude": -96.25,
+        "returned_elevation_m": 304.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2022-01-01 00:00:00+00:00",
+      "end": "2022-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "4e86f06a750bcda5d57336f1416a43169094abc2a5c667e13e50820b1d3c89e3"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2022_a8d8b67261fc7d462517.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=37.69224&longitude=-97.33754&start_date=2022-01-01&end_date=2022-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 37.69224,
+          "longitude": -97.33754,
+          "start_date": "2022-01-01",
+          "end_date": "2022-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T04:45:10.361299+00:00",
+        "returned_grid_latitude": 37.75,
+        "returned_grid_longitude": -97.25,
+        "returned_elevation_m": 398.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2022-01-01 00:00:00+00:00",
+      "end": "2022-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "84d7060ba16aa0152c4c2fda06efa85efd553fb8aa4c71c701ecf9ef26be5d8a"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2022_d1469f7f32b880b53958.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=39.73915&longitude=-104.9847&start_date=2022-01-01&end_date=2022-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 39.73915,
+          "longitude": -104.9847,
+          "start_date": "2022-01-01",
+          "end_date": "2022-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T08:44:01.791144+00:00",
+        "returned_grid_latitude": 39.75,
+        "returned_grid_longitude": -105.0,
+        "returned_elevation_m": 1615.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2022-01-01 00:00:00+00:00",
+      "end": "2022-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "33bd5b33e87835760c6145774e01e602183ce4f6dc03761527c1d9f969422416"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2022_dc77947eddd1a850bd9e.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=35.46756&longitude=-97.51643&start_date=2022-01-01&end_date=2022-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 35.46756,
+          "longitude": -97.51643,
+          "start_date": "2022-01-01",
+          "end_date": "2022-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T05:48:40.762256+00:00",
+        "returned_grid_latitude": 35.5,
+        "returned_grid_longitude": -97.5,
+        "returned_elevation_m": 371.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2022-01-01 00:00:00+00:00",
+      "end": "2022-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "a3e4ee00b97c38109a3022ee9a1f7077ec2a9279307c349c0968186c8f2afe53"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2022_e66db717e8ee8384f17f.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=38.83388&longitude=-104.82136&start_date=2022-01-01&end_date=2022-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 38.83388,
+          "longitude": -104.82136,
+          "start_date": "2022-01-01",
+          "end_date": "2022-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T07:48:38.416233+00:00",
+        "returned_grid_latitude": 38.75,
+        "returned_grid_longitude": -104.75,
+        "returned_elevation_m": 1832.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2022-01-01 00:00:00+00:00",
+      "end": "2022-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "186800e8fe37c3d3aafaac83f31bdded505bf71f46ac5b16a06bb407f3c9b85a"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2022_f55e0b1cc3c3e05f37bd.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=40.58526&longitude=-105.08442&start_date=2022-01-01&end_date=2022-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 40.58526,
+          "longitude": -105.08442,
+          "start_date": "2022-01-01",
+          "end_date": "2022-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T08:14:21.715986+00:00",
+        "returned_grid_latitude": 40.5,
+        "returned_grid_longitude": -105.0,
+        "returned_elevation_m": 1528.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2022-01-01 00:00:00+00:00",
+      "end": "2022-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "f22cf5a13515b7808d3cb1c4c509ad4c03baa11dcca99a4d60f6668d4ed17d4f"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2023_13453df2c3f31af0efad.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=40.58526&longitude=-105.08442&start_date=2023-01-01&end_date=2023-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 40.58526,
+          "longitude": -105.08442,
+          "start_date": "2023-01-01",
+          "end_date": "2023-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T08:14:23.734990+00:00",
+        "returned_grid_latitude": 40.5,
+        "returned_grid_longitude": -105.0,
+        "returned_elevation_m": 1528.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2023-01-01 00:00:00+00:00",
+      "end": "2023-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "642e1298bb9dc697e4294e1165c3e9948b3a9945b65bcef87b83f0ed5889c32d"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2023_3b3985408e35b9b13cb6.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=35.222&longitude=-101.8313&start_date=2023-01-01&end_date=2023-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 35.222,
+          "longitude": -101.8313,
+          "start_date": "2023-01-01",
+          "end_date": "2023-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T03:48:18.932310+00:00",
+        "returned_grid_latitude": 35.25,
+        "returned_grid_longitude": -101.75,
+        "returned_elevation_m": 1119.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2023-01-01 00:00:00+00:00",
+      "end": "2023-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "c3c0c90b06892fa330728d45b955961209d9f01cd0e87a4a76e05afc84f1627b"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2023_407fe8ccd5eedcaa7aa8.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=38.83388&longitude=-104.82136&start_date=2023-01-01&end_date=2023-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 38.83388,
+          "longitude": -104.82136,
+          "start_date": "2023-01-01",
+          "end_date": "2023-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T07:48:39.544471+00:00",
+        "returned_grid_latitude": 38.75,
+        "returned_grid_longitude": -104.75,
+        "returned_elevation_m": 1832.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2023-01-01 00:00:00+00:00",
+      "end": "2023-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "e4da1bf6ba6221a4c90cc6d15412daa832eb6ce1e581a0159e3f054edba45edf"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2023_5b47933bb8586afd5254.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=35.46756&longitude=-97.51643&start_date=2023-01-01&end_date=2023-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 35.46756,
+          "longitude": -97.51643,
+          "start_date": "2023-01-01",
+          "end_date": "2023-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T05:48:42.544020+00:00",
+        "returned_grid_latitude": 35.5,
+        "returned_grid_longitude": -97.5,
+        "returned_elevation_m": 371.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2023-01-01 00:00:00+00:00",
+      "end": "2023-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "fca6173b8dae3376e054d8650af3fb2d93282b6ccc288be0efe3360fb660c3a2"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2023_6b9839bba69ea80804b7.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=37.69224&longitude=-97.33754&start_date=2023-01-01&end_date=2023-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 37.69224,
+          "longitude": -97.33754,
+          "start_date": "2023-01-01",
+          "end_date": "2023-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T04:45:12.722842+00:00",
+        "returned_grid_latitude": 37.75,
+        "returned_grid_longitude": -97.25,
+        "returned_elevation_m": 398.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2023-01-01 00:00:00+00:00",
+      "end": "2023-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "e68381629996b7455437882099ae249b77106aabd376be141d245f8e46c10eae"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2023_a7566d729a6751acc00c.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=41.25626&longitude=-95.94043&start_date=2023-01-01&end_date=2023-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 41.25626,
+          "longitude": -95.94043,
+          "start_date": "2023-01-01",
+          "end_date": "2023-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T05:49:42.830426+00:00",
+        "returned_grid_latitude": 41.25,
+        "returned_grid_longitude": -96.0,
+        "returned_elevation_m": 335.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2023-01-01 00:00:00+00:00",
+      "end": "2023-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "f4b3b0db4d60684436b667689624884d28e9d430eed1b49b140f7fcd21aac7bb"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2023_c5d74e97120c393e997d.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=39.73915&longitude=-104.9847&start_date=2023-01-01&end_date=2023-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 39.73915,
+          "longitude": -104.9847,
+          "start_date": "2023-01-01",
+          "end_date": "2023-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T08:44:03.269868+00:00",
+        "returned_grid_latitude": 39.75,
+        "returned_grid_longitude": -105.0,
+        "returned_elevation_m": 1615.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2023-01-01 00:00:00+00:00",
+      "end": "2023-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "a1ba5b63500e7398220c64435f35d8231264c505f72c937044217ec1c486b4cd"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2023_d5e2aa00ce949d7d073c.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=40.8&longitude=-96.66696&start_date=2023-01-01&end_date=2023-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 40.8,
+          "longitude": -96.66696,
+          "start_date": "2023-01-01",
+          "end_date": "2023-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T05:49:13.702960+00:00",
+        "returned_grid_latitude": 40.75,
+        "returned_grid_longitude": -96.75,
+        "returned_elevation_m": 371.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2023-01-01 00:00:00+00:00",
+      "end": "2023-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "e3f1643750f6a49c5ec94e7e66dc16fff1ec7f0a8060ab621f8681c56a443af2"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2023_f2cc14d0ffafa702df6b.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=36.91472&longitude=-111.45583&start_date=2023-01-01&end_date=2023-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 36.91472,
+          "longitude": -111.45583,
+          "start_date": "2023-01-01",
+          "end_date": "2023-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T08:12:58.098009+00:00",
+        "returned_grid_latitude": 37.0,
+        "returned_grid_longitude": -111.5,
+        "returned_elevation_m": 1323.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2023-01-01 00:00:00+00:00",
+      "end": "2023-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "3c5534044992dc0ec362c2a87de279b730012debb2516fad819a0483956459c2"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2023_f77a3978a5ea220b6d6d.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=39.20194&longitude=-96.305&start_date=2023-01-01&end_date=2023-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 39.20194,
+          "longitude": -96.305,
+          "start_date": "2023-01-01",
+          "end_date": "2023-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T08:14:20.682556+00:00",
+        "returned_grid_latitude": 39.25,
+        "returned_grid_longitude": -96.25,
+        "returned_elevation_m": 304.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2023-01-01 00:00:00+00:00",
+      "end": "2023-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "e73099a9875c1c05a40d579af0deaf76e10c6d5eacc8c3ecdaa9b87443690d96"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2024_10c4e3ce5dad8f0d78e0.parquet",
+      "rows": 8784,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=39.73915&longitude=-104.9847&start_date=2024-01-01&end_date=2024-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 39.73915,
+          "longitude": -104.9847,
+          "start_date": "2024-01-01",
+          "end_date": "2024-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T08:44:04.679601+00:00",
+        "returned_grid_latitude": 39.75,
+        "returned_grid_longitude": -105.0,
+        "returned_elevation_m": 1615.0,
+        "hours": 8784,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2024-01-01 00:00:00+00:00",
+      "end": "2024-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8784,
+      "sha256": "f0c6592d3ae00d9db47c4c19a6dbe44bada0e5910736e3e31d526cf6c7ea932a"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2024_153d60004486f638e339.parquet",
+      "rows": 8784,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=35.46756&longitude=-97.51643&start_date=2024-01-01&end_date=2024-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 35.46756,
+          "longitude": -97.51643,
+          "start_date": "2024-01-01",
+          "end_date": "2024-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T05:48:44.238259+00:00",
+        "returned_grid_latitude": 35.5,
+        "returned_grid_longitude": -97.5,
+        "returned_elevation_m": 371.0,
+        "hours": 8784,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2024-01-01 00:00:00+00:00",
+      "end": "2024-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8784,
+      "sha256": "49de34c516df2509db828bd1bb046066753ab5c2efc45ade82d27c3c5c9751d6"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2024_15d21c0c43ba6d8dc49b.parquet",
+      "rows": 8784,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=40.8&longitude=-96.66696&start_date=2024-01-01&end_date=2024-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 40.8,
+          "longitude": -96.66696,
+          "start_date": "2024-01-01",
+          "end_date": "2024-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T05:49:15.184996+00:00",
+        "returned_grid_latitude": 40.75,
+        "returned_grid_longitude": -96.75,
+        "returned_elevation_m": 371.0,
+        "hours": 8784,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2024-01-01 00:00:00+00:00",
+      "end": "2024-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8784,
+      "sha256": "cc8a80301498defc8e7912afa87b02b04cf58dc237af16dc86f0a498eab0a796"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2024_46457ef1ae0994ec224f.parquet",
+      "rows": 8784,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=39.20194&longitude=-96.305&start_date=2024-01-01&end_date=2024-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 39.20194,
+          "longitude": -96.305,
+          "start_date": "2024-01-01",
+          "end_date": "2024-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T08:14:22.551280+00:00",
+        "returned_grid_latitude": 39.25,
+        "returned_grid_longitude": -96.25,
+        "returned_elevation_m": 304.0,
+        "hours": 8784,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2024-01-01 00:00:00+00:00",
+      "end": "2024-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8784,
+      "sha256": "09f0f0f151fc88888f019117bd86709dc5eac3cef80189b35d1925b92684b1e5"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2024_4c63097607f5803c1972.parquet",
+      "rows": 8784,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=41.25626&longitude=-95.94043&start_date=2024-01-01&end_date=2024-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 41.25626,
+          "longitude": -95.94043,
+          "start_date": "2024-01-01",
+          "end_date": "2024-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T05:49:44.446150+00:00",
+        "returned_grid_latitude": 41.25,
+        "returned_grid_longitude": -96.0,
+        "returned_elevation_m": 335.0,
+        "hours": 8784,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2024-01-01 00:00:00+00:00",
+      "end": "2024-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8784,
+      "sha256": "c0178cf655448eb62e17cdd8fe840bb3be8a837c5e62f6c942acbb4d5a440290"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2024_7943a331002ee8b7d8f9.parquet",
+      "rows": 8784,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=36.91472&longitude=-111.45583&start_date=2024-01-01&end_date=2024-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 36.91472,
+          "longitude": -111.45583,
+          "start_date": "2024-01-01",
+          "end_date": "2024-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T08:12:59.179336+00:00",
+        "returned_grid_latitude": 37.0,
+        "returned_grid_longitude": -111.5,
+        "returned_elevation_m": 1323.0,
+        "hours": 8784,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2024-01-01 00:00:00+00:00",
+      "end": "2024-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8784,
+      "sha256": "237332397ee09ca5e4620ad4adf3685cc082b0f963d06536a47963876fb8c00b"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2024_a5b1a30f9c1936195c14.parquet",
+      "rows": 8784,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=35.222&longitude=-101.8313&start_date=2024-01-01&end_date=2024-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 35.222,
+          "longitude": -101.8313,
+          "start_date": "2024-01-01",
+          "end_date": "2024-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T00:17:25.256690+00:00",
+        "returned_grid_latitude": 35.25,
+        "returned_grid_longitude": -101.75,
+        "returned_elevation_m": 1119.0,
+        "hours": 8784,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2024-01-01 00:00:00+00:00",
+      "end": "2024-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8784,
+      "sha256": "5f67d6de5bb5f599f8af8d321055395b2218e53da50caa21ec7f2fe6d6d6edfd"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2024_c2e14a1e1faa6892a748.parquet",
+      "rows": 8784,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=38.83388&longitude=-104.82136&start_date=2024-01-01&end_date=2024-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 38.83388,
+          "longitude": -104.82136,
+          "start_date": "2024-01-01",
+          "end_date": "2024-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T07:48:40.519875+00:00",
+        "returned_grid_latitude": 38.75,
+        "returned_grid_longitude": -104.75,
+        "returned_elevation_m": 1832.0,
+        "hours": 8784,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2024-01-01 00:00:00+00:00",
+      "end": "2024-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8784,
+      "sha256": "5f98620f3d88d1649a7d8473205417c6e44503528993eed0cc8c4074ede66e61"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2024_e82d287d1f51a843780e.parquet",
+      "rows": 8784,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=37.69224&longitude=-97.33754&start_date=2024-01-01&end_date=2024-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 37.69224,
+          "longitude": -97.33754,
+          "start_date": "2024-01-01",
+          "end_date": "2024-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T04:45:14.821354+00:00",
+        "returned_grid_latitude": 37.75,
+        "returned_grid_longitude": -97.25,
+        "returned_elevation_m": 398.0,
+        "hours": 8784,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2024-01-01 00:00:00+00:00",
+      "end": "2024-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8784,
+      "sha256": "0bd2cfcc3c5f496ed9f76c58f75cd019733adfb92cf174133b518610ad79d3f1"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2024_fe181528d618fa129129.parquet",
+      "rows": 8784,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=40.58526&longitude=-105.08442&start_date=2024-01-01&end_date=2024-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 40.58526,
+          "longitude": -105.08442,
+          "start_date": "2024-01-01",
+          "end_date": "2024-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T08:14:26.517478+00:00",
+        "returned_grid_latitude": 40.5,
+        "returned_grid_longitude": -105.0,
+        "returned_elevation_m": 1528.0,
+        "hours": 8784,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2024-01-01 00:00:00+00:00",
+      "end": "2024-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8784,
+      "sha256": "3c84912b84910944cd393c37b0b6fb7d56c91ff4ba8741238d052e1aa1e18aff"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2025_122dd535952704e6b7b2.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=36.91472&longitude=-111.45583&start_date=2025-01-01&end_date=2025-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 36.91472,
+          "longitude": -111.45583,
+          "start_date": "2025-01-01",
+          "end_date": "2025-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T08:13:00.298169+00:00",
+        "returned_grid_latitude": 37.0,
+        "returned_grid_longitude": -111.5,
+        "returned_elevation_m": 1323.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2025-01-01 00:00:00+00:00",
+      "end": "2025-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "0e4210f529323fbf47035ea4d9534592b7b1a0028fd8c1cca2a233edd04e1d8d"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2025_203fe3164d9d84287661.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=41.25626&longitude=-95.94043&start_date=2025-01-01&end_date=2025-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 41.25626,
+          "longitude": -95.94043,
+          "start_date": "2025-01-01",
+          "end_date": "2025-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T05:49:46.086531+00:00",
+        "returned_grid_latitude": 41.25,
+        "returned_grid_longitude": -96.0,
+        "returned_elevation_m": 335.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2025-01-01 00:00:00+00:00",
+      "end": "2025-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "1023ae5873773556b7a9f536475e26e81df7eae7be38bfd7c047b81573299c88"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2025_35a2353a54b29be9dcbf.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=35.46756&longitude=-97.51643&start_date=2025-01-01&end_date=2025-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 35.46756,
+          "longitude": -97.51643,
+          "start_date": "2025-01-01",
+          "end_date": "2025-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T05:48:46.149504+00:00",
+        "returned_grid_latitude": 35.5,
+        "returned_grid_longitude": -97.5,
+        "returned_elevation_m": 371.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2025-01-01 00:00:00+00:00",
+      "end": "2025-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "b46c0e909df2315774440dbdb2159d9bf07b720736fdfdefe57d269fe9a01a9e"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2025_497c56b0850a2bb72665.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=38.83388&longitude=-104.82136&start_date=2025-01-01&end_date=2025-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 38.83388,
+          "longitude": -104.82136,
+          "start_date": "2025-01-01",
+          "end_date": "2025-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T07:48:41.621310+00:00",
+        "returned_grid_latitude": 38.75,
+        "returned_grid_longitude": -104.75,
+        "returned_elevation_m": 1832.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2025-01-01 00:00:00+00:00",
+      "end": "2025-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "a49a13993c02387d3c1584225c32fe68ca1e73a5b8cb8a1c9dc8cfc0e741d6b7"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2025_544d7f405f4cc96770b0.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=40.8&longitude=-96.66696&start_date=2025-01-01&end_date=2025-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 40.8,
+          "longitude": -96.66696,
+          "start_date": "2025-01-01",
+          "end_date": "2025-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T05:49:16.698071+00:00",
+        "returned_grid_latitude": 40.75,
+        "returned_grid_longitude": -96.75,
+        "returned_elevation_m": 371.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2025-01-01 00:00:00+00:00",
+      "end": "2025-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "c37f429113d2657d0d19f529250063855ba0b3df3f8b8be209bf51a8a712d31e"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2025_54fa70f79947e0cfa9aa.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=37.69224&longitude=-97.33754&start_date=2025-01-01&end_date=2025-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 37.69224,
+          "longitude": -97.33754,
+          "start_date": "2025-01-01",
+          "end_date": "2025-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T04:45:17.109674+00:00",
+        "returned_grid_latitude": 37.75,
+        "returned_grid_longitude": -97.25,
+        "returned_elevation_m": 398.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2025-01-01 00:00:00+00:00",
+      "end": "2025-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "efc43b2825fdc54c920039659b48b0d7f8b060aae58390112bb1c9cbe88733f8"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2025_8cc32169f9376737577a.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=39.73915&longitude=-104.9847&start_date=2025-01-01&end_date=2025-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 39.73915,
+          "longitude": -104.9847,
+          "start_date": "2025-01-01",
+          "end_date": "2025-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T08:44:06.542599+00:00",
+        "returned_grid_latitude": 39.75,
+        "returned_grid_longitude": -105.0,
+        "returned_elevation_m": 1615.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2025-01-01 00:00:00+00:00",
+      "end": "2025-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "33c06d0a741e3649eb7eca7646055b4e26047d447744a19f34150b38c08d8d61"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2025_9c4cb50a6bdd8fd2b9b9.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=39.20194&longitude=-96.305&start_date=2025-01-01&end_date=2025-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 39.20194,
+          "longitude": -96.305,
+          "start_date": "2025-01-01",
+          "end_date": "2025-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T08:14:24.464967+00:00",
+        "returned_grid_latitude": 39.25,
+        "returned_grid_longitude": -96.25,
+        "returned_elevation_m": 304.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2025-01-01 00:00:00+00:00",
+      "end": "2025-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "6a89b80b4f6869cd38324824f6626bea839a688d90ed2ba62746f65d361f7054"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2025_acd9ddc288e0d5ed4c3a.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=35.222&longitude=-101.8313&start_date=2025-01-01&end_date=2025-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 35.222,
+          "longitude": -101.8313,
+          "start_date": "2025-01-01",
+          "end_date": "2025-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T00:17:26.284442+00:00",
+        "returned_grid_latitude": 35.25,
+        "returned_grid_longitude": -101.75,
+        "returned_elevation_m": 1119.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2025-01-01 00:00:00+00:00",
+      "end": "2025-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "1b6bccc26586f77ab814d573bcd626f21d76a4c89c1d0ef6fd44ec52878363e1"
+    },
+    {
+      "path": "data/raw/weather/open_meteo/era5_2025_d5daf82526911ee79c58.parquet",
+      "rows": 8760,
+      "columns": [
+        "timestamp_utc",
+        "temperature_c"
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "https://archive-api.open-meteo.com/v1/archive?latitude=40.58526&longitude=-105.08442&start_date=2025-01-01&end_date=2025-12-31&hourly=temperature_2m&models=era5&timezone=UTC&temperature_unit=celsius&timeformat=unixtime",
+        "request_parameters": {
+          "latitude": 40.58526,
+          "longitude": -105.08442,
+          "start_date": "2025-01-01",
+          "end_date": "2025-12-31",
+          "hourly": "temperature_2m",
+          "models": "era5",
+          "timezone": "UTC",
+          "temperature_unit": "celsius",
+          "timeformat": "unixtime"
+        },
+        "retrieved_utc": "2026-09-13T08:14:29.028056+00:00",
+        "returned_grid_latitude": 40.5,
+        "returned_grid_longitude": -105.0,
+        "returned_elevation_m": 1528.0,
+        "hours": 8760,
+        "missing_temperature_hours": 0,
+        "availability": "Retrospective ERA5 reanalysis; not verified as available at historical prediction time."
+      },
+      "start": "2025-01-01 00:00:00+00:00",
+      "end": "2025-12-31 23:00:00+00:00",
+      "known_temperature_hours": 8760,
+      "sha256": "998afb75fa0ddc23a21f31e1009d5a485b8191aa0bd61b8a987b6af4f668c602"
+    }
+  ],
+  "label_search": {
+    "files_scanned": {
+      "data/processed": 122,
+      "data/raw": 957
+    },
+    "candidates": [
+      {
+        "path": "data/processed/ml_inputs/spp_2019_2024_demand_proxy.parquet",
+        "label_columns": [
+          "event_active"
+        ]
+      },
+      {
+        "path": "data/processed/ml_inputs/spp_2019_2025_demand_proxy.parquet",
+        "label_columns": [
+          "event_active"
+        ]
+      },
+      {
+        "path": "data/processed/ml_inputs/spp_2019_2025_documented_events.parquet",
+        "label_columns": [
+          "observed_eea_minutes"
+        ]
+      },
+      {
+        "path": "data/processed/ml_inputs/spp_2019_2025_outlook_demand_proxy.parquet",
+        "label_columns": [
+          "event_active"
+        ]
+      },
+      {
+        "path": "data/processed/ml_inputs/spp_2024_amarillo_grid_events.parquet",
+        "label_columns": [
+          "observed_eea_minutes"
+        ]
+      },
+      {
+        "path": "data/processed/workbench/area_models/208974ebb5b8dfaacfab8d53/9254357b846f/labeled.parquet",
+        "label_columns": [
+          "event_active"
+        ]
+      },
+      {
+        "path": "data/processed/workbench/area_models/208974ebb5b8dfaacfab8d53/9254357b846f/run/features.parquet",
+        "label_columns": [
+          "target"
+        ]
+      },
+      {
+        "path": "data/processed/workbench/area_models/208974ebb5b8dfaacfab8d53/9254357b846f/run/labeled_hours.parquet",
+        "label_columns": [
+          "event_active",
+          "target",
+          "label_source_ref"
+        ]
+      },
+      {
+        "path": "data/processed/workbench/area_models/208974ebb5b8dfaacfab8d53/9254357b846f/run/test_predictions.parquet",
+        "label_columns": [
+          "target"
+        ]
+      },
+      {
+        "path": "data/processed/workbench/area_models/8b60446d41d703348ebfff2a/d9dd6e060e4d/labeled.parquet",
+        "label_columns": [
+          "event_active"
+        ]
+      },
+      {
+        "path": "data/processed/workbench/area_models/8b60446d41d703348ebfff2a/d9dd6e060e4d/run/features.parquet",
+        "label_columns": [
+          "target"
+        ]
+      },
+      {
+        "path": "data/processed/workbench/area_models/8b60446d41d703348ebfff2a/d9dd6e060e4d/run/labeled_hours.parquet",
+        "label_columns": [
+          "event_active",
+          "target",
+          "label_source_ref"
+        ]
+      },
+      {
+        "path": "data/processed/workbench/area_models/8b60446d41d703348ebfff2a/d9dd6e060e4d/run/test_predictions.parquet",
+        "label_columns": [
+          "target"
+        ]
+      },
+      {
+        "path": "data/processed/workbench/evaluations/history_2025_20260913/predictions.parquet",
+        "label_columns": [
+          "target"
+        ]
+      },
+      {
+        "path": "data/processed/workbench/evaluations/outage_outlook_20260913/predictions.parquet",
+        "label_columns": [
+          "target"
+        ]
+      },
+      {
+        "path": "data/processed/workbench/regional/models/aa5766e21f1ca7602a48/features.parquet",
+        "label_columns": [
+          "target"
+        ]
+      },
+      {
+        "path": "data/processed/workbench/regional/models/aa5766e21f1ca7602a48/test_predictions.parquet",
+        "label_columns": [
+          "target"
+        ]
+      },
+      {
+        "path": "data/processed/workbench/regional/models/cc7d60f6ff429cb1e0cb/features.parquet",
+        "label_columns": [
+          "target"
+        ]
+      },
+      {
+        "path": "data/processed/workbench/regional/models/cc7d60f6ff429cb1e0cb/test_predictions.parquet",
+        "label_columns": [
+          "target"
+        ]
+      },
+      {
+        "path": "data/processed/workbench/regional/models/f4c38bfd9cb0ad50df33/features.parquet",
+        "label_columns": [
+          "target"
+        ]
+      },
+      {
+        "path": "data/processed/workbench/regional/models/f4c38bfd9cb0ad50df33/test_predictions.parquet",
+        "label_columns": [
+          "target"
+        ]
+      },
+      {
+        "path": "data/processed/workbench/runs/confidence_v2_20260913/features.parquet",
+        "label_columns": [
+          "target"
+        ]
+      },
+      {
+        "path": "data/processed/workbench/runs/confidence_v2_20260913/labeled_hours.parquet",
+        "label_columns": [
+          "event_active",
+          "target",
+          "label_source_ref"
+        ]
+      },
+      {
+        "path": "data/processed/workbench/runs/confidence_v2_20260913/test_predictions.parquet",
+        "label_columns": [
+          "target"
+        ]
+      },
+      {
+        "path": "data/processed/workbench/runs/history_2025_20260913/features.parquet",
+        "label_columns": [
+          "target"
+        ]
+      },
+      {
+        "path": "data/processed/workbench/runs/history_2025_20260913/labeled_hours.parquet",
+        "label_columns": [
+          "event_active",
+          "target",
+          "label_source_ref"
+        ]
+      },
+      {
+        "path": "data/processed/workbench/runs/history_2025_20260913/test_predictions.parquet",
+        "label_columns": [
+          "target"
+        ]
+      },
+      {
+        "path": "data/processed/workbench/runs/outage_outlook_20260913/features.parquet",
+        "label_columns": [
+          "target"
+        ]
+      },
+      {
+        "path": "data/processed/workbench/runs/outage_outlook_20260913/labeled_hours.parquet",
+        "label_columns": [
+          "event_active",
+          "target",
+          "label_source_ref"
+        ]
+      },
+      {
+        "path": "data/processed/workbench/runs/outage_outlook_20260913/test_predictions.parquet",
+        "label_columns": [
+          "target"
+        ]
+      },
+      {
+        "path": "data/processed/workbench/runs/spp_multifactor_demand_20260913/features.parquet",
+        "label_columns": [
+          "target"
+        ]
+      },
+      {
+        "path": "data/processed/workbench/runs/spp_multifactor_demand_20260913/labeled_hours.parquet",
+        "label_columns": [
+          "event_active",
+          "target",
+          "label_source_ref"
+        ]
+      },
+      {
+        "path": "data/processed/workbench/runs/spp_multifactor_demand_20260913/test_predictions.parquet",
+        "label_columns": [
+          "target"
+        ]
+      },
+      {
+        "path": "data/processed/workbench/sites/20260913T054735_8cc4ff78/query_predictions.parquet",
+        "label_columns": [
+          "target"
+        ]
+      },
+      {
+        "path": "data/processed/workbench/sites/20260913T055700_162cbca3/query_predictions.parquet",
+        "label_columns": [
+          "target"
+        ]
+      },
+      {
+        "path": "data/processed/workbench/sites/20260913T060303_3aee509f/query_predictions.parquet",
+        "label_columns": [
+          "target"
+        ]
+      },
+      {
+        "path": "data/processed/workbench/sites/20260913T074402_87c643d5/query_predictions.parquet",
+        "label_columns": [
+          "target"
+        ]
+      },
+      {
+        "path": "data/processed/workbench/sites/20260913T081119_5f78b0af/query_predictions.parquet",
+        "label_columns": [
+          "target"
+        ]
+      },
+      {
+        "path": "data/processed/workbench/sites/20260913T081251_b36a194f/query_predictions.parquet",
+        "label_columns": [
+          "target"
+        ]
+      },
+      {
+        "path": "data/processed/workbench/sites/20260913T081408_8228fe59/query_predictions.parquet",
+        "label_columns": [
+          "target"
+        ]
+      },
+      {
+        "path": "data/processed/workbench/sites/20260913T081409_f2769119/query_predictions.parquet",
+        "label_columns": [
+          "target"
+        ]
+      },
+      {
+        "path": "data/processed/workbench/sites/20260913T081720_67cffb7b/query_predictions.parquet",
+        "label_columns": [
+          "target"
+        ]
+      },
+      {
+        "path": "data/processed/workbench/sites/20260913T084337_d48a8358/query_predictions.parquet",
+        "label_columns": [
+          "target"
+        ]
+      }
+    ],
+    "errors": []
+  },
+  "saved_candidate_models": [
+    {
+      "path": "data/processed/workbench/area_models/208974ebb5b8dfaacfab8d53/9254357b846f/run/model_card.json",
+      "sha256": "497b7038b6740de804b74bf6d0d5e1aa0cf7e64060f67f8907cc4f5e6997526f",
+      "model_version": "spp_lgbm_20260913T044845_08d957be21",
+      "policy": {
+        "operator": "SPP",
+        "label_method": "observed_event",
+        "data_ref": "C:\\Users\\krist\\Hackathon\\East-v-west-hackathon-2026\\data\\processed\\workbench\\area_models\\208974ebb5b8dfaacfab8d53\\9254357b846f\\weather.parquet; sha256=2f7b1035dc32e41387bdaf986950901b9a2e34dc3fb4da43d256ea92fa161324",
+        "label_ref": "ASSUMPTION: high aggregate demand >= reference 0.95 quantile; C:\\Users\\krist\\Hackathon\\East-v-west-hackathon-2026\\data\\processed\\workbench\\area_models\\208974ebb5b8dfaacfab8d53\\9254357b846f\\policy.json",
+        "target_name": "high_demand_stress_proxy",
+        "target_source_type": "assumption",
+        "target_description": "High aggregate demand proxy; not an emergency, network-overload measurement, or site interruption.",
+        "demand_proxy": {
+          "quantile": 0.95,
+          "thresholds_mw": {
+            "SPP_SYSTEM": 42064.0228
+          },
+          "reference_end_exclusive": "2022-01-01T00:00:00+00:00",
+          "reference_start": "2019-01-01 06:00:00+00:00",
+          "method": "Fixed per-location empirical quantile, fit only within the training period.",
+          "split_counts": {
+            "train": {
+              "hours": 31350,
+              "positive_hours": 1841
+            },
+            "calibration": {
+              "hours": 10426,
+              "positive_hours": 893
+            },
+            "test": {
+              "hours": 10426,
+              "positive_hours": 835
+            }
+          }
+        }
+      },
+      "test_by_location": {
+        "SPP_SYSTEM": {
+          "brier_score": 0.003053451235688484,
+          "log_loss": 0.011018978980354657,
+          "event_rate": 0.08008824093612124,
+          "mean_prediction": 0.07821218513033963,
+          "n_hours": 10426,
+          "positive_hours": 835,
+          "roc_auc": 0.9997774860039071,
+          "average_precision": 0.997643042073943,
+          "reliability_bins": [
+            {
+              "n": 9535,
+              "mean_prediction": 0.00041197593764270206,
+              "observed_fraction": 0.0006292606187729418
+            },
+            {
+              "n": 25,
+              "mean_prediction": 0.1600899534456093,
+              "observed_fraction": 0.32
+            },
+            {
+              "n": 22,
+              "mean_prediction": 0.2561216048085269,
+              "observed_fraction": 0.22727272727272727
+            },
+            {
+              "n": 14,
+              "mean_prediction": 0.34852921117434377,
+              "observed_fraction": 0.5
+            },
+            {
+              "n": 15,
+              "mean_prediction": 0.44270664871186366,
+              "observed_fraction": 0.3333333333333333
+            },
+            {
+              "n": 11,
+              "mean_prediction": 0.5567939209788197,
+              "observed_fraction": 0.5454545454545454
+            },
+            {
+              "n": 8,
+              "mean_prediction": 0.6618036628077504,
+              "observed_fraction": 0.75
+            },
+            {
+              "n": 17,
+              "mean_prediction": 0.754285419952383,
+              "observed_fraction": 0.8235294117647058
+            },
+            {
+              "n": 39,
+              "mean_prediction": 0.8548972268862303,
+              "observed_fraction": 0.9743589743589743
+            },
+            {
+              "n": 740,
+              "mean_prediction": 0.9902325842614441,
+              "observed_fraction": 1.0
+            }
+          ],
+          "brier_skill_vs_train_prevalence": 0.9588098082165528
+        }
+      },
+      "test_window": {
+        "start": "2023-10-21 17:00:00+00:00",
+        "end": "2025-01-01 05:00:00+00:00",
+        "rows": 10426,
+        "positive_hours": 835
+      }
+    },
+    {
+      "path": "data/processed/workbench/area_models/8b60446d41d703348ebfff2a/d9dd6e060e4d/run/model_card.json",
+      "sha256": "1e09876a742fea87baf3f1be3a33b76739d45ad120af169f193199433370cd1f",
+      "model_version": "spp_lgbm_20260913T044556_78b5ce63e8",
+      "policy": {
+        "operator": "SPP",
+        "label_method": "observed_event",
+        "data_ref": "C:\\Users\\krist\\Hackathon\\East-v-west-hackathon-2026\\data\\processed\\workbench\\area_models\\8b60446d41d703348ebfff2a\\d9dd6e060e4d\\weather.parquet; sha256=19facd594daf4b8c9f635a745d6ffd373666986e7ba3464833437c4693d60aaf",
+        "label_ref": "ASSUMPTION: high aggregate demand >= reference 0.95 quantile; C:\\Users\\krist\\Hackathon\\East-v-west-hackathon-2026\\data\\processed\\workbench\\area_models\\8b60446d41d703348ebfff2a\\d9dd6e060e4d\\policy.json",
+        "target_name": "high_demand_stress_proxy",
+        "target_source_type": "assumption",
+        "target_description": "High aggregate demand proxy; not an emergency, network-overload measurement, or site interruption.",
+        "demand_proxy": {
+          "quantile": 0.95,
+          "thresholds_mw": {
+            "SPP_SYSTEM": 42064.0228
+          },
+          "reference_end_exclusive": "2022-01-01T00:00:00+00:00",
+          "reference_start": "2019-01-01 06:00:00+00:00",
+          "method": "Fixed per-location empirical quantile, fit only within the training period.",
+          "split_counts": {
+            "train": {
+              "hours": 31350,
+              "positive_hours": 1841
+            },
+            "calibration": {
+              "hours": 10426,
+              "positive_hours": 893
+            },
+            "test": {
+              "hours": 10426,
+              "positive_hours": 835
+            }
+          }
+        }
+      },
+      "test_by_location": {
+        "SPP_SYSTEM": {
+          "brier_score": 0.003053451235688484,
+          "log_loss": 0.011018978980354657,
+          "event_rate": 0.08008824093612124,
+          "mean_prediction": 0.07821218513033963,
+          "n_hours": 10426,
+          "positive_hours": 835,
+          "roc_auc": 0.9997774860039071,
+          "average_precision": 0.997643042073943,
+          "reliability_bins": [
+            {
+              "n": 9535,
+              "mean_prediction": 0.00041197593764270206,
+              "observed_fraction": 0.0006292606187729418
+            },
+            {
+              "n": 25,
+              "mean_prediction": 0.1600899534456093,
+              "observed_fraction": 0.32
+            },
+            {
+              "n": 22,
+              "mean_prediction": 0.2561216048085269,
+              "observed_fraction": 0.22727272727272727
+            },
+            {
+              "n": 14,
+              "mean_prediction": 0.34852921117434377,
+              "observed_fraction": 0.5
+            },
+            {
+              "n": 15,
+              "mean_prediction": 0.44270664871186366,
+              "observed_fraction": 0.3333333333333333
+            },
+            {
+              "n": 11,
+              "mean_prediction": 0.5567939209788197,
+              "observed_fraction": 0.5454545454545454
+            },
+            {
+              "n": 8,
+              "mean_prediction": 0.6618036628077504,
+              "observed_fraction": 0.75
+            },
+            {
+              "n": 17,
+              "mean_prediction": 0.754285419952383,
+              "observed_fraction": 0.8235294117647058
+            },
+            {
+              "n": 39,
+              "mean_prediction": 0.8548972268862303,
+              "observed_fraction": 0.9743589743589743
+            },
+            {
+              "n": 740,
+              "mean_prediction": 0.9902325842614441,
+              "observed_fraction": 1.0
+            }
+          ],
+          "brier_skill_vs_train_prevalence": 0.9588098082165528
+        }
+      },
+      "test_window": {
+        "start": "2023-10-21 17:00:00+00:00",
+        "end": "2025-01-01 05:00:00+00:00",
+        "rows": 10426,
+        "positive_hours": 835
+      }
+    },
+    {
+      "path": "data/processed/workbench/runs/confidence_v2_20260913/model_card.json",
+      "sha256": "0e94f189576e9791307e32480132d83285309c8163772d603e45558faff713b1",
+      "model_version": "spp_lgbm_20260913T215248_30b0029de7",
+      "policy": {
+        "operator": "SPP",
+        "label_method": "observed_event",
+        "data_ref": "data\\processed\\ml_inputs\\spp_2019_2024_multifactor.parquet; sha256=a32c4b16eb2bb2075dba281777023096949c760b2ef04ec56eb77e7e9bea6c9c",
+        "label_ref": "ASSUMPTION: high aggregate demand >= reference 0.95 quantile; data\\processed\\ml_inputs\\spp_2019_2024_demand_proxy.policy.json",
+        "target_name": "high_demand_stress_proxy",
+        "target_source_type": "assumption",
+        "target_description": "High aggregate demand proxy; not an emergency, network-overload measurement, or site interruption.",
+        "demand_proxy": {
+          "quantile": 0.95,
+          "thresholds_mw": {
+            "SPP_SYSTEM": 42064.0228
+          },
+          "reference_end_exclusive": "2022-01-01T00:00:00+00:00",
+          "reference_start": "2019-01-01 06:00:00+00:00",
+          "method": "Fixed per-location empirical quantile, fit only within the training period.",
+          "split_counts": {
+            "train": {
+              "hours": 31350,
+              "positive_hours": 1841
+            },
+            "calibration": {
+              "hours": 10426,
+              "positive_hours": 893
+            },
+            "test": {
+              "hours": 10426,
+              "positive_hours": 835
+            }
+          }
+        }
+      },
+      "test_by_location": {
+        "SPP_SYSTEM": {
+          "brier_score": 0.003015828394369256,
+          "log_loss": 0.01079259902612783,
+          "event_rate": 0.08008824093612124,
+          "mean_prediction": 0.07859108425427085,
+          "n_hours": 10426,
+          "positive_hours": 835,
+          "roc_auc": 0.9997752383877849,
+          "average_precision": 0.9976264648683361,
+          "reliability_bins": [
+            {
+              "n": 9535,
+              "mean_prediction": 0.00043072482143005804,
+              "observed_fraction": 0.0006292606187729418
+            },
+            {
+              "n": 21,
+              "mean_prediction": 0.15890841405769662,
+              "observed_fraction": 0.23809523809523808
+            },
+            {
+              "n": 21,
+              "mean_prediction": 0.24889748048909996,
+              "observed_fraction": 0.38095238095238093
+            },
+            {
+              "n": 18,
+              "mean_prediction": 0.3553439196708644,
+              "observed_fraction": 0.3333333333333333
+            },
+            {
+              "n": 14,
+              "mean_prediction": 0.4460912585711985,
+              "observed_fraction": 0.35714285714285715
+            },
+            {
+              "n": 9,
+              "mean_prediction": 0.5537748293379533,
+              "observed_fraction": 0.4444444444444444
+            },
+            {
+              "n": 10,
+              "mean_prediction": 0.6545070531580292,
+              "observed_fraction": 0.7
+            },
+            {
+              "n": 17,
+              "mean_prediction": 0.7631550035477522,
+              "observed_fraction": 0.8823529411764706
+            },
+            {
+              "n": 32,
+              "mean_prediction": 0.8574068663041109,
+              "observed_fraction": 0.9375
+            },
+            {
+              "n": 749,
+              "mean_prediction": 0.9908392423571054,
+              "observed_fraction": 1.0
+            }
+          ],
+          "brier_skill_vs_train_prevalence": 0.9593173296831689
+        }
+      },
+      "test_window": {
+        "start": "2023-10-21 17:00:00+00:00",
+        "end": "2025-01-01 05:00:00+00:00",
+        "rows": 10426,
+        "positive_hours": 835
+      }
+    },
+    {
+      "path": "data/processed/workbench/runs/history_2025_20260913/model_card.json",
+      "sha256": "832ddb59f28e2c8e1d5f663e508d9abae7072e2c8fe7c3dc8468168f10bde8bb",
+      "model_version": "spp_lgbm_20260913T222517_37b750a063",
+      "policy": {
+        "operator": "SPP",
+        "label_method": "observed_event",
+        "data_ref": "data\\processed\\ml_inputs\\spp_2019_2025_multifactor.parquet; sha256=84d0f3f5fbd6c57555d2c0c45e15b2b2e9904a351d0e419a5bee2ba5404620fc",
+        "label_ref": "ASSUMPTION: high aggregate demand >= reference 0.95 quantile; data\\processed\\ml_inputs\\spp_2019_2025_demand_proxy.policy.json",
+        "target_name": "high_demand_stress_proxy",
+        "target_source_type": "assumption",
+        "target_description": "High aggregate demand proxy; not an emergency, network-overload measurement, or site interruption.",
+        "demand_proxy": {
+          "quantile": 0.95,
+          "thresholds_mw": {
+            "SPP_SYSTEM": 42064.0228
+          },
+          "reference_end_exclusive": "2022-01-01T00:00:00+00:00",
+          "reference_start": "2019-01-01 06:00:00+00:00",
+          "method": "Fixed per-location empirical quantile, fit only within the training period.",
+          "split_counts": {
+            "train": {
+              "hours": 36587,
+              "positive_hours": 2100
+            },
+            "calibration": {
+              "hours": 12172,
+              "positive_hours": 1227
+            },
+            "test": {
+              "hours": 12172,
+              "positive_hours": 1120
+            }
+          }
+        }
+      },
+      "test_by_location": {
+        "SPP_SYSTEM": {
+          "brier_score": 0.0031019630928375485,
+          "log_loss": 0.011209338382323852,
+          "event_rate": 0.09201445941505093,
+          "mean_prediction": 0.09184903465553627,
+          "n_hours": 12172,
+          "positive_hours": 1120,
+          "roc_auc": 0.9997925391655034,
+          "average_precision": 0.9980746648230673,
+          "reliability_bins": [
+            {
+              "n": 10952,
+              "mean_prediction": 0.0005322228767782838,
+              "observed_fraction": 0.0004565376186997809
+            },
+            {
+              "n": 30,
+              "mean_prediction": 0.1424201546109531,
+              "observed_fraction": 0.06666666666666667
+            },
+            {
+              "n": 22,
+              "mean_prediction": 0.24218495890354588,
+              "observed_fraction": 0.09090909090909091
+            },
+            {
+              "n": 25,
+              "mean_prediction": 0.35151684855531423,
+              "observed_fraction": 0.32
+            },
+            {
+              "n": 26,
+              "mean_prediction": 0.44883862715848255,
+              "observed_fraction": 0.3076923076923077
+            },
+            {
+              "n": 15,
+              "mean_prediction": 0.5410966566135299,
+              "observed_fraction": 0.5333333333333333
+            },
+            {
+              "n": 15,
+              "mean_prediction": 0.655353787166208,
+              "observed_fraction": 0.8666666666666667
+            },
+            {
+              "n": 25,
+              "mean_prediction": 0.7541851810811683,
+              "observed_fraction": 0.72
+            },
+            {
+              "n": 50,
+              "mean_prediction": 0.8653907655310598,
+              "observed_fraction": 0.92
+            },
+            {
+              "n": 1012,
+              "mean_prediction": 0.9901464636029876,
+              "observed_fraction": 0.9980237154150198
+            }
+          ],
+          "brier_skill_vs_train_prevalence": 0.9633969971508984
+        }
+      },
+      "test_window": {
+        "start": "2024-08-09 18:00:00+00:00",
+        "end": "2025-12-31 23:00:00+00:00",
+        "rows": 12172,
+        "positive_hours": 1120
+      }
+    },
+    {
+      "path": "data/processed/workbench/runs/outage_outlook_20260913/model_card.json",
+      "sha256": "a2841d726e869cb96614c97c7d1427dfd60de73e29e7bb504107a983faa19596",
+      "model_version": "spp_lgbm_20260913T225319_c6aa726554",
+      "policy": {
+        "operator": "SPP",
+        "label_method": "observed_event",
+        "data_ref": "data\\processed\\ml_inputs\\spp_2019_2025_outlooks.parquet; sha256=af8d70597ab24f95c257e8b059e8f59009c46ae3908c33a653813ea732df55aa",
+        "label_ref": "ASSUMPTION: high aggregate demand >= reference 0.95 quantile; data\\processed\\ml_inputs\\spp_2019_2025_outlook_demand_proxy.policy.json",
+        "target_name": "high_demand_stress_proxy",
+        "target_source_type": "assumption",
+        "target_description": "High aggregate demand proxy; not an emergency, network-overload measurement, or site interruption.",
+        "demand_proxy": {
+          "quantile": 0.95,
+          "thresholds_mw": {
+            "SPP_SYSTEM": 42064.0228
+          },
+          "reference_end_exclusive": "2022-01-01T00:00:00+00:00",
+          "reference_start": "2019-01-01 06:00:00+00:00",
+          "method": "Fixed per-location empirical quantile, fit only within the training period.",
+          "split_counts": {
+            "train": {
+              "hours": 36587,
+              "positive_hours": 2100
+            },
+            "calibration": {
+              "hours": 12172,
+              "positive_hours": 1227
+            },
+            "test": {
+              "hours": 12172,
+              "positive_hours": 1120
+            }
+          }
+        }
+      },
+      "test_by_location": {
+        "SPP_SYSTEM": {
+          "brier_score": 0.003109363725972629,
+          "log_loss": 0.011237308429813162,
+          "event_rate": 0.09201445941505093,
+          "mean_prediction": 0.09185936667794399,
+          "n_hours": 12172,
+          "positive_hours": 1120,
+          "roc_auc": 0.9997902771314824,
+          "average_precision": 0.9980500547634551,
+          "reliability_bins": [
+            {
+              "n": 10954,
+              "mean_prediction": 0.000548189541157391,
+              "observed_fraction": 0.00045645426328281907
+            },
+            {
+              "n": 31,
+              "mean_prediction": 0.1503817475158931,
+              "observed_fraction": 0.06451612903225806
+            },
+            {
+              "n": 19,
+              "mean_prediction": 0.2475081102575409,
+              "observed_fraction": 0.10526315789473684
+            },
+            {
+              "n": 24,
+              "mean_prediction": 0.3505438405133277,
+              "observed_fraction": 0.3333333333333333
+            },
+            {
+              "n": 25,
+              "mean_prediction": 0.44271097834047557,
+              "observed_fraction": 0.28
+            },
+            {
+              "n": 17,
+              "mean_prediction": 0.5384382536740377,
+              "observed_fraction": 0.5294117647058824
+            },
+            {
+              "n": 14,
+              "mean_prediction": 0.6540111254900381,
+              "observed_fraction": 0.8571428571428571
+            },
+            {
+              "n": 26,
+              "mean_prediction": 0.7541973983081198,
+              "observed_fraction": 0.7307692307692307
+            },
+            {
+              "n": 50,
+              "mean_prediction": 0.8657009884132313,
+              "observed_fraction": 0.92
+            },
+            {
+              "n": 1012,
+              "mean_prediction": 0.9901761267049274,
+              "observed_fraction": 0.9980237154150198
+            }
+          ],
+          "brier_skill_vs_train_prevalence": 0.9633096700655589
+        }
+      },
+      "test_window": {
+        "start": "2024-08-09 18:00:00+00:00",
+        "end": "2025-12-31 23:00:00+00:00",
+        "rows": 12172,
+        "positive_hours": 1120
+      }
+    },
+    {
+      "path": "data/processed/workbench/runs/spp_multifactor_demand_20260913/model_card.json",
+      "sha256": "4671763435c8af48e08963bead97936ce50a5aa0bf4f7e4843336da6d091692d",
+      "model_version": "spp_lgbm_20260913T041851_30b0029de7",
+      "policy": {
+        "operator": "SPP",
+        "label_method": "observed_event",
+        "data_ref": "data\\processed\\ml_inputs\\spp_2019_2024_multifactor.parquet; sha256=a32c4b16eb2bb2075dba281777023096949c760b2ef04ec56eb77e7e9bea6c9c",
+        "label_ref": "ASSUMPTION: high aggregate demand >= reference 0.95 quantile; data\\processed\\ml_inputs\\spp_2019_2024_demand_proxy.policy.json",
+        "target_name": "high_demand_stress_proxy",
+        "target_source_type": "assumption",
+        "target_description": "High aggregate demand proxy; not an emergency, network-overload measurement, or site interruption.",
+        "demand_proxy": {
+          "quantile": 0.95,
+          "thresholds_mw": {
+            "SPP_SYSTEM": 42064.0228
+          },
+          "reference_end_exclusive": "2022-01-01T00:00:00+00:00",
+          "reference_start": "2019-01-01 06:00:00+00:00",
+          "method": "Fixed per-location empirical quantile, fit only within the training period.",
+          "split_counts": {
+            "train": {
+              "hours": 31350,
+              "positive_hours": 1841
+            },
+            "calibration": {
+              "hours": 10426,
+              "positive_hours": 893
+            },
+            "test": {
+              "hours": 10426,
+              "positive_hours": 835
+            }
+          }
+        }
+      },
+      "test_by_location": {
+        "SPP_SYSTEM": {
+          "brier_score": 0.003015828394369256,
+          "log_loss": 0.01079259902612783,
+          "event_rate": 0.08008824093612124,
+          "mean_prediction": 0.07859108425427085,
+          "n_hours": 10426,
+          "positive_hours": 835,
+          "roc_auc": 0.9997752383877849,
+          "average_precision": 0.9976264648683361,
+          "reliability_bins": [
+            {
+              "n": 9535,
+              "mean_prediction": 0.00043072482143005804,
+              "observed_fraction": 0.0006292606187729418
+            },
+            {
+              "n": 21,
+              "mean_prediction": 0.15890841405769662,
+              "observed_fraction": 0.23809523809523808
+            },
+            {
+              "n": 21,
+              "mean_prediction": 0.24889748048909996,
+              "observed_fraction": 0.38095238095238093
+            },
+            {
+              "n": 18,
+              "mean_prediction": 0.3553439196708644,
+              "observed_fraction": 0.3333333333333333
+            },
+            {
+              "n": 14,
+              "mean_prediction": 0.4460912585711985,
+              "observed_fraction": 0.35714285714285715
+            },
+            {
+              "n": 9,
+              "mean_prediction": 0.5537748293379533,
+              "observed_fraction": 0.4444444444444444
+            },
+            {
+              "n": 10,
+              "mean_prediction": 0.6545070531580292,
+              "observed_fraction": 0.7
+            },
+            {
+              "n": 17,
+              "mean_prediction": 0.7631550035477522,
+              "observed_fraction": 0.8823529411764706
+            },
+            {
+              "n": 32,
+              "mean_prediction": 0.8574068663041109,
+              "observed_fraction": 0.9375
+            },
+            {
+              "n": 749,
+              "mean_prediction": 0.9908392423571054,
+              "observed_fraction": 1.0
+            }
+          ],
+          "brier_skill_vs_train_prevalence": 0.9593173296831689
+        }
+      },
+      "test_window": {
+        "start": "2023-10-21 17:00:00+00:00",
+        "end": "2025-01-01 05:00:00+00:00",
+        "rows": 10426,
+        "positive_hours": 835
+      }
+    }
+  ],
+  "missing_inputs": {
+    "original_label_ref": "local://spp_events.csv",
+    "original_hourly_sha256": "b63ee2577e8c5566bd7142dc3724703c4a1e36924cad2a6d01825a9d3875aa73",
+    "years_without_complete_observed_event_labels": [
+      2019,
+      2020,
+      2021,
+      2022,
+      2023,
+      2024,
+      2025
+    ],
+    "location_ids_without_original_target_training_input": [
+      "CSWS",
+      "EDE",
+      "GRDA",
+      "INDN",
+      "KACY",
+      "KCPL",
+      "LES",
+      "MPS",
+      "NPPD",
+      "OKGE",
+      "OPPD",
+      "SECI",
+      "SPP_SYSTEM",
+      "SPRM",
+      "SPS",
+      "WAUE",
+      "WFEC",
+      "WR",
+      "spp-lincoln-demo",
+      "spp-oklahoma-city-demo",
+      "spp-wichita-demo"
+    ],
+    "positive_only_eea_hour_buckets": {
+      "2021": 93,
+      "2022": 6,
+      "2024": 3
+    },
+    "confirmed_non_event_hours_in_documented_eea_cache": 0,
+    "original_weather_manifest": "data/processed/ml_inputs/spp_2024_multi_location_temperature.weather.json",
+    "original_zone_weather_map_sha256": "31a59a6e3929512788008fd9c5030f3c6353c642cc4d0bb987e14b52a62acad0"
+  },
+  "preserved_code_sha256": {
+    "pipeline/label.py": "a01684c6449db40d397fd2d0639ba6ea0376faaf6dc24445222651586a6a63c1",
+    "pipeline/confidence.py": "3561e7bf990ff09bc59a573caf3c0efd13d285f9533674229b15e33a1c022cc4",
+    "pipeline/train.py": "c1ed5dd714cf37d92951854062ddd4f0ee7435b7319220156f488890ebd520ab",
+    "pipeline/features.py": "f988c420509c6d6effef5dfdc3cbffd8d02cf8b8453b318e10178ff3b3ea7b2b",
+    "pipeline/simulate.py": "0a2a31f5b21113732a7164dc7944c7ca8ce9c8b7ed42486ef089d43a40c1de28"
+  },
+  "validation": {
+    "python": {
+      "command": ".venv/Scripts/python.exe -m pytest tests api -q",
+      "passed": 1999,
+      "subtests_passed": 42,
+      "skipped": 1,
+      "warnings": 2,
+      "seconds": 123.34
+    },
+    "frontend": {
+      "command": "vitest run --maxWorkers=2 --testTimeout=15000 with HEADROOM_API_URL pointing to an isolated real api.main:app server",
+      "test_files_passed": 22,
+      "asserted_tests_passed": 316,
+      "unhandled_errors": 6,
+      "error": "ReferenceError: window is not defined in ZoneLeaderboard.tsx fetchRankings after App.test.tsx environment teardown",
+      "suite_clean": false
+    },
+    "build": {
+      "commands": [
+        "tsc -b",
+        "vite build"
+      ],
+      "passed": true,
+      "warning": "large output chunks"
+    },
+    "http": {
+      "published_ids_checked": 21,
+      "real_zone_ids_checked": 17,
+      "real_modeled_exposure_responses": 0,
+      "status_counts": {
+        "503": 17,
+        "200_placeholder": 4
+      }
+    }
+  },
+  "search_scope": {
+    "parquet_roots": [
+      "data/raw",
+      "data/processed"
+    ],
+    "all_parquet_schemas_read": 1079,
+    "unreadable_parquets": 0,
+    "label_related_candidates": 43,
+    "original_filename_search": "C:/Users/krist excluding AppData, .codex, node_modules, .git, .venv, venv, .cache; also repository all-ref file history and both stash file inventories",
+    "original_spp_events_csv_found": false,
+    "original_multi_location_weather_manifest_found": false,
+    "saved_noncanonical_model_cards": 6,
+    "noncanonical_model_target": "high_demand_stress_proxy",
+    "noncanonical_model_location": "SPP_SYSTEM"
+  },
+  "generation_files": [
+    {
+      "year": 2019,
+      "path": "data/raw/spp/generation/2019.parquet",
+      "sha256": "d0443878240124882ae9ac684c4eb5e58279d3cc5bde0a35db2d23ffedd0612a",
+      "rows": 8760,
+      "known_wind_hours": 8651,
+      "known_solar_hours": 8651
+    },
+    {
+      "year": 2020,
+      "path": "data/raw/spp/generation/2020.parquet",
+      "sha256": "3bf9a864ba3fa29314369e481be45aaa0a6c7027708fd0717c484614ad5f0e3b",
+      "rows": 8784,
+      "known_wind_hours": 8665,
+      "known_solar_hours": 8665
+    },
+    {
+      "year": 2021,
+      "path": "data/raw/spp/generation/2021.parquet",
+      "sha256": "56bc5b53948a029eb7045172b1b59ac6245423b81782fc56ce6a1d368bb1853a",
+      "rows": 8761,
+      "known_wind_hours": 8641,
+      "known_solar_hours": 8641
+    },
+    {
+      "year": 2022,
+      "path": "data/raw/spp/generation/2022.parquet",
+      "sha256": "255b47b205c760837591a0875b158d5470aea54588b7da72a467b778a33d81b4",
+      "rows": 8761,
+      "known_wind_hours": 8409,
+      "known_solar_hours": 8409
+    },
+    {
+      "year": 2023,
+      "path": "data/raw/spp/generation/2023.parquet",
+      "sha256": "bac332b07b7087048e0d57980e3cfb5f7a242c159ab1fb0eb5bb51a18583e933",
+      "rows": 8761,
+      "known_wind_hours": 8499,
+      "known_solar_hours": 8499
+    },
+    {
+      "year": 2024,
+      "path": "data/raw/spp/generation/2024.parquet",
+      "sha256": "9341b3c04b1c83ad560752f13c0e23503461a4683ec4eea4bbe10029bc50c3cf",
+      "rows": 8785,
+      "known_wind_hours": 8714,
+      "known_solar_hours": 8714
+    },
+    {
+      "year": 2025,
+      "path": "data/raw/spp/generation/2025.parquet",
+      "sha256": "42787917bb27540eaeafa343efe2ad141f7caddc4e3330de0e0fc562ffa71305",
+      "rows": 8761,
+      "known_wind_hours": 8685,
+      "known_solar_hours": 8685
+    }
+  ]
+}
