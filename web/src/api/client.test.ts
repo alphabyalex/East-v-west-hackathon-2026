@@ -159,7 +159,7 @@ describe('postEstimate', () => {
     const result = await postEstimate({ ...request, private_ui_field: 'not sent' } as EstimateRequest, {
       fetchImpl, signal: controller.signal,
     })
-    expect(fetchImpl).toHaveBeenCalledExactlyOnceWith('/api/estimate', {
+    expect(fetchImpl).toHaveBeenCalledExactlyOnceWith('http://127.0.0.1:8000/api/estimate', {
       method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify(request), signal: controller.signal,
     })

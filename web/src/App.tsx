@@ -122,7 +122,7 @@ function Inputs() {
     <div className="location-field">
       <div className="field-label"><label htmlFor="location"><MapPin size={13} />SPP LOCATION</label><SourceInfo value={inputs.location_id} source={sourceFor('location_id')} label="Location provenance" /></div>
       <div className="select-wrap"><select id="location" value={inputs.location_id} onChange={event => update('location_id', event.target.value)}>{mockResponse.locations.map(location => <option key={location.id} value={location.id}>{location.label}</option>)}</select><ChevronDown size={15} /></div>
-      <span className="field-note">Illustrative node · no site-specific grid data</span>
+      <span className="field-note">{inputs.location_id === 'SPP_SYSTEM' ? 'System aggregate · no site-specific grid data' : 'Illustrative node · no site-specific grid data'}</span>
     </div>
     <NumberField name="load_mw" label="LOAD SIZE" unit="MW" min={1} max={2000} icon={<Zap size={13} />} />
     <NumberField name="contract_years" label="CONTRACT TERM" unit="years" min={1} max={7} icon={<Activity size={13} />} />

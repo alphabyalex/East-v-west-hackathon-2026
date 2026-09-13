@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { postEstimate } from '../api/client';
+import { getEconomicsAssumptions, validateEconomicConsistency, type EconomicsAssumptions } from '../api/assumptions';
 import type { EstimateRequest, EstimateResponse } from '../model';
 
 export type EstimateMode = 'api' | 'local';
@@ -12,6 +13,7 @@ interface Attempt {
   key: string;
   retry: number;
   response?: EstimateResponse;
+  assumptions?: EconomicsAssumptions;
   error?: string;
 }
 
@@ -34,11 +36,16 @@ export function useEstimateTransport(request: EstimateRequest, mode: EstimateMod
         setAttempt({ key, retry: retryCount, error: 'API request timed out. Showing the current scenario as a local mock.' });
         controller.abort();
       }, TIMEOUT_MS);
-      void postEstimate(submitted, { signal: controller.signal }).then(response => {
-        if (active()) setAttempt({ key, retry: retryCount, response });
+      void Promise.all([
+        postEstimate(submitted, { signal: controller.signal }),
+        getEconomicsAssumptions({ signal: controller.signal }),
+      ]).then(([response, assumptions]) => {
+        validateEconomicConsistency(response, assumptions);
+        if (active()) setAttempt({ key, retry: retryCount, response, assumptions });
       }).catch(() => {
         if (!active()) return;
         setAttempt({ key, retry: retryCount, error: 'API unavailable or returned an invalid estimate. Showing the current scenario as a local mock.' });
+        controller.abort();
       }).finally(() => clearTimeout(timeout));
     }, DEBOUNCE_MS);
     return () => {
@@ -53,5 +60,5 @@ export function useEstimateTransport(request: EstimateRequest, mode: EstimateMod
   const response = matches ? attempt.response : undefined;
   const error = matches ? attempt.error : undefined;
   const status: EstimateStatus = mode === 'local' ? 'local' : response ? 'api' : error ? 'fallback' : 'loading';
-  return { response, error, status, retry: () => setRetryCount(previous => previous + 1) };
+  return { response, assumptions: matches ? attempt.assumptions : undefined, error, status, retry: () => setRetryCount(previous => previous + 1) };
 }

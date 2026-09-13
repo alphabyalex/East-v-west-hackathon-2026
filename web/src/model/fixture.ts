@@ -1,4 +1,5 @@
 import type { MockResponse, ScenarioInputs, SourcedValue } from './types'
+import economicSnapshot from './economics-assumptions.json'
 
 /** These are deliberately illustrative assumptions, never measurements or clauses. */
 export const mockAssumption = <T>(value: T, ref: string): SourcedValue<T> => ({
@@ -7,11 +8,12 @@ export const mockAssumption = <T>(value: T, ref: string): SourcedValue<T> => ({
   ref: `mock://illustrative/${ref}`,
 })
 
-/** A real, cited team-set assumption - still an assumption, but sourced, not an invented placeholder. */
-export const citedAssumption = <T>(value: T, ref: string): SourcedValue<T> => ({
-  value,
+// Bundled snapshot of the marked docs/ASSUMPTIONS.md JSON for offline fallback.
+// API mode replaces this snapshot with validated metadata from the same server file.
+const economicDefault = (key: Exclude<keyof typeof economicSnapshot, 'schema_version' | 'status'>): SourcedValue => ({
+  value: economicSnapshot[key].value,
   source_type: 'assumption',
-  ref: `docs/ASSUMPTIONS.md${ref}`,
+  ref: economicSnapshot[key].ref,
 })
 
 // Fixed quantile fixture: [year, p50, p90, p99], in hours/year.
@@ -28,13 +30,14 @@ const baseline = [
 
 // Labels identify SPP-region examples, not validated pricing nodes or interconnections.
 const locations = [
+  { id: 'SPP_SYSTEM', label: 'SPP system aggregate', scale: 1 },
   { id: 'spp-wichita-demo', label: 'Wichita, KS · illustrative', scale: 1 },
   { id: 'spp-oklahoma-city-demo', label: 'Oklahoma City, OK · illustrative', scale: 1.12 },
   { id: 'spp-lincoln-demo', label: 'Lincoln, NE · illustrative', scale: 0.9 },
 ] as const
 
 export const defaultInputs: ScenarioInputs = {
-  location_id: 'spp-wichita-demo',
+  location_id: 'SPP_SYSTEM',
   load_mw: 100,
   contract_years: 7,
   flexibility_percent: 60,
@@ -42,13 +45,12 @@ export const defaultInputs: ScenarioInputs = {
   // Sourced from docs/ASSUMPTIONS.md: gpu_per_mw (section 1, grid-interconnection
   // basis), gpu_hour_value_usd (section 2, H100 cross-provider composite),
   // firm_wait_years (section 3, derived firm-vs-flexible gap). early_margin_usd_per_mw_year
-  // is a 3% assumed operating margin on the doc's sourced gross-revenue derivation -
-  // no public margin figure exists for this business model, so it stays a labeled
-  // ASSUMPTION layered on top of a sourced revenue number (see section 4).
-  firm_wait_years: 4,
-  gpu_per_mw: 575,
-  gpu_hour_value_usd: 3,
-  early_margin_usd_per_mw_year: 317_000,
+  // is Tharun's unverified 3% operating-margin proxy applied to scenario gross
+  // rental revenue. It remains an explicit placeholder, not a verified net margin.
+  firm_wait_years: economicSnapshot.early_connection_years.value,
+  gpu_per_mw: economicSnapshot.gpus_per_mw.value,
+  gpu_hour_value_usd: economicSnapshot.gpu_rental_price_usd_per_hour.value,
+  early_margin_usd_per_mw_year: economicSnapshot.early_margin_usd_per_mw_year.value,
 }
 
 export const mockResponse: MockResponse = {
@@ -66,17 +68,17 @@ export const mockResponse: MockResponse = {
     })),
   })),
   defaults: {
-    location_id: mockAssumption(defaultInputs.location_id, 'inputs/location_id'),
+    location_id: { value: defaultInputs.location_id, source_type: 'assumption', ref: 'user://scenario/location_id; SPP_SYSTEM selects the system aggregate, not a node or site estimate' },
     load_mw: mockAssumption(defaultInputs.load_mw, 'inputs/load_mw'),
     contract_years: mockAssumption(defaultInputs.contract_years, 'inputs/contract_years'),
     flexibility_percent: mockAssumption(defaultInputs.flexibility_percent, 'inputs/flexibility_percent'),
     site_exposure: mockAssumption(defaultInputs.site_exposure, 'inputs/site_exposure'),
-    firm_wait_years: citedAssumption(defaultInputs.firm_wait_years, '#3-value-of-connecting-early'),
-    gpu_per_mw: citedAssumption(defaultInputs.gpu_per_mw, '#1-hardware--power-conversion'),
-    gpu_hour_value_usd: citedAssumption(defaultInputs.gpu_hour_value_usd, '#2-cost-of-interrupted-compute'),
-    early_margin_usd_per_mw_year: citedAssumption(defaultInputs.early_margin_usd_per_mw_year, '#4-what-changes-in-the-app'),
+    firm_wait_years: economicDefault('early_connection_years'),
+    gpu_per_mw: economicDefault('gpus_per_mw'),
+    gpu_hour_value_usd: economicDefault('gpu_rental_price_usd_per_hour'),
+    early_margin_usd_per_mw_year: economicDefault('early_margin_usd_per_mw_year'),
   },
   decision_policy: {
-    close_call_fraction: mockAssumption(0.05, 'decision_policy/close_call_fraction-of-early-access-value'),
+    close_call_fraction: economicDefault('close_call_fraction'),
   },
 }

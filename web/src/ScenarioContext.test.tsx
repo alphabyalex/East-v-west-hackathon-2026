@@ -5,6 +5,8 @@ import type { ReactNode } from 'react';
 import { ScenarioProvider, useScenario } from './ScenarioContext';
 import { createMockEstimate, defaultInputs, deriveScenario, toEstimateRequest, type EstimateRequest, type EstimateResponse } from './model';
 import type { EstimateMode } from './hooks/useEstimateTransport';
+import { withEconomics } from './api/test-fixtures';
+import economicSnapshot from './model/economics-assumptions.json';
 
 function setup(mode?: EstimateMode) {
   return renderHook(() => useScenario(), {
@@ -39,14 +41,14 @@ describe('scenario HTTP provider', () => {
     const returned = createMockEstimate(initialRequest);
     returned.confidence = { level: 'High', score: 0.8, basis: 'test_server_response', source: { source_type: 'model', ref: 'test://server' } };
     const fetcher = vi.fn().mockResolvedValue(jsonResponse(returned));
-    vi.stubGlobal('fetch', fetcher);
+    vi.stubGlobal('fetch', withEconomics(fetcher));
     const { result } = setup();
     expect(result.current.status).toBe('loading');
     expect(result.current.result.confidence.level).toBe('Medium');
     await tick();
     expect(fetcher).toHaveBeenCalledTimes(1);
     const [url, options] = fetcher.mock.calls[0];
-    expect(url).toBe('/api/estimate');
+    expect(url).toBe('http://127.0.0.1:8000/api/estimate');
     expect(options.method).toBe('POST');
     expect(JSON.parse(options.body)).toEqual(initialRequest);
     expect(result.current.status).toBe('api');
@@ -58,7 +60,7 @@ describe('scenario HTTP provider', () => {
   it('uses the local env flag with instantaneous recomputation and no fetch', async () => {
     vi.stubEnv('VITE_ESTIMATE_MODE', 'local');
     const fetcher = vi.fn();
-    vi.stubGlobal('fetch', fetcher);
+    vi.stubGlobal('fetch', withEconomics(fetcher));
     const { result } = setup();
     act(() => result.current.update('site_exposure', 0.8));
     expect(result.current.mode).toBe('local');
@@ -70,7 +72,7 @@ describe('scenario HTTP provider', () => {
 
   it('coalesces rapid slider changes into one request while previewing every current input', async () => {
     const fetcher = vi.fn().mockImplementation((_url, options) => Promise.resolve(jsonResponse(createMockEstimate(JSON.parse(options.body)))));
-    vi.stubGlobal('fetch', fetcher);
+    vi.stubGlobal('fetch', withEconomics(fetcher));
     const { result } = setup('api');
     act(() => result.current.update('site_exposure', 0.6));
     await tick(20);
@@ -88,7 +90,7 @@ describe('scenario HTTP provider', () => {
     const serverResponse = createMockEstimate(initialRequest);
     serverResponse.confidence.level = 'High';
     const fetcher = vi.fn().mockResolvedValueOnce(jsonResponse(serverResponse)).mockReturnValueOnce(next.promise);
-    vi.stubGlobal('fetch', fetcher);
+    vi.stubGlobal('fetch', withEconomics(fetcher));
     const { result } = setup('api');
     await tick();
     expect(result.current.result.confidence.level).toBe('High');
@@ -106,7 +108,7 @@ describe('scenario HTTP provider', () => {
     const old = deferred<Response>();
     const latest = deferred<Response>();
     const fetcher = vi.fn().mockReturnValueOnce(old.promise).mockReturnValueOnce(latest.promise);
-    vi.stubGlobal('fetch', fetcher);
+    vi.stubGlobal('fetch', withEconomics(fetcher));
     const { result } = setup('api');
     await tick();
     const oldSignal = fetcher.mock.calls[0][1].signal as AbortSignal;
@@ -123,7 +125,7 @@ describe('scenario HTTP provider', () => {
   it('bounds a hung request, aborts it, and retains current local results even if it eventually resolves', async () => {
     const pending = deferred<Response>();
     const fetcher = vi.fn().mockReturnValue(pending.promise);
-    vi.stubGlobal('fetch', fetcher);
+    vi.stubGlobal('fetch', withEconomics(fetcher));
     const { result } = setup('api');
     await tick();
     await tick(3000);
@@ -137,7 +139,7 @@ describe('scenario HTTP provider', () => {
 
   it('shows a visible fallback after network failure and retries the current inputs', async () => {
     const fetcher = vi.fn().mockRejectedValueOnce(new TypeError('Failed to fetch')).mockResolvedValueOnce(jsonResponse(createMockEstimate(initialRequest)));
-    vi.stubGlobal('fetch', fetcher);
+    vi.stubGlobal('fetch', withEconomics(fetcher));
     const { result } = setup('api');
     await tick();
     expect(result.current.status).toBe('fallback');
@@ -151,7 +153,7 @@ describe('scenario HTTP provider', () => {
 
   it('falls back for malformed or stale server echoes instead of displaying them', async () => {
     const stale = createMockEstimate({ ...initialRequest, site_exposure: 0.1 });
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(stale)));
+    vi.stubGlobal('fetch', withEconomics(vi.fn().mockResolvedValue(jsonResponse(stale))));
     const { result } = setup('api');
     await tick();
     expect(result.current.status).toBe('fallback');
@@ -161,7 +163,7 @@ describe('scenario HTTP provider', () => {
   it('switches to local mode for an economic override and explicitly resets it when API defaults are selected', async () => {
     const pending = deferred<Response>();
     const fetcher = vi.fn().mockReturnValue(pending.promise);
-    vi.stubGlobal('fetch', fetcher);
+    vi.stubGlobal('fetch', withEconomics(fetcher));
     const { result } = setup('api');
     await tick();
     act(() => result.current.update('gpu_hour_value_usd', 5));
@@ -186,7 +188,7 @@ describe('scenario HTTP provider', () => {
 
   it('does not leave API mode for an unchanged economic value, and aborts on unmount', async () => {
     const fetcher = vi.fn().mockReturnValue(new Promise(() => {}));
-    vi.stubGlobal('fetch', fetcher);
+    vi.stubGlobal('fetch', withEconomics(fetcher));
     const { result, unmount } = setup('api');
     act(() => result.current.update('gpu_per_mw', defaultInputs.gpu_per_mw));
     expect(result.current.mode).toBe('api');
@@ -196,5 +198,50 @@ describe('scenario HTTP provider', () => {
     expect(signal.aborted).toBe(true);
     await tick(4000);
     expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it('takes visible economic inputs, exported provenance and decision policy from the server metadata', async () => {
+    const assumptions = structuredClone(economicSnapshot);
+    assumptions.gpu_rental_price_usd_per_hour.value = 4;
+    assumptions.gpu_rental_price_usd_per_hour.ref = 'test://server-rental-source';
+    assumptions.gpus_per_mw.value = 600;
+    assumptions.early_connection_years.value = 5;
+    assumptions.early_margin_usd_per_mw_year.value = 400_000;
+    assumptions.close_call_fraction.value = 0.08;
+    const economics = { gpu_hour_value_usd: 4, gpu_per_mw: 600, firm_wait_years: 5, early_margin_usd_per_mw_year: 400_000 };
+    const response = createMockEstimate(initialRequest, economics, { ...assumptions.close_call_fraction, source_type: 'assumption' });
+    vi.stubGlobal('fetch', withEconomics(vi.fn().mockResolvedValue(jsonResponse(response)), assumptions));
+    const { result } = setup('api');
+    await tick();
+    expect(result.current.status).toBe('api');
+    expect(result.current.inputs).toMatchObject(economics);
+    expect(result.current.sourceFor('gpu_hour_value_usd').ref).toBe('test://server-rental-source');
+    expect(result.current.result.inputs.gpu_hour_value_usd).toMatchObject({ value: 4, ref: 'test://server-rental-source' });
+    expect(result.current.result.decision_policy.close_call_fraction.value).toBe(0.08);
+    act(() => result.current.update('gpu_hour_value_usd', 6));
+    expect(result.current.mode).toBe('local');
+    expect(result.current.inputs.gpu_per_mw).toBe(600);
+    expect(result.current.result.inputs.gpu_hour_value_usd).toMatchObject({ value: 6, ref: 'user://scenario/gpu_hour_value_usd' });
+    act(() => result.current.chooseMode('api'));
+    expect(result.current.inputs.gpu_hour_value_usd).toBe(4);
+  });
+
+  it.each(['gpu_rental_price_usd_per_hour', 'early_margin_usd_per_mw_year'] as const)('falls back if %s changed between the metadata and estimate reads', async field => {
+    const assumptions = structuredClone(economicSnapshot);
+    assumptions[field].value *= 1.1;
+    vi.stubGlobal('fetch', withEconomics(vi.fn().mockResolvedValue(jsonResponse(createMockEstimate(initialRequest))), assumptions));
+    const { result } = setup('api');
+    await tick();
+    expect(result.current.status).toBe('fallback');
+    expect(result.current.result.annual_exposure.p50.ref).toMatch(/^mock:/);
+  });
+
+  it('keeps the local fallback if the economics metadata endpoint is missing', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(url => String(url).endsWith('/api/economics-assumptions')
+      ? Promise.resolve(new Response('{}', { status: 404 }))
+      : Promise.resolve(jsonResponse(createMockEstimate(initialRequest)))));
+    const { result } = setup('api');
+    await tick();
+    expect(result.current.status).toBe('fallback');
   });
 });
