@@ -5,6 +5,7 @@ const token = document.querySelector('meta[name="workspace-token"]').content;
 let state = {datasets: [], runs: [], job: null};
 let pollTimer, dataVersion = 0, runVersion = 0, submitting = false;
 let activeRun = null;
+let scanVersion = 0, siteReportVersion = 0;
 
 async function request(path, options = {}) {
   const response = await fetch(path, {...options, signal: AbortSignal.timeout(20000)});
@@ -35,6 +36,8 @@ function locations(datasetId, selectId) {
 }
 function buttons() {
   const busy = submitting || state.job?.status === "running";
+  $("site-search-submit").disabled = busy;
+  $("site-report-submit").disabled = busy || !$("site-scan-select").value || !$("site-candidate").options.length;
   $("weather-submit").disabled = busy || !$("weather-dataset").value;
   $("train-submit").disabled = busy || !$("train-dataset").value || !$("evidence").files.length || $("label-ref").value.trim().length < 5;
   $("hours-submit").disabled = busy || !activeRun;
@@ -45,6 +48,7 @@ function jobView() {
   $("job-panel").hidden = !job;
   if (!job) { buttons(); return; }
   $("job-title").textContent = job.kind === "weather" ? "Temperature preparation" : job.kind === "hours" ? "Exposure hours calculation" : "Training & evaluation";
+  if (job.kind.startsWith("site-")) $("job-title").textContent = job.kind === "site-scan" ? "Location search" : "Location data scan & report";
   $("job-badge").textContent = job.status.toUpperCase();
   $("job-status").textContent = job.status === "running" ? "Offline job running" : `Last job ${job.status}`;
   $("job-message").textContent = job.status === "running" ? "Working in the background. You can inspect cached data while this runs." : job.status === "succeeded" ? "Finished. The saved output is available above." : "The job stopped. See the log below, correct the input, and try again. Successful downloads remain cached.";
@@ -67,7 +71,10 @@ async function refresh(preferredDataset = "", preferredRun = "") {
   $("model-results").hidden = !state.runs.length;
   options("run-select", state.runs.map(item => ({id: item.id, label: item.name})), preferredRun);
   jobView();
-  await Promise.all([showDataset(), showRun()]);
+  const completed = state.job?.status === "succeeded" ? state.job : null;
+  options("site-scan-select", (state.site_scans || []).map(row => ({id: row.id, label: row.name})), completed?.kind === "site-scan" ? completed.result_id : "");
+  options("site-report-select", (state.site_reports || []).map(row => ({id: row.id, label: row.name + " · " + row.id.split("/").pop()})), completed?.kind === "site-report" ? completed.result_id : "");
+  await Promise.all([showDataset(), showRun(), showSiteScan(), showSiteReport()]);
   if (state.job?.status === "running") pollTimer = setTimeout(pollJob, 1500);
 }
 async function pollJob() {
@@ -200,6 +207,51 @@ async function submit(data) {
   } catch (e) { error(e.message); }
   finally { submitting = false; buttons(); }
 }
+async function showSiteScan() {
+  const version = ++scanVersion, id = $("site-scan-select").value;
+  if (!id) { options("site-candidate", []); buttons(); return; }
+  const scan = await request(`/api/site-scan?id=${encodeURIComponent(id)}`);
+  if (version !== scanVersion) return;
+  options("site-candidate", scan.candidates.map((point, index) => ({id: String(index), label: `${point.name} (${point.latitude.toFixed(5)}, ${point.longitude.toFixed(5)})`})));
+  buttons();
+}
+function siteTable(id, headers, rows) {
+  const table = document.createElement("table"), head = document.createElement("thead"), body = document.createElement("tbody");
+  const tr = document.createElement("tr");
+  headers.forEach(value => { const th = document.createElement("th"); th.textContent = value; tr.append(th); });
+  head.append(tr);
+  rows.forEach(row => { const tr = document.createElement("tr"); row.forEach(value => { const td = document.createElement("td"); td.textContent = value; tr.append(td); }); body.append(tr); });
+  table.append(head, body); $(id).replaceChildren(table);
+}
+async function showSiteReport() {
+  const version = ++siteReportVersion, id = $("site-report-select").value;
+  $("site-annual-table").replaceChildren(); $("site-hour-table").replaceChildren(); $("site-downloads").replaceChildren();
+  if (!id) return;
+  const report = await request(`/api/site-report?id=${encodeURIComponent(id)}`);
+  if (version !== siteReportVersion) return;
+  $("site-report-text").textContent = report.markdown;
+  const {markdown, ...details} = report;
+  $("site-report-data").textContent = JSON.stringify(details, null, 2);
+  for (const name of ["SITE_REPORT.html", "SITE_REPORT.md", "site_report.json"]) {
+    const link = document.createElement("a"); link.className = "text-link"; link.textContent = `Download ${name}`;
+    link.href = `/api/site-download?id=${encodeURIComponent(id)}&file=${encodeURIComponent(name)}`;
+    $("site-downloads").append(link);
+  }
+  if (report.status !== "research_modeled_exposure") { $("site-report-summary").textContent = report.message; return; }
+  const fmt = value => value === null ? "Unknown" : Number(value).toLocaleString("en-US", {maximumFractionDigits: 1});
+  const first = report.scenario.annual[0];
+  $("site-report-summary").textContent = `${report.location.name}: year-one assumed site exposure P50 ${fmt(first.site_p50_hours)} h, P90 ${fmt(first.site_p90_hours)} h, P99 ${fmt(first.site_p99_hours)} h. Confidence: Low. Site-exposure assumption: ${Math.round(report.assumptions.site_exposure * 100)}%. Grid target: high SPP demand. ${report.model_reused ? "Reused this location's fitted model." : "Fitted using this location's weather."} Historical inputs: 2019–2024; no future-date forecast.`;
+  siteTable("site-annual-table", ["Year", "System P50 h", "System P90 h", "System P99 h", "Assumed site P50 h", "Site P90 h", "Site P99 h", "Conditional P50 MWh"], report.scenario.annual.map(row => [row.year, ...["system_p50_hours", "system_p90_hours", "system_p99_hours", "site_p50_hours", "site_p90_hours", "site_p99_hours", "conditional_p50_mwh"].map(key => fmt(row[key]))]));
+  siteTable("site-hour-table", ["Historical hour UTC", "Proxy probability", "Prior °C", "Prior SPP load MW", "Prior wind MW", "Prior solar MW"], report.historical_highest_hours.map(row => [row.timestamp_utc, `${fmt(row.probability * 100)}%`, ...["prior_temperature_c", "prior_load_mw", "prior_wind_mw", "prior_solar_mw"].map(key => fmt(row[key]))]));
+}
+$("site-search-form").addEventListener("submit", event => { event.preventDefault(); submit({kind: "site-scan", query: $("site-query").value}); });
+$("site-report-form").addEventListener("submit", event => {
+  event.preventDefault();
+  submit({kind: "site-report", scan: $("site-scan-select").value, candidate: Number($("site-candidate").value), load_mw: Number($("site-load").value), conditional_share: Number($("site-conditional").value) / 100, site_exposure: Number($("report-exposure").value), years: Number($("site-years").value), confirm_spp: $("site-confirm-spp").checked});
+});
+$("report-exposure").addEventListener("input", () => { $("report-exposure-value").textContent = `${Math.round(Number($("report-exposure").value) * 100)}%`; });
+$("site-scan-select").addEventListener("change", () => showSiteScan().catch(e => error(e.message)));
+$("site-report-select").addEventListener("change", () => showSiteReport().catch(e => error(e.message)));
 $("weather-form").addEventListener("submit", event => {
   event.preventDefault();
   submit({kind: "weather", dataset: $("weather-dataset").value, location: $("weather-location").value, area: $("area").value});

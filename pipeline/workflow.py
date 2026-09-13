@@ -107,6 +107,9 @@ def write_report(path: Path, report: dict) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Build, evaluate, and inspect Kristian's SPP ML pipeline offline.")
     commands = parser.add_subparsers(dest="command", required=True)
+    site = commands.add_parser("site-job", help="Search a location or build its cached research report.")
+    site.add_argument("--request", type=Path, required=True)
+    site.add_argument("--out", type=Path, required=True)
     commands.add_parser("fetch-sample", help="Check SPP access; cache real load data, using its annual archive if needed.")
     prepare = commands.add_parser("prepare-load", help="Normalize the cached legacy SPP load archive; invents no labels.")
     prepare.add_argument("--raw", type=Path, required=True)
@@ -150,7 +153,10 @@ def main() -> int:
     args = parser.parse_args()
     from requests import RequestException
     try:
-        if args.command == "fetch-sample":
+        if args.command == "site-job":
+            from pipeline.site import run_site_job
+            run_site_job(args.request, args.out)
+        elif args.command == "fetch-sample":
             from pipeline.ingest import fetch_load_sample
             frame, path = fetch_load_sample()
             print(f"Cached {len(frame)} source rows at {path}")

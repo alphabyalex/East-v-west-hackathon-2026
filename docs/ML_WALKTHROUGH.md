@@ -1,5 +1,7 @@
 # Kristian's first ML pipeline
 
+For the automated location-to-report flow, follow [Choose your own location](LOCATION_REPORTS.md). It accepts city/state or coordinates, collects local weather, fits an area-weather model and produces modeled-exposure scenarios from the existing high-demand proxy. You do not need to upload event labels for that research workflow.
+
 For a browser interface, double-click **Open ML Workspace.cmd** in the repository
 and open **http://127.0.0.1:8765**. The [workspace guide](ML_WORKSPACE.md) covers
 area entry, real-data charts, event-label uploads, training and model downloads.
