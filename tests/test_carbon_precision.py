@@ -152,8 +152,10 @@ def test_subnormal_energy_uses_once_rounded_exact_intensity_difference(reverse):
     assert result["mwh_removed"]["value"] == result["mwh_made_up"]["value"] == MIN_SUBNORMAL
     ref = json.loads(result["pairs"][0]["carbon_shifted_kg_co2"]["ref"])
     assert ref["method"] == "MWh * (risk-hour intensity - makeup-hour intensity); positive means lower makeup intensity"
-    assert datum(before, f"intensity {HOURS[0]}") in ref["inputs"]
-    assert datum(after, f"intensity {HOURS[1]}") in ref["inputs"]
+    assert {**datum(before, f"intensity {HOURS[0]}"), "quantity": "intensity_kg_co2_per_mwh", "role": "risk",
+            "timestamp_utc": HOURS[0], "unit": FACTOR_UNIT, "boundary": BOUNDARY} in ref["inputs"]
+    assert {**datum(after, f"intensity {HOURS[1]}"), "quantity": "intensity_kg_co2_per_mwh", "role": "makeup",
+            "timestamp_utc": HOURS[1], "unit": FACTOR_UNIT, "boundary": BOUNDARY} in ref["inputs"]
     assert_assumed(result)
     json.dumps(result, allow_nan=False)
 

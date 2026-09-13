@@ -13,6 +13,10 @@ Hourly results are JSON-compatible records with sourced numeric values. Shift
 inputs pair risk_hour and makeup_hour with one sourced mwh value, representing
 the same energy removed and subsequently made up. Carbon shifted is signed:
 MWh * (risk-hour intensity - makeup-hour intensity), not a causal dispatch claim.
+
+Private inputs inside derived refs retain fuel/quantity and applicable hour/role
+identities even when multiple inputs share a citation. Original input values,
+source types and ref text are preserved; public scalars remain value/source_type/ref.
 """
 from __future__ import annotations
 
@@ -445,7 +449,10 @@ def fuel_mix_intensity(frame: pd.DataFrame, factors: Mapping[str, Mapping], *, e
             raise ValueError("Unknown generation_status")
         else:
             value = _number(value, "Generation MWh")
-        fuels[fuel] = {"value": value, **_source(row)}
+        # Citations may identify a whole table; retain the row identity
+        # on this private datum before derivation evidence is sorted/deduplicated.
+        fuels[fuel] = {"value": value, **_source(row), "quantity": "generation_mwh",
+                       "fuel": fuel, "timestamp_utc": time, "unit": "MWh"}
     result = []
     for time, fuels in sorted(groups.items()):
         fuels = dict(sorted(fuels.items()))
@@ -455,7 +462,10 @@ def fuel_mix_intensity(frame: pd.DataFrame, factors: Mapping[str, Mapping], *, e
         missing = sorted(fuel for fuel, datum in observed.items() if datum["value"] > 0 and fuel not in checked)
         known = math.fsum(datum["value"] for fuel, datum in observed.items() if fuel in checked)
         coverage_source = {**policy, "ref": f"{policy['ref']}; expected_fuels={sorted(expected)}; missing_generation_fuels={missing_generation}; missing_factor_fuels={missing}"}
-        sources = list(fuels.values()) + [checked[fuel] for fuel in sorted(fuels) if fuel in checked] + [coverage_source]
+        sources = list(fuels.values()) + [
+            {**checked[fuel], "quantity": "factor_kg_co2_per_mwh", "fuel": fuel}
+            for fuel in sorted(fuels) if fuel in checked
+        ] + [coverage_source]
         intensity = None
         if not missing_generation and not missing and total > 0:
             terms = [(datum["value"] / total, checked[fuel]["value"])
@@ -546,8 +556,19 @@ def shift_carbon(intensities: Sequence[Mapping], moves: Sequence[Mapping], *, se
         removed.setdefault(risk, []).append(energy["value"])
         made_up.setdefault(makeup, []).append(energy["value"])
         before, after = hours[risk], hours[makeup]
-        provenance = [energy, before, after, policy, limits[risk]["removable_mwh"], limits[makeup]["makeup_capacity_mwh"],
-                      {"source_type": "assumption", "ref": f"submitted conserved-energy pair: risk_hour={risk}; makeup_hour={makeup}; no loss or extra makeup energy modeled"}]
+        # Shared citations and equal values must not erase which quantity
+        # belongs to which hour/role. Original datum values/kinds/refs stay intact.
+        provenance = [
+            {**energy, "quantity": "moved_mwh", "unit": "MWh", "risk_hour": risk, "makeup_hour": makeup},
+            {**before, "quantity": "intensity_kg_co2_per_mwh", "role": "risk",
+             "timestamp_utc": risk, "unit": FACTOR_UNIT, "boundary": BOUNDARY},
+            {**after, "quantity": "intensity_kg_co2_per_mwh", "role": "makeup",
+             "timestamp_utc": makeup, "unit": FACTOR_UNIT, "boundary": BOUNDARY},
+            policy,
+            {**limits[risk]["removable_mwh"], "quantity": "removable_mwh", "unit": "MWh", "timestamp_utc": risk},
+            {**limits[makeup]["makeup_capacity_mwh"], "quantity": "makeup_capacity_mwh", "unit": "MWh", "timestamp_utc": makeup},
+            {"source_type": "assumption", "ref": f"submitted conserved-energy pair: risk_hour={risk}; makeup_hour={makeup}; no loss or extra makeup energy modeled"},
+        ]
         shift = None
         if before["value"] is not None and after["value"] is not None:
             difference = before["value"] - after["value"]

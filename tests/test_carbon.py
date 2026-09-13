@@ -456,7 +456,8 @@ def test_egrid_waste_heat_stays_in_full_generation_denominator_and_assumption_li
     assert result["factor_coverage_fraction"]["value"] == 1.
     assert result["intensity_kg_co2_per_mwh"]["source_type"] == "assumption"
     evidence = json.loads(result["intensity_kg_co2_per_mwh"]["ref"])["inputs"]
-    assert factors["Coal"] in evidence and factors["Waste Heat"] in evidence
+    assert {**factors["Coal"], "quantity": "factor_kg_co2_per_mwh", "fuel": "Coal"} in evidence
+    assert {**factors["Waste Heat"], "quantity": "factor_kg_co2_per_mwh", "fuel": "Waste Heat"} in evidence
     assert all(any(item["ref"] == ref for item in evidence) for ref in frame.ref)
     assert any(POLICY["ref"] in item["ref"] for item in evidence)
     pd.testing.assert_frame_equal(frame, original_frame, check_exact=True)
@@ -481,7 +482,7 @@ def test_egrid_waste_heat_does_not_supply_factors_for_other_positive_unmapped_fu
     assert result["factor_coverage_fraction"]["value"] == .4
     assert result["intensity_kg_co2_per_mwh"]["source_type"] == "assumption"
     evidence = json.loads(result["intensity_kg_co2_per_mwh"]["ref"])["inputs"]
-    assert factors["Waste Heat"] in evidence
+    assert {**factors["Waste Heat"], "quantity": "factor_kg_co2_per_mwh", "fuel": "Waste Heat"} in evidence
     assert all(any(item["ref"] == ref for item in evidence) for ref in frame.ref)
     pd.testing.assert_frame_equal(frame, original_frame, check_exact=True)
     assert factors == original_factors and POLICY == original_policy
@@ -502,7 +503,7 @@ def test_egrid_zero_waste_heat_factor_does_not_make_unknown_generation_evaluable
         assert result[name]["value"] is None and result[name]["source_type"] == "assumption"
     assert result["reported_generation_mwh"]["value"] == result["known_generation_mwh"]["value"] == 30.
     evidence = json.loads(result["intensity_kg_co2_per_mwh"]["ref"])["inputs"]
-    assert factors["Waste Heat"] in evidence
+    assert {**factors["Waste Heat"], "quantity": "factor_kg_co2_per_mwh", "fuel": "Waste Heat"} in evidence
     assert any(item["ref"] == frame.loc[1, "ref"] and item["value"] is None for item in evidence)
     pd.testing.assert_frame_equal(frame, original_frame, check_exact=True)
     assert factors == original_factors and POLICY == original_policy

@@ -344,7 +344,7 @@ def test_provenance_retains_factor_value_unit_boundary_and_original_refs(tmp_pat
     result = compose_grid_impact("NODE", carbon_shift=shifted, shift_coverage=coverage())
     assert_complete_evidence_graph(result)
     inputs = [item for node in result["evidence"].values() for item in node.get("inputs", [])]
-    assert factors["Gas"] in inputs
+    assert {**factors["Gas"], "quantity": "factor_kg_co2_per_mwh", "fuel": "Gas"} in inputs
     assert any(item.get("ref") == "synthetic geography-year mapping; expected_fuels=['Gas', 'Wind']; missing_generation_fuels=[]; missing_factor_fuels=[]" for item in inputs)
     assert "generation-weighted average; not marginal dispatch intensity" in evidence_text(result)
     assert risk in evidence_text(result) and makeup in evidence_text(result)
