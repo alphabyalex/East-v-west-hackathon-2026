@@ -526,6 +526,112 @@ def read_cached_day_ahead_prices(year: int, *, settlement_locations: list[str]) 
                                    "https://portal.spp.org/api/pageConfig/by-slug/da-lmp-by-settlement-location"}
 
 
+def read_cached_day_ahead_price_month(
+    year: int = 2025, month: int = 1, *, settlement_locations: list[str],
+) -> tuple[pd.DataFrame, dict]:
+    """Prepare exact-location DA LMP from one already-cached 2025 monthly CSV.
+
+    Date at UTC midnight plus HE minus one hour is an INFERRED interval-start
+    mapping. It matched all selected 2024 monthly/daily prices, including DST,
+    but is not explicitly defined in the reviewed SPP guide. Therefore the
+    returned source remains an assumption and retains the raw source/hash.
+
+    The file spans a Central operating month, with null UTC-date padding on
+    its first/final rows. Drop only that padding; interior missing prices stay
+    missing, absent rows are not filled, and negative prices are valid. Output
+    uses the annual reader's six columns. No fetching, annualization, time-zone
+    shift of the HE grid, publication-vintage claim or API-time parsing occurs.
+    """
+    if isinstance(year, bool) or not isinstance(year, int) or year != 2025:
+        raise ValueError("The reviewed monthly day-ahead price reader supports only 2025.")
+    if isinstance(month, bool) or not isinstance(month, int) or not 1 <= month <= 12:
+        raise ValueError("Select an integer day-ahead operating month from 1 through 12.")
+    if not isinstance(settlement_locations, list) or not settlement_locations or any(
+        not isinstance(value, str) or not value.strip() or value != value.strip() for value in settlement_locations
+    ) or len(set(settlement_locations)) != len(settlement_locations):
+        raise ValueError("Select a nonempty unique list of exact settlement-location identifiers.")
+    path = ROOT / f"data/raw/spp/evidence/da_lmp_settlement_{year}_{month:02d}.parquet"
+    cached = pd.read_parquet(path)
+    if len(cached) != 1 or not cached.columns.is_unique or not {"request_url", "content", "source_json"}.issubset(cached.columns):
+        raise ValueError("Invalid cached monthly day-ahead price record.")
+    row = cached.iloc[0]
+    url = ("https://portal.spp.org/file-browser-api/download/da-lmp-by-settlement-location"
+           f"?path=/{year}/{month:02d}/DA-LMP-MONTHLY-SL-{year}{month:02d}.csv")
+    manifest = _strict_wind_json(row.source_json)
+    if not isinstance(manifest, dict) or row.request_url != url or manifest.get("requested_url") != url or manifest.get("ref") != url:
+        raise ValueError("Monthly day-ahead cache must identify its exact SPP CSV URL.")
+    origin = source({key: manifest.get(key) for key in ("source_type", "ref")})
+    if not isinstance(row.content, (bytes, bytearray)) or not row.content:
+        raise ValueError("Cached monthly day-ahead observations must contain CSV bytes.")
+    digest = hashlib.sha256(row.content).hexdigest()
+    if manifest.get("sha256") != digest:
+        raise ValueError("Cached monthly day-ahead bytes do not match their source fingerprint.")
+    stream = io.BytesIO(row.content)
+    _archive_csv_header(stream)
+    identifiers = ["Date", "Settlement Location Name", "PNODE Name", "Price Type"]
+    hours = [f"HE{hour:02d}" for hour in range(1, 25)]
+    selected = []
+    # Read text first: CSV cannot encode genuine complex/temporal quantities,
+    # and pandas' default NA tokens must not change exact published identities.
+    for chunk in pd.read_csv(stream, dtype=str, keep_default_na=False, chunksize=20_000):
+        chunk.columns = chunk.columns.str.strip()
+        if set(chunk.columns) != set(identifiers + hours):
+            raise ValueError("Monthly day-ahead CSV requires exactly Date, exact identifiers, Price Type and HE01 through HE24.")
+        local = chunk.loc[chunk["Settlement Location Name"].isin(settlement_locations) & chunk["Price Type"].eq("LMP"),
+                          identifiers + hours]
+        if not local.empty:
+            selected.append(local.copy())
+    if not selected:
+        raise ValueError("No cached LMP observations for the explicitly selected settlement locations.")
+    wide = pd.concat(selected, ignore_index=True)
+    absent = set(settlement_locations) - set(wide["Settlement Location Name"])
+    if absent:
+        raise ValueError(f"No cached LMP observations for exact settlement locations: {sorted(absent)}.")
+    if not wide.Date.str.fullmatch(r"\d{4}/\d{2}/\d{2}").all():
+        raise ValueError("Monthly day-ahead Date requires strict YYYY/MM/DD text.")
+    dates = pd.to_datetime(wide.Date, format="%Y/%m/%d", utc=True)
+    first_date = pd.Timestamp(year=year, month=month, day=1, tz="UTC")
+    next_date = first_date + pd.offsets.MonthBegin()
+    if not dates.between(first_date, next_date).all():
+        raise ValueError("Monthly day-ahead dates exceed the declared month and its final padding date.")
+    if not wide["PNODE Name"].map(lambda value: isinstance(value, str) and bool(value.strip())).all():
+        raise ValueError("Selected prices require their explicit published Pnode identifiers.")
+    frame = wide.melt(id_vars=identifiers, value_vars=hours, var_name="HE", value_name="LMP")
+    frame["LMP"] = frame.LMP.mask(frame.LMP.str.strip().eq(""), np.nan)
+    if frame.LMP.map(lambda value: isinstance(value, (bool, np.bool_))).any():
+        raise ValueError("Day-ahead LMP cannot be boolean.")
+    frame["LMP"] = _numeric_observations(frame.LMP, "LMP").astype(float)
+    if np.isinf(frame.LMP).any():
+        raise ValueError("Day-ahead LMP cannot be infinite.")
+    frame["Interval Start"] = (pd.to_datetime(frame.Date, format="%Y/%m/%d", utc=True)
+                               + pd.to_timedelta(frame.HE.str[2:].astype(int) - 1, unit="h"))
+    start = first_date.tz_localize(None).tz_localize("America/Chicago").tz_convert("UTC")
+    end = next_date.tz_localize(None).tz_localize("America/Chicago").tz_convert("UTC")
+    inside = frame["Interval Start"].ge(start) & frame["Interval Start"].lt(end)
+    if frame.loc[~inside, "LMP"].notna().any():
+        raise ValueError("Monthly day-ahead prices outside the declared operating month must be null padding.")
+    padding = int((~inside).sum())
+    frame = frame.loc[inside].copy()
+    if frame.empty:
+        raise ValueError("No cached observations within the declared day-ahead operating month.")
+    frame["Interval End"] = frame["Interval Start"] + pd.Timedelta(1, unit="h")
+    frame["Market"] = "DAY_AHEAD_HOURLY"
+    frame = frame.rename(columns={"Settlement Location Name": "Location", "PNODE Name": "Pnode"})
+    frame = frame[["Interval Start", "Interval End", "Market", "Location", "Pnode", "LMP"]].drop_duplicates()
+    if frame.duplicated(["Location", "Interval Start"]).any():
+        raise ValueError("Conflicting settlement price or Pnode revisions must be reconciled first.")
+    frame = frame.sort_values(["Location", "Interval Start"]).reset_index(drop=True)
+    return frame, {"source_type": "assumption", "ref": json.dumps({
+        "method": f"monthly_da_lmp_utc_he_v1; exact Settlement Location selection={sorted(settlement_locations)!r}; "
+                  f"LMP only, USD/MWh; null boundary padding discarded={padding}; "
+                  "interior missing observations retained; no gap filling; publication vintage unverified",
+        "inputs": [{**origin, "ref": f"{origin['ref']}; cached_sha256={digest}"},
+                   {"source_type": "assumption", "ref": "Date UTC midnight + (HE - 1) hours is the interval start; "
+                    "inferred from 2024 monthly/daily correspondence including DST, not explicitly defined by the reviewed SPP guide; "
+                    f"declared America/Chicago operating month [{start.isoformat()}, {end.isoformat()})"}],
+    }, sort_keys=True, separators=(",", ":"))}
+
+
 def _complete_hourly_power(raw: pd.DataFrame, value_column: str, *, nonnegative=False) -> pd.DataFrame:
     """Mean MW or mean price only when interval coverage fills the whole hour.
 
