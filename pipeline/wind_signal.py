@@ -55,6 +55,9 @@ from pipeline.common import ROOT, fingerprint, read_hourly
 from pipeline.generation import normalize_generation
 from pipeline.prepare import LOAD_AREAS
 
+# Disk source observed during import, not an attestation of loader/pyc authenticity.
+_WIND_REPLAY_IMPORT_SOURCE_SHA256 = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+
 
 GENMIX_SOURCE_QUALIFICATION = {
     "revision": "spp-generation-source-review-20260913",
@@ -1615,6 +1618,10 @@ def publish_wind_replay(*, bundle_path, hourly_path, labels_path, baseline_path,
     consumed data. File checksums and semantic-frame hashes have distinct roles.
     Baseline provenance is the caller's declaration, not authenticated here.
 
+    Source fingerprints reject disk edits after import and during evaluation.
+    They do not attest loader/bytecode authenticity, imported dependencies or
+    source truth; use a fresh process after changing this module.
+
     Evaluation and lossless parquet round-trip checks complete before creating
     output_dir. Its exclusive creation protects existing/racing destinations.
     Files are flushed before the final manifest is atomically hard-linked into
@@ -1629,6 +1636,9 @@ def publish_wind_replay(*, bundle_path, hourly_path, labels_path, baseline_path,
     output_dir = Path(output_dir)
     if output_dir.exists() or output_dir.is_symlink():
         raise FileExistsError(f"Replay output already exists: {output_dir}")
+    source_file = Path(__file__).read_bytes()
+    if hashlib.sha256(source_file).hexdigest() != _WIND_REPLAY_IMPORT_SOURCE_SHA256:
+        raise ValueError("Replay source file changed after module import; restart from a stable code version.")
     paths = {"bundle": Path(bundle_path), "hourly": Path(hourly_path),
              "labels": Path(labels_path), "baseline": Path(baseline_path)}
     content = {name: path.read_bytes() for name, path in paths.items()}
@@ -1638,7 +1648,6 @@ def publish_wind_replay(*, bundle_path, hourly_path, labels_path, baseline_path,
     labels = pd.read_parquet(io.BytesIO(content["labels"]), engine="pyarrow")
     if "sources" not in hourly.attrs:
         raise ValueError("Hourly replay parquet must preserve attrs.sources; no source defaults are inferred.")
-    source_file = Path(__file__).read_bytes()
     report, rows = evaluate_wind_event_classifier(
         bundle, hourly, labels, sources=hourly.attrs["sources"], baseline_probability=baseline,
         start_utc=start_utc, end_exclusive_utc=end_exclusive_utc,
