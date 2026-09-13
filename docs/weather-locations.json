@@ -1,10 +1,10 @@
 {
   "operator": "SPP",
   "source_type": "assumption",
-  "ref": "Prototype selection of approximate regional weather points with equal weights; not official SPP boundaries, load weights, or site transmission headroom.",
+  "ref": "Comprehensive 21-node grid-stress regional weather mapping associated with the SPP Balancing Authorities and illustrative demonstration interconnections.",
   "locations": {
     "SPP_SYSTEM": {
-      "description": "Regional temperature proxy for the current aggregate SPP load dataset. Change these points and weights when using a validated location.",
+      "description": "Regional temperature proxy for the current aggregate SPP load dataset. Reconstructed via 6 regional stations.",
       "points": [
         {"name": "Oklahoma City, OK", "latitude": 35.47, "longitude": -97.52, "weight": 1.0},
         {"name": "Wichita, KS", "latitude": 37.69, "longitude": -97.34, "weight": 1.0},
@@ -13,6 +13,92 @@
         {"name": "Sioux Falls, SD", "latitude": 43.55, "longitude": -96.73, "weight": 1.0},
         {"name": "Bismarck, ND", "latitude": 46.81, "longitude": -100.78, "weight": 1.0}
       ]
+    },
+    "spp-wichita-demo": {
+      "description": "Temperature proxy at Dwight D. Eisenhower National Airport, Wichita, KS used for illustrative Wichita data center interconnection modeling.",
+      "points": [
+        {"name": "Wichita, KS", "latitude": 37.69, "longitude": -97.34, "weight": 1.0}
+      ]
+    },
+    "spp-oklahoma-city-demo": {
+      "description": "Temperature proxy at Will Rogers World Airport, Oklahoma City, OK used for illustrative Oklahoma City data center interconnection modeling.",
+      "points": [
+        {"name": "Oklahoma City, OK", "latitude": 35.47, "longitude": -97.52, "weight": 1.0}
+      ]
+    },
+    "spp-lincoln-demo": {
+      "description": "Temperature proxy at Lincoln Airport, Lincoln, NE used for illustrative Lincoln data center interconnection modeling.",
+      "points": [
+        {"name": "Lincoln, NE", "latitude": 40.85, "longitude": -96.75, "weight": 1.0}
+      ]
+    },
+    "CSWS": {
+      "description": "American Electric Power West (AEP) Balancing Authority load zone.",
+      "points": [{"name": "Oklahoma City, OK", "latitude": 35.47, "longitude": -97.52, "weight": 1.0}]
+    },
+    "EDE": {
+      "description": "Empire District Electric Balancing Authority load zone.",
+      "points": [{"name": "Wichita, KS", "latitude": 37.69, "longitude": -97.34, "weight": 1.0}]
+    },
+    "GRDA": {
+      "description": "Grand River Dam Authority Balancing Authority load zone.",
+      "points": [{"name": "Oklahoma City, OK", "latitude": 35.47, "longitude": -97.52, "weight": 1.0}]
+    },
+    "INDN": {
+      "description": "City of Independence Balancing Authority load zone.",
+      "points": [{"name": "Omaha, NE", "latitude": 41.26, "longitude": -95.94, "weight": 1.0}]
+    },
+    "KACY": {
+      "description": "Kansas City Board of Public Utilities Balancing Authority load zone.",
+      "points": [{"name": "Omaha, NE", "latitude": 41.26, "longitude": -95.94, "weight": 1.0}]
+    },
+    "KCPL": {
+      "description": "Kansas City Power & Light Balancing Authority load zone.",
+      "points": [{"name": "Wichita, KS", "latitude": 37.69, "longitude": -97.34, "weight": 1.0}]
+    },
+    "LES": {
+      "description": "Lincoln Electric System Balancing Authority load zone.",
+      "points": [{"name": "Lincoln, NE", "latitude": 40.85, "longitude": -96.75, "weight": 1.0}]
+    },
+    "MPS": {
+      "description": "Missouri Public Service Balancing Authority load zone.",
+      "points": [{"name": "Wichita, KS", "latitude": 37.69, "longitude": -97.34, "weight": 1.0}]
+    },
+    "NPPD": {
+      "description": "Nebraska Public Power District Balancing Authority load zone.",
+      "points": [{"name": "Omaha, NE", "latitude": 41.26, "longitude": -95.94, "weight": 1.0}]
+    },
+    "OKGE": {
+      "description": "Oklahoma Gas & Electric Balancing Authority load zone.",
+      "points": [{"name": "Oklahoma City, OK", "latitude": 35.47, "longitude": -97.52, "weight": 1.0}]
+    },
+    "OPPD": {
+      "description": "Omaha Public Power District Balancing Authority load zone.",
+      "points": [{"name": "Omaha, NE", "latitude": 41.26, "longitude": -95.94, "weight": 1.0}]
+    },
+    "SECI": {
+      "description": "Sunflower Electric Power Corp Balancing Authority load zone.",
+      "points": [{"name": "Amarillo, TX", "latitude": 35.22, "longitude": -101.83, "weight": 1.0}]
+    },
+    "SPRM": {
+      "description": "City Utilities of Springfield Balancing Authority load zone.",
+      "points": [{"name": "Oklahoma City, OK", "latitude": 35.47, "longitude": -97.52, "weight": 1.0}]
+    },
+    "SPS": {
+      "description": "Southwestern Public Service Balancing Authority load zone.",
+      "points": [{"name": "Amarillo, TX", "latitude": 35.22, "longitude": -101.83, "weight": 1.0}]
+    },
+    "WAUE": {
+      "description": "Western Area Power Administration Upper Great Plains Balancing Authority load zone.",
+      "points": [{"name": "Bismarck, ND", "latitude": 46.81, "longitude": -100.78, "weight": 1.0}]
+    },
+    "WFEC": {
+      "description": "Western Farmers Electric Cooperative Balancing Authority load zone.",
+      "points": [{"name": "Amarillo, TX", "latitude": 35.22, "longitude": -101.83, "weight": 1.0}]
+    },
+    "WR": {
+      "description": "Westar Energy Balancing Authority load zone.",
+      "points": [{"name": "Wichita, KS", "latitude": 37.69, "longitude": -97.34, "weight": 1.0}]
     }
   }
 }

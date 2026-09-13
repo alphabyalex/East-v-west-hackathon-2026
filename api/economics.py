@@ -5,7 +5,8 @@ import math
 import re
 from datetime import date
 from pathlib import Path
-from typing import Annotated, Literal, Self
+from typing import Annotated, Literal
+from typing_extensions import Self
 from urllib.parse import urlparse
 
 from pydantic import Field, ValidationError, model_validator
