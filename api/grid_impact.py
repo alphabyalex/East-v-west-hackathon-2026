@@ -73,6 +73,24 @@ schedule. Legacy snapshots remain readable as fixed scenarios, but cannot be use
 by this recomputation helper. Neither site_exposure nor interruptibility itself
 establishes available upward capacity; the caller must state that assumption.
 
+Consumer example: bundle_dir is a verified local bundle Path; selected_point is
+an exact published identifier. Both controls are caller-supplied
+{value, source_type, ref} objects; no capacity or availability defaults are implied:
+  cache = GridImpactSnapshotCache()  # Create once and retain in the owning app.
+  snapshot_by_point = {"LES_LES": bundle_dir / "LES_LES.snapshot.json"}
+  result = read_wind_scenario(selected_point, snapshot_by_point[selected_point],
+      flexible_load_mw=flexible_load_mw, available_fraction=available_fraction,
+      cache=cache)
+  for field in ("wind_absorption_mwh_in_observed_hours", "wind_absorption_mwh_per_year"):
+      datum, unit = result[field], result["units"][field]
+      display = "Unavailable" if datum["value"] is None else f"{datum['value']} {unit}"
+      provenance = {key: datum[key] for key in ("source_type", "ref")}
+      evidence = result["evidence"]  # Resolve local provenance pointers here.
+Keep the observed-period and annual displays distinct: observed MWh cannot replace
+an annual null, even when the requested calendar spans a whole year. Preserve
+coverage and source details with either display. Associated wind operational CO2
+is not an offset; carbon shifted stays unavailable without a supported schedule.
+
 Offline handoff commands (run from the repository root):
   python -m api.grid_impact compile --input prepared.json --location-id EXACT_ID --output new.snapshot.json
   python -m api.grid_impact check --snapshot received.snapshot.json --location-id EXACT_ID
