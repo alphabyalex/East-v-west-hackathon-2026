@@ -158,9 +158,21 @@ Keep these files together when publishing an offline run to `data/processed`;
 the workflow's run directory is not automatically promoted into the API.
 It retains the model version, precedent count, and experimental annual-tail
 limitations in `source_type: "model"` references. Confidence uses the contracted
-`ensemble_disagreement` basis and is not changed by the site assumption.
-The current simulator caps annual confidence at Low; its score measures classifier
-agreement, not annual-tail calibration. `worst_contiguous_hours` is the p99 of
+string `basis` field with value `ensemble_agreement_and_historical_support` and
+is not changed by the site assumption. Both sidecars must carry the current
+`confidence_policy` (version 2). The API recomputes the saved score, components,
+and classifier badge from recorded spread, same-location precedent, and limitations
+using the producer's shared arithmetic, without importing the training stack.
+Zero precedent means zero confidence; agreement alone cannot earn a high score.
+Stale policies, mismatched evidence, duplicate JSON keys, and non-finite metadata
+return 503. Regenerate the matching bundle offline before publishing it.
+This checks consistency of recorded evidence; it does not recompute neighbors or
+establish the authenticity of a model run.
+The current simulator separately caps annual confidence at Low; its numeric score
+combines classifier agreement with historical support and validation limits, not
+annual-tail calibration or a probability of correctness. Source references include
+the policy version, both score components, precedent count, and limitations.
+`worst_contiguous_hours` is the p99 of
 annual longest modeled episodes, not a guaranteed upper bound. The API reports
 the maximum of those annual statistics over the requested term, scaled by the
 user's site factor; it is not an observed outage length.
@@ -197,6 +209,17 @@ when exposure comes from the pipeline.
 | Present reader has a broken dependency/import, runtime failure, or malformed output | 503 |
 | Precomputed output does not cover the requested term | 503 |
 | Missing or invalid economics assumptions file | 503 |
+
+## Zone rankings
+
+`GET /api/zone-rankings` reads the saved manifest without generating rankings.
+It requires a nonempty list of unique locations, sequential ranks starting at one,
+and descending composite scores (ties retain the saved order). Component scores
+must lie in [0, 1], composite scores in [0, 100], and ordered risk quantiles and
+episode lengths within the producer's 8,760-hour comparison year. Invalid or
+unreadable artifacts return 503 rather than an inconsistent leaderboard.
+Wind provenance remains attached to each row; structural validation does not turn
+the current offline generator's illustrative wind/carbon inputs into observations.
 
 Broken data is never silently replaced with a successful placeholder response.
 A newly appearing module/file is checked on subsequent requests; restart the API

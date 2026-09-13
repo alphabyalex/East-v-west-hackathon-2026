@@ -2,7 +2,6 @@
 
 from importlib import import_module, invalidate_caches
 from datetime import datetime
-import json
 import logging
 from pathlib import Path
 import re
@@ -11,6 +10,7 @@ from typing_extensions import Self
 
 from pydantic import Field, ValidationError, model_validator
 
+from .artifact_json import loads_artifact
 from .mock_provider import BaselineYear, LocationEstimate, LocationNotFoundError, get_mock_location, placeholder_tariff
 from .schemas import Confidence, ContractModel, Fraction, NonEmpty, NonNegative, Source
 
@@ -45,6 +45,17 @@ class PipelineConfidence(ContractModel):
     n_similar_historical_hours: Annotated[int, Field(ge=0)]
 
 
+class ConfidenceEvidence(PipelineConfidence):
+    """Recorded classifier evidence, before the separate annual-tail Low cap."""
+
+    agreement_score: Fraction
+    historical_support_score: Fraction
+    mean_ensemble_probability_std: Annotated[float, Field(ge=0, le=0.5)]
+    limitations: list[NonEmpty]
+    policy_version: Annotated[int, Field(ge=2, le=2)]
+    source_ref: Literal["pipeline/confidence.py:CONFIDENCE_POLICY"]
+
+
 class PipelineEstimate(ContractModel):
     """Exact get_location_estimate output from BUILD_PLAN.md section 1."""
 
@@ -67,10 +78,32 @@ def _placeholder(location_id: str, reason: str) -> LocationEstimate:
 
 
 def _read_provenance(path: Path) -> dict:
-    value = json.loads(path.read_text(encoding="utf-8"))
+    value = loads_artifact(path.read_text(encoding="utf-8"))
     if not isinstance(value, dict):
         raise ValueError(f"{path.name} must contain a JSON object")
     return value
+
+
+def _validate_confidence(data: PipelineEstimate, card: dict, simulation: dict) -> ConfidenceEvidence:
+    # Share the producer's arithmetic without importing training or fitting models.
+    from pipeline.confidence_policy import CONFIDENCE_POLICY, confidence_from_evidence
+
+    for manifest in (card, simulation):
+        policy = manifest.get("confidence_policy")
+        if (not isinstance(policy, dict) or policy != CONFIDENCE_POLICY
+                or any(type(policy[key]) is not type(value) for key, value in CONFIDENCE_POLICY.items())):
+            raise ValueError("Stale or unsupported confidence policy; regenerate the matching artifact bundle")
+    by_location = card.get("confidence")
+    if not isinstance(by_location, dict):
+        raise ValueError("Model card requires per-location confidence evidence")
+    evidence = ConfidenceEvidence.model_validate(by_location.get(data.location_id))
+    expected = confidence_from_evidence(evidence.mean_ensemble_probability_std,
+                                        evidence.n_similar_historical_hours, evidence.limitations)
+    if evidence.model_dump() != expected:
+        raise ValueError("Confidence score/components do not match the recorded agreement and historical support")
+    if any(expected[key] != getattr(data.confidence, key) for key in ("score", "n_similar_historical_hours")):
+        raise ValueError("Confidence evidence does not match the exposure table")
+    return evidence
 
 
 def _validate_provenance(data: PipelineEstimate, card: dict, simulation: dict) -> tuple[str, str]:
@@ -128,12 +161,7 @@ def _validate_provenance(data: PipelineEstimate, card: dict, simulation: dict) -
         raise ValueError("Exposure exceeds the simulation's hours per year")
     if data.confidence.level != "Low":
         raise ValueError("Unvalidated annual exposure confidence must remain capped Low")
-    confidence = card.get("confidence", {}).get(data.location_id)
-    if not isinstance(confidence, dict) or any(
-        confidence.get(key) != getattr(data.confidence, key)
-        for key in ("score", "n_similar_historical_hours")
-    ):
-        raise ValueError("Classifier agreement does not match the exposure table")
+    confidence = _validate_confidence(data, card, simulation)
     members = card.get("settings", {}).get("ensemble_members")
     if type(members) is not int or members < 2:
         raise ValueError("Model card requires at least two ensemble members")
@@ -150,8 +178,13 @@ def _validate_provenance(data: PipelineEstimate, card: dict, simulation: dict) -
     )
     confidence_ref = (
         f"{exposure_ref}; ensemble_members={members}; "
+        f"confidence_policy_version={confidence.policy_version}; "
         f"n_similar_historical_hours={data.confidence.n_similar_historical_hours}; "
-        "annual exposure confidence capped Low; numeric score describes classifier ensemble agreement, "
+        f"agreement_score={confidence.agreement_score:.12g}; "
+        f"historical_support_score={confidence.historical_support_score:.12g}; "
+        f"limitations={','.join(confidence.limitations) or 'none recorded'}; "
+        "annual exposure confidence capped Low; numeric score combines classifier ensemble agreement "
+        "with same-location historical support and validation limits, "
         "not annual-tail coverage or a probability of correctness"
     )
     return exposure_ref, confidence_ref
@@ -272,7 +305,7 @@ def get_pipeline_location(location_id: str) -> LocationEstimate:
         confidence=Confidence(
             level=data.confidence.level,
             score=data.confidence.score,
-            basis="ensemble_disagreement",
+            basis="ensemble_agreement_and_historical_support",
             source=Source(source_type="model", ref=confidence_ref),
         ),
         source=Source(source_type="model", ref=exposure_ref),

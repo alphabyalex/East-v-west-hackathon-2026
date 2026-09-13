@@ -12,9 +12,11 @@ from api.estimate import build_estimate
 from api.mock_provider import LocationNotFoundError
 from api.pipeline_provider import PipelineDataError, get_pipeline_location
 from api.schemas import EstimateRequest
+from pipeline.confidence_policy import CONFIDENCE_POLICY, confidence_from_evidence
 
 
 LOCATION = "SPP_SPS_HUB"
+CONFIDENCE_EVIDENCE = confidence_from_evidence(0.1, 1000, [])
 
 
 @pytest.fixture
@@ -33,7 +35,7 @@ def payload():
         ],
         "confidence": {
             "level": "Low",
-            "score": 0.8,
+            "score": CONFIDENCE_EVIDENCE["score"],
             "n_similar_historical_hours": 1000,
         },
         "model_version": "test_precomputed_reader_v1",
@@ -52,7 +54,8 @@ def write_manifests(parquet, payload):
         "status": "research_only_pending_label_and_calibration_review",
         "policy": policy,
         "input_hashes": {"hourly_sha256": "a" * 64, "policy_sha256": "b" * 64},
-        "confidence": {payload["location_id"]: payload["confidence"]},
+        "confidence": {payload["location_id"]: CONFIDENCE_EVIDENCE},
+        "confidence_policy": CONFIDENCE_POLICY,
         "settings": {"ensemble_members": 15},
         "splits": {"test": {"start": "2023-01-01T00:00:00Z", "end": "2023-12-31T23:00:00Z", "rows": 8760}},
         "test_by_location": {payload["location_id"]: {"n_hours": 8760}},
@@ -65,6 +68,7 @@ def write_manifests(parquet, payload):
         "site_exposure_applied": False, "simulations": 2000,
         "years": len(payload["by_year"]), "seed": 2026, "block_hours": 168,
         "hours_per_year": 8760,
+        "confidence_policy": CONFIDENCE_POLICY,
     }
     for name, document in (("model_card.json", card), ("simulation_metadata.json", simulation)):
         parquet.with_name(name).write_text(json.dumps(document), encoding="utf-8")
@@ -118,13 +122,14 @@ def test_imports_reader_and_preserves_precomputed_values_and_provenance(payload,
     assert "test_precomputed_reader_v1" in location.source.ref
     assert "data/processed/exposure_by_location.parquet" in location.source.ref
     assert location.confidence.level == "Low"
-    assert location.confidence.score == 0.8
-    assert location.confidence.basis == "ensemble_disagreement"
+    assert location.confidence.score == payload["confidence"]["score"]
+    assert location.confidence.basis == "ensemble_agreement_and_historical_support"
     assert location.confidence.source.source_type == "model"
     assert "n_similar_historical_hours=1000" in location.confidence.source.ref
     assert "experimental_unvalidated_annual_tails" in location.source.ref
     assert "p99 of annual longest modeled episodes, not a guaranteed maximum" in location.source.ref
-    assert "numeric score describes classifier ensemble agreement" in location.confidence.source.ref
+    assert "numeric score combines classifier ensemble agreement with same-location historical support" in location.confidence.source.ref
+    assert "confidence_policy_version=2" in location.confidence.source.ref
     assert "not annual-tail coverage" in location.confidence.source.ref
     # A real exposure reader does not turn unpublished tariff extraction into fact.
     assert all(trigger.source.source_type == "assumption" for trigger in location.tariff.curtailment_triggers)
@@ -147,7 +152,7 @@ def test_site_factor_is_applied_once_downstream_of_the_reader(payload, install_r
     assert result.modeled_exposure.p90 == 75
     assert result.modeled_exposure.p99 == 112.5
     assert result.modeled_exposure.worst_contiguous_outage_hours == 10
-    assert result.confidence.score == 0.8
+    assert result.confidence.score == payload["confidence"]["score"]
     assert result.modeled_exposure.source.source_type == "model"
     assert result.economics.source.source_type == "assumption"
 
@@ -576,8 +581,119 @@ def test_real_parquet_reader_round_trip_never_trains_simulates_or_fetches(payloa
     assert response.json()["modeled_exposure"]["p50"] == 37.5
     assert response.json()["modeled_exposure"]["source"]["source_type"] == "model"
     assert response.json()["confidence"]["level"] == "Low"
-    assert response.json()["confidence"]["score"] == 0.8
+    assert response.json()["confidence"]["score"] == payload["confidence"]["score"]
     assert "not annual-tail coverage" in response.json()["confidence"]["source"]["ref"]
     assert unavailable_location.status_code == 404
     reader.assert_any_call(LOCATION, path=parquet)
     forbidden.assert_not_called()
+
+
+@pytest.mark.parametrize("name", ["model_card.json", "simulation_metadata.json"])
+@pytest.mark.parametrize("policy", [None, {}, {"version": 1}, {**CONFIDENCE_POLICY, "medium_precedent_min": 1}])
+def test_api_rejects_missing_stale_or_altered_confidence_policy(payload, install_reader, name, policy):
+    _, parquet = install_reader(Mock(return_value=payload))
+    path = parquet.with_name(name)
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    if policy is None:
+        manifest.pop("confidence_policy")
+    else:
+        manifest["confidence_policy"] = policy
+    path.write_text(json.dumps(manifest), encoding="utf-8")
+    with pytest.raises(PipelineDataError, match="confidence policy"):
+        get_pipeline_location(LOCATION)
+
+
+@pytest.mark.parametrize("field,value", [
+    ("score", .99), ("agreement_score", .99), ("historical_support_score", 1.0),
+    ("mean_ensemble_probability_std", .01), ("n_similar_historical_hours", 0),
+    ("n_similar_historical_hours", 1000.0), ("policy_version", 2.0),
+    ("limitations", ["does_not_beat_baseline"]), ("level", "High"),
+    ("source_ref", "unrelated producer"),
+])
+def test_api_rejects_inconsistent_or_coerced_confidence_evidence(payload, install_reader, field, value):
+    _, parquet = install_reader(Mock(return_value=payload))
+    path = parquet.with_name("model_card.json")
+    card = json.loads(path.read_text(encoding="utf-8"))
+    card["confidence"][LOCATION][field] = value
+    path.write_text(json.dumps(card), encoding="utf-8")
+    with pytest.raises(PipelineDataError, match="artifact provenance is invalid"):
+        get_pipeline_location(LOCATION)
+
+
+def test_api_rejects_original_bug_even_when_table_and_card_scores_match(payload, install_reader):
+    from fastapi.testclient import TestClient
+    from api.main import app
+
+    _, parquet = install_reader(Mock(return_value=payload))
+    path = parquet.with_name("model_card.json")
+    card = json.loads(path.read_text(encoding="utf-8"))
+    evidence = confidence_from_evidence(.006, 0, [])
+    evidence["score"] = .988  # Old agreement-only score paired with zero support.
+    card["confidence"][LOCATION] = evidence
+    payload["confidence"].update(score=.988, n_similar_historical_hours=0)
+    path.write_text(json.dumps(card), encoding="utf-8")
+    with TestClient(app) as client:
+        response = client.post("/api/estimate", json={
+            "location_id": LOCATION, "load_mw": 100, "term_years": 2,
+            "flexibility_split": .6, "site_exposure": .25,
+        })
+    assert response.status_code == 503
+    assert "historical support" in response.json()["detail"]
+
+
+@pytest.mark.parametrize("count,expected_score", [(0, 0), (5, .1976), (200, .69)])
+def test_api_preserves_supported_scores_and_describes_the_evidence(payload, install_reader, count, expected_score):
+    _, parquet = install_reader(Mock(return_value=payload))
+    path = parquet.with_name("model_card.json")
+    card = json.loads(path.read_text(encoding="utf-8"))
+    evidence = confidence_from_evidence(.006, count, ["does_not_beat_baseline"])
+    card["confidence"][LOCATION] = evidence
+    payload["confidence"].update(score=evidence["score"], n_similar_historical_hours=count)
+    path.write_text(json.dumps(card), encoding="utf-8")
+
+    result = get_pipeline_location(LOCATION)
+    assert result.confidence.score == pytest.approx(expected_score)
+    assert result.confidence.level == "Low"
+    assert result.confidence.basis == "ensemble_agreement_and_historical_support"
+    assert "agreement_score=0.988;" in result.confidence.source.ref
+    assert f"n_similar_historical_hours={count};" in result.confidence.source.ref
+    assert "does_not_beat_baseline" in result.confidence.source.ref
+
+
+@pytest.mark.parametrize("name", ["model_card.json", "simulation_metadata.json"])
+@pytest.mark.parametrize("extra", ['"audit": {"value": 0, "value": 1}', '"audit": 1e9999'])
+def test_ambiguous_metadata_is_rejected_at_reader_boundary(payload, install_reader, name, extra):
+    _, parquet = install_reader(Mock(return_value=payload))
+    path = parquet.with_name(name)
+    contents = path.read_text(encoding="utf-8")
+    path.write_text("{" + extra + "," + contents[1:], encoding="utf-8")
+    with pytest.raises(PipelineDataError, match="artifact provenance is invalid"):
+        get_pipeline_location(LOCATION)
+
+
+def test_confidence_validation_does_not_import_the_training_stack(payload, install_reader):
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    _, parquet = install_reader(Mock(return_value=payload))
+    documents = [payload] + [json.loads(parquet.with_name(name).read_text(encoding="utf-8"))
+                            for name in ("model_card.json", "simulation_metadata.json")]
+    # A fresh interpreter catches accidental imports even when the suite already
+    # imported all training dependencies for its offline pipeline tests.
+    code = """
+import sys, json
+from importlib.abc import MetaPathFinder
+class NoTraining(MetaPathFinder):
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname in {'pipeline.confidence', 'pipeline.train'} or fullname.split('.')[0] in {'sklearn', 'lightgbm', 'xgboost', 'scipy', 'joblib'}:
+            raise AssertionError('API imported training dependency: ' + fullname)
+sys.meta_path.insert(0, NoTraining())
+from api.pipeline_provider import PipelineEstimate, _validate_provenance
+payload, card, simulation = json.load(sys.stdin)
+_validate_provenance(PipelineEstimate.model_validate(payload), card, simulation)
+"""
+    result = subprocess.run([sys.executable, "-c", code], input=json.dumps(documents),
+                            text=True, capture_output=True, timeout=30,
+                            cwd=Path(__file__).resolve().parents[1])
+    assert result.returncode == 0, result.stderr
