@@ -108,7 +108,7 @@ def test_catalog_does_not_import_models_or_request_estimates(catalog_path, clien
     forbidden.assert_not_called()
 
 
-@pytest.mark.parametrize("location_id", ["CSWS", "OKGE", "LES"])
+@pytest.mark.parametrize("location_id", ["SPP_SYSTEM", *ZONES, *DEMO_LABELS])
 def test_listed_zone_can_reach_existing_ready_provider_with_authored_fixture(
     catalog_path, client, monkeypatch, payload, location_id,
 ):
@@ -163,4 +163,35 @@ def test_listing_does_not_override_insufficient_annual_evidence(catalog_path, cl
         "location_id": "CSWS", "load_mw": 100, "term_years": 2,
         "flexibility_split": 0.6, "site_exposure": 0.25,
     })
-    assert response.status_code == 404
+    assert response.status_code == 503
+    assert response.json() == {"detail": (
+        f"Precomputed location CSWS exists, but model_version={payload['model_version']}; "
+        "annual reference not ready: held-out span=1742 hours, local scored hours=1717 for CSWS; "
+        "requires at least 8760 hours (365 days) for both; missing seasons must not be substituted"
+    )}
+
+
+@pytest.mark.parametrize("location_id", ZONES)
+def test_published_zone_reader_succeeds_and_readiness_error_is_not_not_found(client, location_id):
+    """Track the real bundle's availability honestly; authored ready tests above
+    do not establish that the published short-history bundle is annual-ready."""
+    from pipeline.simulate import get_location_estimate
+    from api.pipeline_provider import PipelineEstimate, _annual_reference_issue
+
+    payload = get_location_estimate(location_id, path=pipeline_provider.PARQUET_PATH)
+    card = json.loads(pipeline_provider.PARQUET_PATH.with_name("model_card.json").read_text(encoding="utf-8"))
+    issue = _annual_reference_issue(PipelineEstimate.model_validate(payload), card)
+    result = client.post("/api/estimate", json={"location_id": location_id, "load_mw": 100,
+        "term_years": 7, "flexibility_split": .6, "site_exposure": .5})
+    if issue:
+        assert result.status_code == 503
+        assert result.json() == {"detail": f"Precomputed location {location_id} exists, but model_version={payload['model_version']}; {issue}"}
+    else:
+        assert result.status_code == 200
+        exposure = result.json()["modeled_exposure"]
+        assert exposure["source"]["source_type"] in {"model", "data"}
+        assert "mock:" not in exposure["source"]["ref"]
+        assert "placeholder" not in exposure["source"]["ref"].lower()
+        for annual, saved in zip(exposure["by_year"], payload["by_year"], strict=True):
+            for quantile in ("p50", "p90", "p99"):
+                assert annual[quantile] == saved[f"{quantile}_hours"] * .5

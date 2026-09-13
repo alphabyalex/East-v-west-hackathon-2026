@@ -40,7 +40,7 @@ describe('scenario workspace interactions', () => {
     render(<App />);
     await screen.findByRole('option', { name: 'CSWS · SPP load zone' });
     fireEvent.change(screen.getByRole('combobox', { name: 'SPP LOCATION' }), { target: { value: 'CSWS' } });
-    expect(screen.getByText('SPP load zone · no site-specific grid data')).toBeTruthy();
+    expect(screen.getByText('SPP load zone · zone-specific model data; site exposure is your assumption')).toBeTruthy();
     expect(await screen.findByRole('button', { name: 'Retry estimate' })).toBeTruthy();
     expect((screen.getByRole('combobox', { name: 'SPP LOCATION' }) as HTMLSelectElement).value).toBe('CSWS');
     expect(post.mock.calls.some(([, options]) => JSON.parse(options.body).location_id === 'CSWS')).toBe(true);

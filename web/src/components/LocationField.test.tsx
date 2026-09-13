@@ -116,6 +116,8 @@ describe('location catalog and scenario transport', () => {
     mount()
     await tick()
     fireEvent.change(select(), { target: { value: id } })
+    expect(screen.getByText('SPP load zone · zone-specific model data; site exposure is your assumption')).toBeTruthy()
+    expect(screen.queryByText(/no site-specific grid data/)).toBeNull()
     expect(state().inputs.location_id).toBe(id)
     expect(state().response.inputs_echo.location_id).toBe(id)
     await tick()

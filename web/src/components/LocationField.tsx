@@ -33,7 +33,8 @@ export function LocationField() {
   const selected = locations.find(location => location.id === inputs.location_id)
   const note = selected?.kind === 'system' ? 'System aggregate · no site-specific grid data'
     : selected?.kind === 'scenario' ? 'Scenario location · no site-specific grid data'
-      : 'SPP load zone · no site-specific grid data'
+      : selected?.kind === 'zone' ? 'SPP load zone · zone-specific model data; site exposure is your assumption'
+        : 'SPP location · model coverage not confirmed'
   return <div className="location-field">
     <div className="field-label"><label htmlFor="location"><MapPin size={13} />SPP LOCATION</label><SourceInfo value={inputs.location_id} source={sourceFor('location_id')} label="Location provenance" /></div>
     <div className="select-wrap"><select id="location" value={inputs.location_id} onChange={event => update('location_id', event.target.value)} aria-describedby="location-note">
