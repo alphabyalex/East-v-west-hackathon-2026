@@ -522,10 +522,12 @@ def test_read_only_cache_adapter_reuses_existing_reader_without_fetch(monkeypatc
     def unexpected(*args, **kwargs):
         pytest.fail("Read-only wind adapter must not fetch")
 
+    monkeypatch.setattr("pipeline.wind_signal.ingest.RAW_DIR", tmp_path / "synthetic-raw")
     monkeypatch.setattr("pipeline.wind_signal.ingest.load_dataset", reader)
     monkeypatch.setattr("pipeline.wind_signal.ingest.fetch_chunk", unexpected)
     result = read_cached_wind_inputs(path, price_locations={"CSWS": "EXPLICIT_NODE"}, market="DA")
     assert seen == ["fuel_mix", "lmp"]
+    assert result.attrs["cache_hashes"] == {}
     assert len(result) == 2
     assert result.attrs["price_locations"] == {"CSWS": "EXPLICIT_NODE"}
 
