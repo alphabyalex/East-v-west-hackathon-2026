@@ -1,7 +1,11 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { adaptEstimateResponse, defaultInputs, deriveScenario, mockResponse, toEstimateRequest, type ScenarioInputs, type Source, type SourcedInputs } from './model';
+import { adaptEstimateResponse, createMockEstimate, defaultInputs, deriveScenario, mockResponse, toEstimateRequest, type ScenarioInputs, type Source, type SourcedInputs } from './model';
 import { useEstimateTransport, type EstimateMode } from './hooks/useEstimateTransport';
-import type { EconomicsAssumptions } from './api/assumptions';
+import { validateEconomicsAssumptions, type EconomicsAssumptions } from './api/assumptions';
+import economicSnapshot from './model/economics-assumptions.json';
+import { buildSensitivity } from './model/sensitivity';
+
+const offlineAssumptions = validateEconomicsAssumptions(economicSnapshot);
 
 const economicKeys = ['firm_wait_years', 'gpu_per_mw', 'gpu_hour_value_usd', 'early_margin_usd_per_mw_year'] as const;
 const economicFields = {
@@ -53,6 +57,12 @@ function useScenarioState(initialMode: EstimateMode) {
     }])) as SourcedInputs;
     return derived;
   }, [inputs, edited, transport.response, economicDefaults, decisionPolicy]);
+  const sensitivity = useMemo(() => transport.sensitivity ?? buildSensitivity(
+    result.canonical_response,
+    createMockEstimate({ ...toEstimateRequest(inputs), site_exposure: 1 }, inputs, decisionPolicy),
+    inputs,
+    economicDefaults ?? offlineAssumptions,
+  ), [transport.sensitivity, result, inputs, decisionPolicy, economicDefaults]);
   function update<K extends keyof ScenarioInputs>(key: K, value: ScenarioInputs[K]) {
     if (inputs[key] === value) return;
     if ((economicKeys as readonly (keyof ScenarioInputs)[]).includes(key)) {
@@ -78,7 +88,7 @@ function useScenarioState(initialMode: EstimateMode) {
     setEdited(new Set());
     setModeNote('');
   }
-  return { inputs, result, update, reset, sourceFor, mode, chooseMode, modeNote, status: transport.status, error: transport.error, retry: transport.retry };
+  return { inputs, result, sensitivity, update, reset, sourceFor, mode, chooseMode, modeNote, status: transport.status, error: transport.error, retry: transport.retry };
 }
 
 const ScenarioContext = createContext<ReturnType<typeof useScenarioState> | null>(null);

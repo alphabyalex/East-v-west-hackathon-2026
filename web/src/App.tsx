@@ -4,6 +4,7 @@ import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip,
 import { ScenarioProvider, useScenario } from './ScenarioContext';
 import { Sourced, SourceInfo, SourcedTick } from './components/Sourced';
 import { TransparencyPanel } from './components/TransparencyPanel';
+import { SensitivityPanel } from './components/SensitivityPanel';
 import { ConfidenceBadge, type ConfidenceEstimate } from './components/ConfidenceBadge';
 import { MockLabel, isMockSource } from './components/MockLabel';
 import { useChangeMotion } from './hooks/useChangeMotion';
@@ -71,11 +72,11 @@ function NumberField({ name, label, unit, min, max, step = 1, icon, compact = fa
 }
 
 function Header() {
-  const { inputs, result, reset, mode, status } = useScenario();
+  const { inputs, result, sensitivity, reset, mode, status } = useScenario();
   const [exported, setExported] = useState(false);
   useEffect(() => { if (exported) { const timer = setTimeout(() => setExported(false), 2400); return () => clearTimeout(timer); } }, [exported]);
   function exportScenario() {
-    const blob = new Blob([JSON.stringify({ mode, status, response_origin: status === 'api' ? 'api' : 'local_mock', request: toEstimateRequest(inputs), response: result.canonical_response, local_assumptions: result.inputs, result }, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify({ mode, status, response_origin: status === 'api' ? 'api' : 'local_mock', request: toEstimateRequest(inputs), response: result.canonical_response, local_assumptions: result.inputs, result, sensitivity }, null, 2)], { type: 'application/json' });
     const href = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = href;
@@ -277,7 +278,8 @@ function Assumptions() {
 }
 
 function Workspace() {
-  return <div className="app-shell"><a className="skip-link" href="#main">Skip to analysis</a><Header /><main id="main"><Inputs /><ExposureControl /><div className="results-grid"><ExposurePanel /><EconomicsPanel /></div><Assumptions /></main><footer><span className="flex items-center gap-2"><Unplug size={12} />NO LIVE GRID FETCHES</span><span>Every number has a source. Hover, focus, or click a value or source tag.</span></footer></div>;
+  const { sensitivity } = useScenario();
+  return <div className="app-shell"><a className="skip-link" href="#main">Skip to analysis</a><Header /><main id="main"><Inputs /><ExposureControl /><div className="results-grid"><ExposurePanel /><EconomicsPanel /></div><SensitivityPanel sensitivity={sensitivity} /><Assumptions /></main><footer><span className="flex items-center gap-2"><Unplug size={12} />NO LIVE GRID FETCHES</span><span>Every number has a source. Hover, focus, or click a value or source tag.</span></footer></div>;
 }
 
 export default function App() { return <ScenarioProvider><Workspace /></ScenarioProvider>; }

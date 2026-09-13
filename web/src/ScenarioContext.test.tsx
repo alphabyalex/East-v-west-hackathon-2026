@@ -37,6 +37,62 @@ afterEach(() => {
 });
 
 describe('scenario HTTP provider', () => {
+  it('keeps sensitivity aligned with current local inputs, including zero exposure and economic overrides', () => {
+    const { result } = setup('local');
+    act(() => result.current.update('site_exposure', 0));
+    act(() => result.current.update('gpu_hour_value_usd', 5));
+    expect(result.current.sensitivity.baseline.net_value_usd.p50.value).toBe(result.current.result.economics.net_value_usd.value);
+    expect(result.current.sensitivity.baseline.decision.replaceAll('_', ' ')).toBe(result.current.result.decision);
+    const site = result.current.sensitivity.rows.find(row => row.key === 'site_exposure')!;
+    expect(site.status).toBe('modeled');
+    if (site.status !== 'modeled') throw new Error('Expected site sensitivity');
+    expect(site.high.delta_value_usd.value).toBeLessThan(0);
+    expect(site.source.ref).toMatch(/^mock:/);
+    expect(result.current.sensitivity.rows.filter(row => row.status === 'not_modeled').map(row => row.key)).toEqual(['electricity_price', 'utilization']);
+  });
+
+  it('bounds and aborts the extra full-exposure read at zero without accepting a late response', async () => {
+    const pending = deferred<Response>();
+    const fetcher = vi.fn().mockImplementation((_url, options) => {
+      const body = JSON.parse(options.body) as EstimateRequest;
+      return body.site_exposure === 1 ? pending.promise : Promise.resolve(jsonResponse(createMockEstimate(body)));
+    });
+    vi.stubGlobal('fetch', withEconomics(fetcher));
+    const { result } = setup('api');
+    act(() => result.current.update('site_exposure', 0));
+    await tick();
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(result.current.status).toBe('loading');
+    expect(result.current.sensitivity.source.ref).toMatch(/^mock:/);
+    await tick(3000);
+    expect(result.current.status).toBe('fallback');
+    expect(fetcher.mock.calls[1][1].signal.aborted).toBe(true);
+    await act(async () => pending.resolve(jsonResponse(createMockEstimate({ ...initialRequest, site_exposure: 1 }))));
+    expect(result.current.status).toBe('fallback');
+    expect(result.current.result.canonical_response.inputs_echo.site_exposure).toBe(0);
+  });
+
+  it('ignores a zero-factor companion when a newer nonzero scenario has already arrived', async () => {
+    const pending = deferred<Response>();
+    const fetcher = vi.fn().mockImplementation((_url, options) => {
+      const body = JSON.parse(options.body) as EstimateRequest;
+      return body.site_exposure === 1 ? pending.promise : Promise.resolve(jsonResponse(createMockEstimate(body)));
+    });
+    vi.stubGlobal('fetch', withEconomics(fetcher));
+    const { result } = setup('api');
+    act(() => result.current.update('site_exposure', 0));
+    await tick();
+    const companionSignal = fetcher.mock.calls[1][1].signal as AbortSignal;
+    act(() => result.current.update('site_exposure', 0.9));
+    expect(companionSignal.aborted).toBe(true);
+    await tick();
+    expect(result.current.status).toBe('api');
+    const sensitivity = result.current.sensitivity;
+    await act(async () => pending.resolve(jsonResponse(createMockEstimate({ ...initialRequest, site_exposure: 1 }))));
+    expect(result.current.result.canonical_response.inputs_echo.site_exposure).toBe(0.9);
+    expect(result.current.sensitivity).toBe(sensitivity);
+  });
+
   it('defaults to the API, posts exactly the canonical fields, and consumes the server response without rescaling', async () => {
     const returned = createMockEstimate(initialRequest);
     returned.confidence = { level: 'High', score: 0.8, basis: 'test_server_response', source: { source_type: 'model', ref: 'test://server' } };

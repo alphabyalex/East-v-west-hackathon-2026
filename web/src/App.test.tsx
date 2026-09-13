@@ -21,6 +21,39 @@ beforeEach(() => vi.stubEnv('VITE_ESTIMATE_MODE', 'local'));
 afterEach(() => { cleanup(); vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
 describe('scenario workspace interactions', () => {
+  it('exports the current sourced sensitivity without extending the canonical API response', async () => {
+    let exported: Blob | undefined;
+    let release!: () => void;
+    const released = new Promise<void>(resolve => { release = resolve; });
+    vi.stubGlobal('URL', class extends URL {
+      static createObjectURL(blob: Blob) { exported = blob; return 'blob:scenario-test'; }
+      static revokeObjectURL() { release(); }
+    });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    try {
+      render(<App />);
+      fireEvent.change(screen.getByRole('slider', { name: 'Site exposure factor' }), { target: { value: '0' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Export scenario' }));
+      const json = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(reader.error);
+        reader.readAsText(exported!);
+      });
+      const payload = JSON.parse(json);
+      expect(payload.request.site_exposure).toBe(0);
+      expect(payload.response_origin).toBe('local_mock');
+      expect(payload.response).not.toHaveProperty('sensitivity');
+      expect(payload.sensitivity.rows.filter((row: { status: string }) => row.status === 'modeled')).toHaveLength(3);
+      const electricity = payload.sensitivity.rows.find((row: { key: string }) => row.key === 'electricity_price');
+      expect(electricity.low.snapshot).toBeNull();
+      expect(electricity.swing_usd).toBeNull();
+      expect(payload.sensitivity.baseline.net_value_usd.p50.value).toBe(payload.result.economics.net_value_usd.value);
+      expect(payload.sensitivity.source.ref).toMatch(/^mock:/);
+      await released; // Keep the URL stub until the export's delayed cleanup runs.
+    } finally { click.mockRestore(); }
+  });
+
   it('keeps mock status near results and preserves the permanent site caveats', () => {
     render(<App />);
     expect(screen.queryByText('ILLUSTRATIVE DATA')).toBeNull();
@@ -121,7 +154,9 @@ describe('scenario workspace interactions', () => {
   it('falls back without WebGL and keeps the upper-tail source available after recomputation', async () => {
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: 'Surface' }));
-    expect(await screen.findByText(/Interactive surface unavailable on this device/)).toBeTruthy();
+    // The cold, lazy Three.js import can exceed RTL's one-second default when
+    // the complete real-Recharts suite runs concurrently; keep a bounded wait.
+    expect(await screen.findByText(/Interactive surface unavailable on this device/, {}, { timeout: 3500 })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Fan chart' }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByRole('group', { name: /Annual modeled exposure fan chart/ })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Inspect annual values' }));

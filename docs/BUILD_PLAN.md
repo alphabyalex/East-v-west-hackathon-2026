@@ -249,6 +249,14 @@ that shows up too late for anyone else to use.
 
 ## 5. Definition of "wired in correctly"
 
+The CP4 results-view break-even sensitivity chart derives one-at-a-time comparisons
+from section 2's economics without extending its JSON contract. GPU rental price,
+flexibility split and site exposure are computed; electricity and utilization are
+explicitly **not modeled**, per Alex's direction to keep the existing formulas.
+See [the sensitivity policy](ASSUMPTIONS.md#sensitivity-policy) for ranges/accounting
+and [the frontend handoff](frontend-api-contract.md#break-even-sensitivity-handoff)
+for the sourced scenario-export shape. This does not change either deadline above.
+
 - `/web` never talks to `/pipeline` directly — always through `/api`
 - `/api` never runs a model or fetches external data live — only reads precomputed
   parquet/json and does the cheap `site_exposure` / `flexibility_split` arithmetic

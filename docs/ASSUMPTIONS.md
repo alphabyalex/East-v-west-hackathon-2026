@@ -194,6 +194,48 @@ The references attribute those choices to the immutable teammate commit. Unrevie
 margin and tolerance retain placeholder provenance. Status is therefore `mixed`.
 No `real`, `derived`, or compound provenance enum is introduced.
 
+## Sensitivity policy
+
+The results-view tornado chart keeps the current API formulas. Per Alex's explicit
+direction, electricity and utilization are **not modeled** as independent effects;
+they have no computed cost, decision, or zero-effect bar. This does not assert that
+they have no economic effect. No new operating-cost or utilization formula is added.
+
+Each computed row changes one input while holding the early-value input and every
+other assumption fixed. The chart measures `delta = V_p50(endpoint) - V_p50(current)`,
+where `V_q = B - term_years * annual_cost_q`,
+`annual_cost_q = unscaled_exposure_q * site_exposure * load_mw * flexibility_split * gpus_per_mw * rental`,
+and `B` is the **unchanged** `value_of_early_connection_usd` from the active estimate.
+The rental-price sweep therefore changes gross interruption cost only; it does not
+re-derive the independent $317,000 early operating-margin assumption from rental
+prices. The comparison is not a verified profit forecast. Annual marginal quantile
+paths are not quantiles of total contract loss or contract value.
+
+| Input | Scenario range | Treatment |
+|---|---|---|
+| GPU rental price | `gpu_rental_price_usd_per_hour.low` to `.high` in the JSON below (currently $1.49–$6.16/GPU-hour) | Computed; provenance follows the runtime metadata |
+| Flexibility split | 0–1 | Computed across the full allowed user-assumption domain, not an empirical plausible interval |
+| Site exposure factor | 0–1 | Computed across the full allowed user-assumption domain, not a site-specific probability interval |
+| Electricity price | `industrial_electricity_price_usd_per_mwh.low` to `.high` (currently $76–$86/MWh) | Not modeled; informational Kansas reference |
+| Utilization | 0.60–0.85, reference 0.70 | Not modeled; section 3's documented revenue-earning scenario range, held centrally in `defaultUtilizationRange` with provenance |
+
+Rows sort by descending absolute difference between their low-input and high-input
+comparison values. Both endpoints can lie on the same side of the current scenario
+when a user's custom value lies outside the recorded range. The chart's zero line
+means the current scenario, **not** the decision boundary. Endpoint decisions retain
+the canonical rule: `not_worth_it` if term p50 cost exceeds `B * (1 + tolerance)`;
+otherwise `worth_it` if term p90 cost is below `B * (1 - tolerance)`; otherwise
+`close_call`. Equality remains a close call. Break-even hours are
+`B / (term_years * load_mw * flexibility_split * gpus_per_mw * rental)`;
+a zero denominator is `null` (no finite crossover), never infinity.
+
+The frontend performs only this cheap arithmetic. For a positive site factor it
+undoes the API's documented linear exposure multiplier using the received response;
+at zero it needs an additional canonical estimate with `site_exposure: 1` to recover
+the exposure baseline. Matching request, economics, exposure, confidence and evidence
+are checked before accepting the pair. It never divides by rental or flexibility to
+infer exposure. Local mode uses entirely local mock inputs and retains mock labels.
+
 ## Machine-readable assumptions
 
 Keep one marked JSON block. Values are finite, with nonnegative prices, margin,

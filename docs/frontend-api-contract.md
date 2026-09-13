@@ -247,7 +247,7 @@ The documented Uvicorn command has no automatic code reload: restart it after AP
 or already-imported pipeline code changes; assumptions edits apply on the next request.
 
 Run instructions and the provider replacement boundary are in [api/README.md](../api/README.md).
-Export includes `{mode,status,response_origin,request,response,local_assumptions,result}`
+Export includes `{mode,status,response_origin,request,response,local_assumptions,result,sensitivity}`
 so a local preview or fallback cannot be mistaken for a server result.
 
 A live differential check in `web/src/api/live-contract.test.ts` compares server
@@ -287,3 +287,78 @@ supply a validation artifact with the evaluation target, split/period, score/bas
 bin counts, and source/model version before the mock validation label can be removed.
 Agree that diagnostic interface separately; the existing estimate contract remains
 unchanged.
+
+## Break-even sensitivity handoff
+
+`POST /api/estimate` and `GET /api/economics-assumptions` keep their existing exact
+shapes. Sensitivity is a frontend derivation over the active response, exported as
+the additional `sensitivity` field in the downloaded scenario JSON. Its policy and
+ranges are recorded in [ASSUMPTIONS.md](ASSUMPTIONS.md#sensitivity-policy).
+
+```ts
+type Source = { source_type: 'data' | 'clause' | 'assumption' | 'model'; ref: string }
+type SourcedValue<T = number> = Source & { value: T }
+type Quantiles<T> = { p50: T; p90: T; p99: T }
+type Decision = 'worth_it' | 'not_worth_it' | 'close_call'
+type Snapshot = {
+  net_value_usd: Quantiles<SourcedValue> // after each annual cost path, not value quantiles
+  early_value_usd: SourcedValue
+  annual_cost_usd: Quantiles<SourcedValue>
+  decision: Decision
+  breakeven_hours: SourcedValue<number | null>
+  breakeven_note?: string
+  source: Source
+}
+type Endpoint = {
+  input: SourcedValue
+  delta_value_usd: SourcedValue // change in p50-path comparison versus current
+  snapshot: Snapshot
+  source: Source
+}
+type UnmodeledEndpoint = {
+  input: SourcedValue
+  delta_value_usd: null
+  snapshot: null
+  source: Source
+}
+type Row = {
+  key: 'gpu_rental_price' | 'electricity_price' | 'utilization' | 'flexibility_split' | 'site_exposure'
+  label: string
+  unit: 'USD/GPU-hour' | 'USD/MWh' | 'fraction'
+  baseline_input: SourcedValue
+  source: Source
+} & ({
+  status: 'modeled'
+  low: Endpoint
+  high: Endpoint
+  swing_usd: SourcedValue
+} | {
+  status: 'not_modeled'
+  reason: string
+  low: UnmodeledEndpoint
+  high: UnmodeledEndpoint
+  swing_usd: null
+})
+type SensitivityResult = {
+  baseline: Snapshot
+  rows: Row[] // descending modeled swing, then the two not-modeled rows
+  source: Source
+  notes: string[]
+}
+```
+
+The implementation is `web/src/model/sensitivity.ts`. Low/high always name the
+**input** bounds, even when low input produces higher value. Electricity and
+utilization are explicitly unmodeled per the user's instruction; null outcomes must
+never become zero bars or hypothetical decisions. Their documented ranges still
+carry sources. Computed outputs remain assumptions, with `mock://` preserved whenever
+their dependencies include placeholders. The policy holds early contribution fixed
+and uses the existing p50/p90 decision test at both endpoints.
+
+`web/src/api/sensitivity.ts` restores unscaled exposure arithmetically when the
+received site factor is positive. At exactly zero it sends one extra five-field
+`POST /api/estimate` for the same scenario with `site_exposure: 1`. Both requests share
+the transport's abort/timeout lifecycle. Metadata/evidence mismatches, malformed
+companions and failures use the existing explicit local fallback; the UI never
+combines server values with fixture exposure. No training, simulation, external
+market pull or API contract extension runs on slider changes.
