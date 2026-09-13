@@ -2,7 +2,8 @@
 
 FastAPI serves the canonical `POST /api/estimate` contract using Kristian's
 precomputed reader when available, with an explicit placeholder fallback when the
-reader, parquet, or provenance companions are absent. It never trains, simulates, or fetches grid data.
+reader, parquet, or provenance companions are absent, or annual reference evidence
+is missing/insufficient. It never trains, simulates, or fetches grid data.
 Economics comes from [docs/ASSUMPTIONS.md](../docs/ASSUMPTIONS.md), whose current
 status is **mixed**: Tharun's cited scenario defaults plus explicitly unverified
 margin and decision-tolerance assumptions. File presence does not establish real data.
@@ -129,7 +130,16 @@ user's site factor; it is not an observed outage length.
 `api.estimate.build_estimate` applies `site_exposure` exactly once, downstream of
 the reader; the frontend must not apply it again.
 
-If the module, callable, parquet, or either companion is missing, or a file becomes unavailable
+Annual eligibility additionally checks the model card's `splits.test.start` and
+`splits.test.end` (inclusive hourly timestamps) and
+`test_by_location[location_id].n_hours`. At least 365 days of held-out span and
+8,760 scored hours for that particular location are required. Combining many
+locations does not create a year of reference history. This is a minimum readiness
+check, not validation of annual tails or site applicability; confidence remains Low.
+The currently tracked 2024 bundle has only about 72 held-out days and is not eligible.
+
+If the module, callable, parquet, or either companion is missing, annual reference
+evidence is missing/insufficient, or a file becomes unavailable
 during import/read, the API returns the identical body shape with explicit
 assumption sources. Exposure/confidence refs include
 `mock://placeholder/...; placeholder, pipeline not wired yet; <reason>`.
@@ -144,6 +154,7 @@ when exposure comes from the pipeline.
 | Condition | HTTP result |
 |---|---|
 | Missing pipeline pieces, supported placeholder ID | 200, clearly sourced placeholder |
+| Missing/insufficient annual reference evidence, supported placeholder ID | 200, placeholder with model version and readiness reason |
 | Unknown placeholder ID or reader's exported `LocationNotFoundError` | 404 |
 | Invalid request types/ranges/fields or arithmetic overflow | 422 |
 | Present reader has a broken dependency/import, runtime failure, or malformed output | 503 |

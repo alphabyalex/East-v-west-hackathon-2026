@@ -54,6 +54,8 @@ def write_manifests(parquet, payload):
         "input_hashes": {"hourly_sha256": "a" * 64, "policy_sha256": "b" * 64},
         "confidence": {payload["location_id"]: payload["confidence"]},
         "settings": {"ensemble_members": 15},
+        "splits": {"test": {"start": "2023-01-01T00:00:00Z", "end": "2023-12-31T23:00:00Z", "rows": 8760}},
+        "test_by_location": {payload["location_id"]: {"n_hours": 8760}},
     }
     simulation = {
         "status": "experimental_unvalidated_annual_tails",
@@ -401,6 +403,117 @@ def test_annual_tail_confidence_cannot_be_upgraded_before_supported_metadata(pay
     install_reader(Mock(return_value=payload))
     with pytest.raises(PipelineDataError, match="capped Low"):
         get_pipeline_location(LOCATION)
+
+
+@pytest.mark.parametrize("end,count,ready", [
+    ("2023-12-31T23:00:00Z", 8760, True),
+    ("2023-12-31T22:00:00Z", 8759, False),
+    ("2023-12-31T23:00:00Z", 8759, False),
+    ("2024-01-01T00:00:00Z", 8761, True),
+])
+def test_annual_reference_uses_inclusive_hourly_endpoints_and_local_count(payload, install_reader, end, count, ready):
+    _, parquet = install_reader(Mock(return_value=payload))
+    path = parquet.with_name("model_card.json")
+    card = json.loads(path.read_text(encoding="utf-8"))
+    card["splits"]["test"].update(end=end, rows=21 * count)
+    card["test_by_location"][LOCATION]["n_hours"] = count
+    path.write_text(json.dumps(card), encoding="utf-8")
+
+    location = get_pipeline_location(LOCATION)
+    if ready:
+        assert location.source.source_type == "model"
+        assert location.by_year[0].p50_hours == payload["by_year"][0]["p50_hours"]
+        assert location.confidence.level == "Low"
+    else:
+        assert_placeholder(location, f"model_version={payload['model_version']}; annual reference not ready")
+        assert f"local scored hours={count}" in location.source.ref
+
+
+def test_published_72_day_reference_cannot_earn_annual_model_provenance(payload, install_reader):
+    """Coverage recorded in the September 13 published multi-location model card."""
+    payload["model_version"] = "spp_lgbm_20260913T055001_b63ee2577e"
+    _, parquet = install_reader(Mock(return_value=payload))
+    # install_reader writes the initial fixture before this test changes its version.
+    write_manifests(parquet, payload)
+    path = parquet.with_name("model_card.json")
+    card = json.loads(path.read_text(encoding="utf-8"))
+    card["splits"]["test"] = {
+        "start": "2024-10-20 10:00:00+00:00", "end": "2024-12-31 23:00:00+00:00", "rows": 36057,
+    }
+    card["test_by_location"][LOCATION]["n_hours"] = 1717
+    path.write_text(json.dumps(card), encoding="utf-8")
+
+    location = get_pipeline_location(LOCATION)
+    assert_placeholder(location, "model_version=spp_lgbm_20260913T055001_b63ee2577e; annual reference not ready")
+    assert "held-out span=1742 hours" in location.source.ref
+    assert "local scored hours=1717" in location.source.ref
+    assert "missing seasons must not be substituted" in location.source.ref
+
+
+@pytest.mark.parametrize("path", [
+    ("splits",), ("splits", "test"), ("splits", "test", "start"), ("splits", "test", "end"),
+    ("test_by_location",), ("test_by_location", LOCATION), ("test_by_location", LOCATION, "n_hours"),
+])
+def test_missing_annual_reference_is_explicitly_not_ready(payload, install_reader, path):
+    _, parquet = install_reader(Mock(return_value=payload))
+    card_path = parquet.with_name("model_card.json")
+    card = json.loads(card_path.read_text(encoding="utf-8"))
+    container = card
+    for key in path[:-1]:
+        container = container[key]
+    del container[path[-1]]
+    card_path.write_text(json.dumps(card), encoding="utf-8")
+    assert_placeholder(get_pipeline_location(LOCATION), f"model_version={payload['model_version']}; annual reference coverage missing")
+
+
+@pytest.mark.parametrize("path,value", [
+    (("splits",), []),
+    (("splits", "test"), None),
+    (("splits", "test", "start"), "not a timestamp"),
+    (("splits", "test", "start"), "2023-01-01T00:00:00"),
+    (("splits", "test", "start"), "2023-01-01T00:30:00Z"),
+    (("splits", "test", "start"), None),
+    (("splits", "test", "end"), "2022-12-31T00:00:00Z"),
+    (("test_by_location",), []),
+    (("test_by_location", LOCATION), None),
+    (("test_by_location", LOCATION, "n_hours"), True),
+    (("test_by_location", LOCATION, "n_hours"), "8760"),
+    (("test_by_location", LOCATION, "n_hours"), -1),
+    (("test_by_location", LOCATION, "n_hours"), 8761),
+])
+def test_corrupt_annual_reference_remains_an_error(payload, install_reader, path, value):
+    _, parquet = install_reader(Mock(return_value=payload))
+    card_path = parquet.with_name("model_card.json")
+    card = json.loads(card_path.read_text(encoding="utf-8"))
+    container = card
+    for key in path[:-1]:
+        container = container[key]
+    container[path[-1]] = value
+    card_path.write_text(json.dumps(card), encoding="utf-8")
+    with pytest.raises(PipelineDataError, match="artifact provenance is invalid"):
+        get_pipeline_location(LOCATION)
+
+
+def test_not_ready_annual_reference_returns_explicit_http_placeholder(payload, install_reader):
+    from fastapi.testclient import TestClient
+    from api.main import app
+
+    _, parquet = install_reader(Mock(return_value=payload))
+    path = parquet.with_name("model_card.json")
+    card = json.loads(path.read_text(encoding="utf-8"))
+    card["test_by_location"][LOCATION]["n_hours"] = 1717
+    path.write_text(json.dumps(card), encoding="utf-8")
+    with TestClient(app) as client:
+        response = client.post("/api/estimate", json={
+            "location_id": LOCATION, "load_mw": 100, "term_years": 2,
+            "flexibility_split": 0.6, "site_exposure": 0.25,
+        })
+    assert response.status_code == 200
+    assert response.headers["x-headroom-exposure-source"] == "placeholder"
+    for key in ("modeled_exposure", "confidence"):
+        source = response.json()[key]["source"]
+        assert source["source_type"] == "assumption"
+        assert f"model_version={payload['model_version']}; annual reference not ready" in source["ref"]
 
 
 def test_invalid_metadata_returns_http_503(payload, install_reader):

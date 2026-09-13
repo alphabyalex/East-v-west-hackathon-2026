@@ -1,6 +1,7 @@
 """Adapt Kristian's precomputed reader; never train, simulate, or fetch here."""
 
 from importlib import import_module, invalidate_caches
+from datetime import datetime
 import json
 import logging
 from pathlib import Path
@@ -156,6 +157,58 @@ def _validate_provenance(data: PipelineEstimate, card: dict, simulation: dict) -
     return exposure_ref, confidence_ref
 
 
+def _annual_reference_issue(data: PipelineEstimate, card: dict) -> str | None:
+    """Require annual held-out evidence, without pooling hours across locations.
+
+    Split endpoints are inclusive hourly interval starts. This is a minimum
+    readiness check, not validation of annual tails or of the underlying labels.
+    """
+    splits = card.get("splits", {})
+    by_location = card.get("test_by_location", {})
+    if not isinstance(splits, dict) or not isinstance(by_location, dict):
+        raise ValueError("Annual reference coverage must contain objects")
+    test = splits.get("test", {})
+    local = by_location.get(data.location_id, {})
+    if not isinstance(test, dict) or not isinstance(local, dict):
+        raise ValueError("Held-out split and location coverage must contain objects")
+
+    missing = []
+    times = {}
+    for key in ("start", "end"):
+        if key not in test:
+            missing.append(f"splits.test.{key}")
+            continue
+        value = test[key]
+        if not isinstance(value, str):
+            raise ValueError(f"Held-out {key} must be an hourly timestamp with a timezone")
+        timestamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if timestamp.utcoffset() is None or any((timestamp.minute, timestamp.second, timestamp.microsecond)):
+            raise ValueError(f"Held-out {key} must be an hourly timestamp with a timezone")
+        times[key] = timestamp
+    count = local.get("n_hours")
+    if "n_hours" not in local:
+        missing.append(f"test_by_location[{data.location_id}].n_hours")
+    elif type(count) is not int or count < 0:
+        raise ValueError("Held-out local scored hours must be a nonnegative integer")
+
+    span_hours = None
+    if len(times) == 2:
+        if times["end"] < times["start"]:
+            raise ValueError("Held-out reference endpoints are reversed")
+        span_hours = (times["end"] - times["start"]).total_seconds() / 3600 + 1
+        if count is not None and count > span_hours:
+            raise ValueError("Held-out local scored hours exceed the reference time span")
+    if missing:
+        return "annual reference coverage missing: " + ", ".join(missing)
+    if span_hours < 8760 or count < 8760:
+        return (
+            f"annual reference not ready: held-out span={span_hours:g} hours, "
+            f"local scored hours={count} for {data.location_id}; "
+            "requires at least 8760 hours (365 days) for both; missing seasons must not be substituted"
+        )
+    return None
+
+
 def get_pipeline_location(location_id: str) -> LocationEstimate:
     try:
         module = import_module("pipeline.simulate")
@@ -206,11 +259,14 @@ def get_pipeline_location(location_id: str) -> LocationEstimate:
         card = _read_provenance(sidecars["model_card.json"])
         simulation = _read_provenance(sidecars["simulation_metadata.json"])
         exposure_ref, confidence_ref = _validate_provenance(data, card, simulation)
+        readiness_issue = _annual_reference_issue(data, card)
     except FileNotFoundError:
         return _placeholder(location_id, "pipeline artifact provenance disappeared during read")
     except (OSError, ValueError, TypeError, AttributeError) as error:
         logger.exception("Invalid pipeline artifact provenance")
         raise PipelineDataError(f"Precomputed artifact provenance is invalid: {error}") from error
+    if readiness_issue:
+        return _placeholder(location_id, f"model_version={data.model_version}; {readiness_issue}")
     return LocationEstimate(
         by_year=tuple(BaselineYear(**row.model_dump()) for row in data.by_year),
         confidence=Confidence(
