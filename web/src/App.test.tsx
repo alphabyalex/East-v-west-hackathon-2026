@@ -34,22 +34,25 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
 describe('scenario workspace interactions', () => {
+  it('keeps the overview as a standalone landing page before entering the workspace', () => {
+    window.history.replaceState({}, '', '/');
+    render(<App />);
+    expect(screen.getByRole('heading', { name: /The contract won’t tell you.*when they’ll cut your power\./ })).toBeTruthy();
+    expect(screen.queryByRole('tablist', { name: 'Workspace sections' })).toBeNull();
+    expect(screen.getAllByRole('link', { name: 'Run your scenario' })).toHaveLength(3);
+    expect(screen.getAllByRole('link', { name: 'Run your scenario' })[1].getAttribute('href')).toBe('/app');
+  });
+
   it('opens on Scenario Stress Test and mounts only the selected tab without changing the URL', async () => {
     const errors = vi.spyOn(console, 'error');
     const requests = vi.spyOn(globalThis, 'fetch');
     const url = window.location.href;
     render(<App />);
     expect(screen.getByRole('tab', { name: 'Scenario Stress Test' }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.queryByRole('tab', { name: 'Overview' })).toBeNull();
     expect(screen.queryByText('NO LIVE GRID FETCHES')).toBeNull();
     expect(screen.queryByText(/Every number has a source\. Click/)).toBeNull();
-    fireEvent.click(screen.getByRole('tab', { name: 'Overview' }));
-    expect(screen.getByRole('heading', { name: 'Connect sooner. Understand the trade-off.' })).toBeTruthy();
-    expect(screen.queryByLabelText('SPP LOCATION')).toBeNull();
-    expect(screen.queryByRole('region', { name: 'Site portfolio' })).toBeNull();
-    expect(screen.queryByRole('searchbox', { name: 'Search SPP zones' })).toBeNull();
     expect(requests.mock.calls.some(([url]) => String(url).endsWith('/api/zone-rankings'))).toBe(false);
-    fireEvent.change(screen.getByRole('slider', { name: 'Preview site exposure factor' }), { target: { value: '0.9' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Open scenario stress test' }));
     fireEvent.change(screen.getByLabelText('SPP LOCATION'), { target: { value: 'spp-wichita-demo' } });
     expect((screen.getByRole('slider', { name: 'Site exposure factor' }) as HTMLInputElement).value).toBe('0.4');
     fireEvent.change(screen.getByLabelText('VPP ORCHESTRATION'), { target: { value: '500' } });
@@ -65,11 +68,9 @@ describe('scenario workspace interactions', () => {
     expect((screen.getByLabelText('VPP ORCHESTRATION') as HTMLInputElement).value).toBe('500');
     expect(screen.queryByRole('button', { name: 'Save Active Scenario' })).toBeNull();
     expect(document.querySelectorAll('[data-sensitivity-bar]')).toHaveLength(3);
-    fireEvent.click(screen.getByRole('tab', { name: 'Overview' }));
     expect(screen.getAllByRole('tabpanel')).toHaveLength(1);
-    expect(screen.queryByText('Connection economics')).toBeNull();
+    expect(screen.queryByRole('tab', { name: 'Overview' })).toBeNull();
     expect(window.location.href).toBe(url);
-    await waitFor(() => expect(screen.getByRole('tab', { name: 'Overview' }).getAttribute('aria-selected')).toBe('true'));
     expect(errors).not.toHaveBeenCalled();
     errors.mockRestore();
   });
@@ -97,17 +98,17 @@ describe('scenario workspace interactions', () => {
 
   it('supports keyboard navigation through the top tab strip', () => {
     render(<App />);
-    fireEvent.keyDown(screen.getByRole('tab', { name: 'Overview' }), { key: 'ArrowRight' });
-    expect(document.activeElement).toBe(screen.getByRole('tab', { name: 'Scenario Stress Test' }));
-    expect(screen.getByLabelText('SPP LOCATION')).toBeTruthy();
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Scenario Stress Test' }), { key: 'ArrowRight' });
+    expect(document.activeElement).toBe(screen.getByRole('tab', { name: 'Zone Analytics' }));
+    expect(screen.getByRole('heading', { name: 'Read the signal before ranking the zones.' })).toBeTruthy();
     fireEvent.keyDown(document.activeElement!, { key: 'End' });
     expect(document.activeElement).toBe(screen.getByRole('tab', { name: 'Portfolio & Alerts' }));
     fireEvent.keyDown(document.activeElement!, { key: 'ArrowRight' });
-    expect(document.activeElement).toBe(screen.getByRole('tab', { name: 'Overview' }));
+    expect(document.activeElement).toBe(screen.getByRole('tab', { name: 'Scenario Stress Test' }));
     fireEvent.keyDown(document.activeElement!, { key: 'ArrowLeft' });
     expect(document.activeElement).toBe(screen.getByRole('tab', { name: 'Portfolio & Alerts' }));
     fireEvent.keyDown(document.activeElement!, { key: 'Home' });
-    expect(document.activeElement).toBe(screen.getByRole('tab', { name: 'Overview' }));
+    expect(document.activeElement).toBe(screen.getByRole('tab', { name: 'Scenario Stress Test' }));
   });
 
   it.each([1, 50, 500, 10000])('keeps the scenario and current sensitivity visible with %s VPP homes', homes => {
