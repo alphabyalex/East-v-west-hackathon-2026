@@ -8,6 +8,7 @@ import { Overview } from './components/Overview';
 import { SaveToPortfolio } from './components/SaveToPortfolio';
 import { PortfolioPanel } from './components/PortfolioPanel';
 import { ZoneLeaderboard } from './components/ZoneLeaderboard';
+import { ZoneAnalyticsDashboard } from './components/ZoneAnalyticsDashboard';
 import { LocationConnection, LocationResultPanels } from './components/LocationEstimate';
 import { Sourced, SourcedTick } from './components/Sourced';
 import { TransparencyPanel } from './components/TransparencyPanel';
@@ -453,7 +454,7 @@ function Workspace() {
           onZones={() => { setTab('zones'); document.getElementById('tab-zones')?.focus(); }}
         />}
         {tab === 'scenario' && <><ScenarioHeading /><Inputs /><ExposureControl />{location.enabled ? <LocationResultPanels /> : !zoneSelected ? <p className="field-note" role="status">Select a zone to start your scenario.</p> : <><div className="results-grid"><ExposurePanel /><EconomicsPanel /></div><GridImpactPanel /><SensitivityPanel sensitivity={sensitivity} /></>}<Assumptions /></>}
-        {tab === 'zones' && <ZoneLeaderboard />}
+        {tab === 'zones' && <><ZoneAnalyticsDashboard /><ZoneLeaderboard /></>}
         {tab === 'portfolio' && <PortfolioPanel />}
       </div>
     </main>
