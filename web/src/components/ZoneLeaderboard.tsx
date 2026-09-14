@@ -158,9 +158,9 @@ export function ZoneLeaderboard() {
         <p className="field-note">These are documented within-zone settlement-point references, not measured recoverable wind or site deliverability. Unknown hours are not filled; the evidence retains its timing and screening assumptions.</p>
       </div>}
       {!!data.excluded_locations?.length && <details className="leaderboard-intro">
-        <summary>Excluded locations and missing evidence</summary>
+        <summary>Locations without rankings</summary>
         <ul>{data.excluded_locations.map(item => <li key={item.location_id}>
-          <Sourced value={item.location_id} source={item.source} />: {item.reasons.join(' ')}
+          <Sourced value={item.location_id} source={item.source} />: Ranking unavailable
         </li>)}</ul>
       </details>}
 

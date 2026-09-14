@@ -62,8 +62,8 @@ describe('unified portfolio save', () => {
     await screen.findByRole('button', { name: 'Remove CSWS candidate' })
     const table = screen.getByRole('region', { name: 'Saved site comparison' })
     expect(within(table).getByText('CSWS')).toBeTruthy()
-    expect(within(table).getByRole('button', { name: /^500\./ })).toBeTruthy()
-    expect(within(table).getByText('Exposure and cost unavailable')).toBeTruthy()
+    expect(within(table).getByRole('button', { name: /^500(?:\.| )/ })).toBeTruthy()
+    expect(within(table).queryByText('Modeled exposure / annual cost')).toBeNull()
     expect(screen.queryByLabelText('Site name')).toBeNull()
     fireEvent.click(screen.getByRole('tab', { name: 'Scenario Stress Test' }))
     await screen.findByRole('option', { name: 'LES · SPP zone' })
@@ -79,7 +79,7 @@ describe('unified portfolio save', () => {
     expect(screen.getByRole('button', { name: 'Remove LES candidate' })).toBeTruthy()
   })
 
-  it.each(['SPP_SYSTEM', 'spp-wichita-demo'])('explains why %s cannot be saved without making a portfolio request', async zone => {
+  it.each(['', 'spp-wichita-demo'])('explains why %s cannot be saved without making a portfolio request', async zone => {
     await scenario(zone)
     expect(screen.getByRole('alert').textContent).toContain('Select a real SPP zone before saving')
     fireEvent.click(screen.getByRole('button', { name: 'Save site' }))

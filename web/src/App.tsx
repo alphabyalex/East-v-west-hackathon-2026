@@ -89,7 +89,7 @@ function Header() {
 }
 
 function ScenarioHeading() {
-  const { inputs, result, sensitivity, reset, mode, status, location } = useScenario();
+  const { inputs, result, sensitivity, reset, mode, status, location, zoneSelected } = useScenario();
   const [exported, setExported] = useState(false);
   useEffect(() => { if (exported) { const timer = setTimeout(() => setExported(false), 2400); return () => clearTimeout(timer); } }, [exported]);
   function exportScenario() {
@@ -108,15 +108,16 @@ function ScenarioHeading() {
   return <>
     <div className="workspace-heading">
       <div><div className="eyebrow breadcrumb">SPP <span>/</span> SCENARIO ANALYSIS</div><h1>Flexible connection analysis</h1><p>Earlier grid access, modeled interruption exposure, and the cost of waiting.</p></div>
-      <div className="workspace-actions"><SaveToPortfolio /><button className="button button-quiet" onClick={reset}><RotateCcw size={14} />Reset</button><button className="button" onClick={exportScenario} disabled={location.enabled && !location.result}>{exported ? <Check size={14} /> : <Download size={14} />}{exported ? 'Exported' : 'Export scenario'}</button><span className="sr-only" role="status">{exported ? 'Scenario JSON exported.' : ''}</span></div>
+      <div className="workspace-actions"><SaveToPortfolio /><button className="button button-quiet" onClick={reset}><RotateCcw size={14} />Reset</button><button className="button" onClick={exportScenario} disabled={location.enabled ? !location.result : !zoneSelected}>{exported ? <Check size={14} /> : <Download size={14} />}{exported ? 'Exported' : 'Export scenario'}</button><span className="sr-only" role="status">{exported ? 'Scenario JSON exported.' : ''}</span></div>
     </div>
     <EstimateConnection />
   </>;
 }
 
 function EstimateConnection() {
-  const { mode, status, error, retry, chooseMode, modeNote, location } = useScenario();
+  const { mode, status, error, retry, chooseMode, modeNote, location, zoneSelected } = useScenario();
   if (location.enabled) return <LocationConnection />;
+  if (!zoneSelected) return null;
   const message = status === 'api'
     ? 'Estimate service connected · current inputs synchronized.'
     : status === 'loading'
@@ -182,7 +183,7 @@ const getTelemetryAscii = (locationId: string) => {
 }
 
 function Inputs() {
-  const { inputs, location: estimateLocation } = useScenario();
+  const { inputs, location: estimateLocation, zoneSelected } = useScenario();
   const [showTelemetry, setShowTelemetry] = useState(false);
 
   const stations = telemetryStations[inputs.location_id] || [];
@@ -192,7 +193,7 @@ function Inputs() {
     <section className="inputs-bar" aria-label="Connection inputs">
       <div className="location-field">
         <LocationField showTelemetry={showTelemetry} setShowTelemetry={setShowTelemetry} />
-        {!estimateLocation.enabled && (
+        {!estimateLocation.enabled && zoneSelected && (
           <button
             type="button"
             className="telemetry-toggle-btn"
@@ -211,7 +212,7 @@ function Inputs() {
       <NumberField name="vpp_solar_homes" label="VPP ORCHESTRATION" unit="solar homes" min={0} max={10000} icon={<CloudSun size={13} className="text-teal" />} />
     </section>
     
-    {showTelemetry && !estimateLocation.enabled && <section id="telemetry-drawer" className="telemetry-drawer" aria-label="Climate telemetry nodes">
+    {showTelemetry && !estimateLocation.enabled && zoneSelected && <section id="telemetry-drawer" className="telemetry-drawer" aria-label="Climate telemetry nodes">
       <div className="telemetry-drawer-header">
         <div>
           <span className="eyebrow text-teal">MODEL TEMPERATURE CORRELATION</span>
@@ -302,7 +303,7 @@ function ExposurePanel() {
   const [transparencyOpen, setTransparencyOpen] = useState(false);
   const transparencyTrigger = useRef<HTMLButtonElement>(null);
   const closeTransparency = () => { setTransparencyOpen(false); transparencyTrigger.current?.focus(); };
-  const [view, setView] = useState<'surface' | 'fan'>('fan');
+  const [view, setView] = useState<'surface' | 'fan'>('surface');
   const chartRef = useRef<HTMLDivElement>(null);
   useChangeMotion(chartRef, view);
   const [surfaceUnavailable, setSurfaceUnavailable] = useState(false);
@@ -425,7 +426,7 @@ const workspaceTabs = [
 type WorkspaceTab = typeof workspaceTabs[number][0];
 
 function Workspace() {
-  const { sensitivity, location } = useScenario();
+  const { sensitivity, location, zoneSelected } = useScenario();
   const [tab, setTab] = useState<WorkspaceTab>('overview');
   return <div className="app-shell">
     <a className="skip-link" href="#main">Skip to workspace</a>
@@ -449,12 +450,12 @@ function Workspace() {
         {tab === 'overview' && <Overview
           onScenario={() => { setTab('scenario'); document.getElementById('tab-scenario')?.focus(); }}
           onZones={() => { setTab('zones'); document.getElementById('tab-zones')?.focus(); }} />}
-        {tab === 'scenario' && <><ScenarioHeading /><Inputs /><ExposureControl />{location.enabled ? <LocationResultPanels /> : <><div className="results-grid"><ExposurePanel /><EconomicsPanel /></div><GridImpactPanel /><SensitivityPanel sensitivity={sensitivity} /></>}<Assumptions /></>}
+        {tab === 'scenario' && <><ScenarioHeading /><Inputs /><ExposureControl />{location.enabled ? <LocationResultPanels /> : !zoneSelected ? <p className="field-note" role="status">Select a zone to start your scenario.</p> : <><div className="results-grid"><ExposurePanel /><EconomicsPanel /></div><GridImpactPanel /><SensitivityPanel sensitivity={sensitivity} /></>}<Assumptions /></>}
         {tab === 'zones' && <ZoneLeaderboard />}
         {tab === 'portfolio' && <PortfolioPanel />}
       </div>
     </main>
-    {tab !== 'overview' && <footer><span className="flex items-center gap-2"><Unplug size={12} />{location.enabled ? 'HISTORICAL LOCATION COMPARISON' : 'NO LIVE GRID FETCHES'}</span></footer>}
+    {tab !== 'overview' && location.enabled && <footer><span className="flex items-center gap-2"><Unplug size={12} />HISTORICAL LOCATION COMPARISON</span></footer>}
   </div>;
 }
 

@@ -32,7 +32,7 @@ describe('session portfolio', () => {
   })
   afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
-  it('loads saved selections, compares real wind evidence/exclusions, stores thresholds, reloads and removes', async () => {
+  it('loads saved selections, compares real wind evidence, omits removed details, reloads and removes', async () => {
     let saved = { ...structuredClone(empty), sites: [site('LES', 'First site'), site('EDE', 'Next site')] }
     sessionStorage.setItem('fluxline_portfolio_session', 'session')
     const fetcher = vi.fn(async (url: string, init: RequestInit) => {
@@ -57,17 +57,20 @@ describe('session portfolio', () => {
     expect(screen.queryByRole('button', { name: 'Save current site to portfolio' })).toBeNull()
     expect(screen.queryByText(/Uses current server economics assumptions/)).toBeNull()
     await screen.findByRole('button', { name: 'Remove First site' })
-    expect(screen.getByRole('button', { name: /^764\./ })).toBeTruthy()
-    expect(screen.getAllByText('Composite ranking unavailable')).toHaveLength(2)
-    expect(screen.getByText('Wind evidence unavailable for this zone.')).toBeTruthy()
-    fireEvent.change(screen.getByLabelText('Exposure threshold for First site'), { target: { value: '200' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save thresholds for First site' }))
-    await screen.findByText('Threshold check unavailable')
-    expect(screen.queryByText('Within saved thresholds')).toBeNull()
-    expect(screen.getByRole('button', { name: /^200\./ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /^764(?:\.| )/ })).toBeTruthy()
+    expect(screen.queryByText('Published ranking')).toBeNull()
+    expect(screen.queryByText('Modeled exposure / annual cost')).toBeNull()
+    expect(screen.queryByText('Observation coverage')).toBeNull()
+    expect(screen.queryByText(/Screened hours, not measured/)).toBeNull()
+    expect(screen.queryByText('Your static threshold checks')).toBeNull()
+    expect(screen.queryByLabelText('Exposure threshold for First site')).toBeNull()
+    expect(screen.queryByText('Missing evidence')).toBeNull()
+    expect(screen.queryByText('Why unavailable')).toBeNull()
+    expect(screen.queryByText('Annual exposure and carbon evidence missing.')).toBeNull()
+    expect(screen.queryByText('Annual reference is not ready.')).toBeNull()
+    expect(screen.getAllByText('Unavailable').length).toBeGreaterThan(0)
     view.unmount(); render(<PortfolioPanel />)
     await screen.findByRole('button', { name: 'Remove First site' })
-    expect((screen.getByLabelText('Exposure threshold for First site') as HTMLInputElement).value).toBe('200')
     fireEvent.click(screen.getByRole('button', { name: 'Remove Next site' }))
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Remove Next site' })).toBeNull())
     expect(sessionStorage.getItem('fluxline_portfolio_session')).toBe('session')
@@ -101,9 +104,9 @@ describe('session portfolio', () => {
     vi.stubGlobal('fetch', fetcher)
     render(<PortfolioPanel />)
     await screen.findByRole('alert')
-    fireEvent.click(screen.getByRole('button', { name: 'Refresh evidence and checks' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh evidence' }))
     await screen.findByRole('button', { name: 'Remove Existing site' })
-    expect(fetcher.mock.calls.map(([url, init]) => [new URL(url).pathname, init.method])).toEqual([
+    expect(fetcher.mock.calls.filter(([url]) => new URL(url).pathname.startsWith('/api/portfolios')).map(([url, init]) => [new URL(url).pathname, init.method])).toEqual([
       ['/api/portfolios/session', 'GET'], ['/api/portfolios/session', 'GET'],
     ])
   })
@@ -121,7 +124,7 @@ describe('session portfolio', () => {
     expect(() => validatePortfolio(missing)).toThrow('Invalid portfolio')
   })
 
-  it('renders an exceeded static check with sourced observed values for an authored supported fixture', async () => {
+  it('keeps threshold payload validation while omitting retired threshold and estimate UI', async () => {
     const entry = site('LES')
     entry.estimate = createMockEstimate({ ...entry.inputs, location_id: 'SPP_SYSTEM' })
     entry.estimate.inputs_echo = entry.inputs
@@ -138,9 +141,10 @@ describe('session portfolio', () => {
     sessionStorage.setItem('fluxline_portfolio_session', 'session')
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(data))))
     render(<PortfolioPanel />)
-    await screen.findByText('Threshold exceeded')
-    expect(screen.getByText(/Exceeded · current/)).toBeTruthy()
-    expect(screen.getByText(/Costs are scenario calculations/)).toBeTruthy()
+    await screen.findByRole('button', { name: 'Remove LES' })
+    expect(screen.queryByText('Threshold exceeded')).toBeNull()
+    expect(screen.queryByText('Modeled exposure / annual cost')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Save thresholds for LES' })).toBeNull()
     const contradictory = structuredClone(data)
     contradictory.sites[0].threshold_status.checks[0].observed! += 1
     expect(() => validatePortfolio(contradictory)).toThrow('Invalid portfolio')

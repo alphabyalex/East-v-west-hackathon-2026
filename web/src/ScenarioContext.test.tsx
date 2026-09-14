@@ -9,9 +9,11 @@ import { withEconomics } from './api/test-fixtures';
 import economicSnapshot from './model/economics-assumptions.json';
 
 function setup(mode?: EstimateMode) {
-  return renderHook(() => useScenario(), {
+  const hook = renderHook(() => useScenario(), {
     wrapper: ({ children }: { children: ReactNode }) => <ScenarioProvider initialMode={mode}>{children}</ScenarioProvider>,
   });
+  act(() => hook.result.current.update('location_id', 'spp-wichita-demo'));
+  return hook;
 }
 
 function deferred<T>() {
@@ -23,7 +25,7 @@ function deferred<T>() {
 
 const jsonResponse = (body: EstimateResponse) => new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
 const initialRequest: EstimateRequest = {
-  location_id: 'SPP_SYSTEM',
+  location_id: 'spp-wichita-demo',
   load_mw: 100,
   term_years: 7,
   flexibility_split: 0.6,

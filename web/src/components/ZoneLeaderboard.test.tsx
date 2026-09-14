@@ -120,7 +120,7 @@ describe('ZoneLeaderboard', () => {
     })
   })
 
-  it('renders the shipped wind evidence and explains every excluded location without invented ranks', async () => {
+  it('renders shipped wind evidence and unavailable locations without raw diagnostics or invented ranks', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(shippedManifest), { status: 200 })))
     render(<ZoneLeaderboard />)
     expect(await screen.findByText('Composite ranking unavailable')).toBeTruthy()
@@ -128,8 +128,9 @@ describe('ZoneLeaderboard', () => {
     expect(screen.getByText('OKGE · OKGE_OKGE')).toBeTruthy()
     expect(screen.queryByLabelText('Spatial rankings list')).toBeNull()
     expect(screen.queryByText('#1')).toBeNull()
-    fireEvent.click(screen.getByText('Excluded locations and missing evidence'))
+    fireEvent.click(screen.getByText('Locations without rankings'))
     for (const item of shippedManifest.excluded_locations) {
+      for (const reason of item.reasons) expect(screen.queryByText(reason, { exact: false })).toBeNull()
       expect(screen.getByRole('button', { name: new RegExp(`^${item.location_id}.*data provenance`) })).toBeTruthy()
     }
     const les = shippedManifest.available_wind_evidence.find(row => row.location_id === 'LES')!
@@ -151,7 +152,7 @@ describe('ZoneLeaderboard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Chart' }))
     expect(screen.getByText('Wind-screening evidence (not composite ranks)')).toBeTruthy()
     expect(screen.getByText('OKGE:', { exact: false })).toBeTruthy()
-    fireEvent.click(screen.getByText('Excluded locations and missing evidence'))
+    fireEvent.click(screen.getByText('Locations without rankings'))
     expect(document.querySelectorAll('details.leaderboard-intro li')).toHaveLength(21)
     expect(screen.queryByText('#1')).toBeNull()
   })

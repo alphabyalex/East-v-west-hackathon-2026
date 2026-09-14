@@ -20,7 +20,7 @@ interface Attempt {
   error?: string;
 }
 
-export function useEstimateTransport(request: EstimateRequest, mode: EstimateMode) {
+export function useEstimateTransport(request: EstimateRequest, mode: EstimateMode, enabled = true) {
   const key = JSON.stringify(request);
   const submitted = useMemo<EstimateRequest>(() => JSON.parse(key), [key]);
   const [retryCount, setRetryCount] = useState(0);
@@ -29,7 +29,7 @@ export function useEstimateTransport(request: EstimateRequest, mode: EstimateMod
 
   useEffect(() => {
     const current = ++sequence.current;
-    if (mode === 'local') return;
+    if (!enabled || mode === 'local') return;
     const controller = new AbortController();
     let timeout: ReturnType<typeof setTimeout> | undefined;
     const active = () => sequence.current === current && !controller.signal.aborted;
@@ -58,11 +58,11 @@ export function useEstimateTransport(request: EstimateRequest, mode: EstimateMod
       clearTimeout(timeout);
       controller.abort();
     };
-  }, [key, submitted, mode, retryCount]);
+  }, [key, submitted, mode, retryCount, enabled]);
 
-  const matches = mode === 'api' && attempt?.key === key && attempt.retry === retryCount;
+  const matches = enabled && mode === 'api' && attempt?.key === key && attempt.retry === retryCount;
   const response = matches ? attempt.response : undefined;
   const error = matches ? attempt.error : undefined;
-  const status: EstimateStatus = mode === 'local' ? 'local' : response ? 'api' : error ? 'fallback' : 'loading';
+  const status: EstimateStatus = !enabled || mode === 'local' ? 'local' : response ? 'api' : error ? 'fallback' : 'loading';
   return { response, assumptions: matches ? attempt.assumptions : undefined, sensitivity: matches ? attempt.sensitivity : undefined, error, status, retry: () => setRetryCount(previous => previous + 1) };
 }

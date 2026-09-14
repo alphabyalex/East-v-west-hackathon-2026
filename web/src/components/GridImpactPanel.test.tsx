@@ -13,7 +13,7 @@ beforeEach(() => {
   vi.stubGlobal('matchMedia', (media: string) => ({ matches: true, media, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
   vi.stubGlobal('fetch', vi.fn(async (url: string) => new Response(JSON.stringify(realGridFixture(url.split('/').at(-1)!)))))
 })
-afterEach(() => { cleanup(); vi.unstubAllGlobals() })
+afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
 it('renders real LES wind and cheap-power value with honest carbon framing and clickable scenario provenance', async () => {
   render(<GridImpactPanel />)
@@ -65,7 +65,6 @@ it('falls back to monthly values if WebGL is unavailable and preserves source in
   vi.stubGlobal('WebGL2RenderingContext', undefined)
   render(<GridImpactPanel />)
   await screen.findByRole('button', { name: /Cheap-power value:/ })
-  fireEvent.click(within(screen.getByRole('group', { name: 'Grid-impact chart view' })).getByRole('button', { name: 'Surface' }))
   expect(await screen.findByText(/Surface unavailable on this device/)).toBeTruthy()
   fireEvent.click(screen.getByText('Inspect monthly values and sources'))
   expect(within(screen.getByRole('table', { name: 'Sourced monthly grid-impact values' })).getAllByRole('row')).toHaveLength(13)
@@ -76,4 +75,18 @@ it('makes HTTP failure visible and permits retry without numeric substitutes', a
   render(<GridImpactPanel />)
   fireEvent.click(await screen.findByRole('button', { name: 'Retry grid impact' }))
   expect(await screen.findByRole('button', { name: /Cheap-power value: \$397,027/ })).toBeTruthy()
+})
+
+it('defaults to the surface and lets the user switch to monthly values', async () => {
+  const renderer = await import('./exposure-surface/renderer')
+  vi.stubGlobal('WebGL2RenderingContext', class {})
+  const controller = { update: vi.fn(), updateGrid: vi.fn(), select: vi.fn(), reset: vi.fn(), rotate: vi.fn(), zoom: vi.fn(), dispose: vi.fn() }
+  vi.spyOn(renderer, 'createSurfaceRenderer').mockReturnValue(controller)
+  render(<GridImpactPanel />)
+  const toggle = within(await screen.findByRole('group', { name: 'Grid-impact chart view' }))
+  expect(toggle.getByRole('button', { name: 'Surface' }).getAttribute('aria-pressed')).toBe('true')
+  await vi.waitFor(() => expect(controller.updateGrid).toHaveBeenCalled())
+  fireEvent.click(toggle.getByRole('button', { name: 'Monthly' }))
+  expect(screen.getByRole('img', { name: 'Observed wholesale scenario value by month, in US dollars' })).toBeTruthy()
+  expect(controller.dispose).toHaveBeenCalled()
 })

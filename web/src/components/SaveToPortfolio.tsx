@@ -100,8 +100,7 @@ export function SaveToPortfolio() {
       onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); close() } }}>
       <label htmlFor="portfolio-site-name">Site name</label>
       <input ref={field} id="portfolio-site-name" value={name} onChange={event => { setName(event.target.value); setError(''); setSaved('') }}
-        maxLength={80} disabled={busy} aria-invalid={error.startsWith('Enter a name') || undefined} aria-describedby="portfolio-save-note" />
-      <p id="portfolio-save-note">Saves these scenario inputs using server economics defaults. Workspace economics overrides are not saved.</p>
+        maxLength={80} disabled={busy} aria-invalid={error.startsWith('Enter a name') || undefined} />
       {(blocked || error) && <p role="alert">{blocked || error}</p>}
       {saved && <p role="status" className="portfolio-save-success">{saved}</p>}
       {busy && <p role="status">Saving to portfolio…</p>}

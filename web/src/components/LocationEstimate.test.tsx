@@ -50,6 +50,7 @@ it('uses the existing controls, shows expected results, exports city results and
     expect(screen.queryAllByText('Expected site exposure')).toHaveLength(0);
     expect((screen.getByRole('button', { name: 'Export scenario' }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: 'Reset' }));
-    expect(screen.getByText('Median scenario')).toBeDefined();
+    expect(screen.queryByText('Median scenario')).toBeNull();
+    expect((screen.getByLabelText('SPP LOCATION') as HTMLSelectElement).value).toBe('');
   } finally { if (exported) await released; click.mockRestore(); }
 }, 15000);

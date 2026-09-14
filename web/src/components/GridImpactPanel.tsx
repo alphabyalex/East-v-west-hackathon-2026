@@ -23,7 +23,7 @@ function Metric({ label, datum, unit, format, note }: { label: string; datum: Gr
 
 function PowerChart({ power, load, available }: { power: PowerEvidence; load: number; available: number }) {
   const scenario = useMemo(() => powerScenario(power, load, available), [power, load, available])
-  const [view, setView] = useState<'monthly' | 'surface'>('monthly')
+  const [view, setView] = useState<'monthly' | 'surface'>('surface')
   const [fallback, setFallback] = useState(false)
   const monthly = useMemo(() => Array.from({ length: 12 }, (_, index) => {
     const bins = scenario.bins.slice(index * 24, index * 24 + 24)

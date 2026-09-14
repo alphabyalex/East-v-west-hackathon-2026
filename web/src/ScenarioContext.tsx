@@ -58,7 +58,7 @@ function useScenarioState(initialMode: EstimateMode) {
     r.vpp_solar_homes = storedInputs.vpp_solar_homes;
     return r;
   }, [storedInputs]);
-  const transport = useEstimateTransport(request, mode);
+  const transport = useEstimateTransport(request, mode, storedInputs.location_id !== 'SPP_SYSTEM');
   useEffect(() => {
     if (transport.assumptions) setServerDefaults(transport.assumptions);
   }, [transport.assumptions]);
@@ -170,6 +170,7 @@ function useScenarioState(initialMode: EstimateMode) {
   }
   return {
     location,
+    zoneSelected: inputs.location_id !== 'SPP_SYSTEM',
     inputs,
     result,
     sensitivity,

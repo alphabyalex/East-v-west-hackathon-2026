@@ -30,10 +30,11 @@ export function LocationField({ showTelemetry, setShowTelemetry }: { showTelemet
     }
   }, [mode])
 
-  const selected = locations.find(location => location.id === inputs.location_id)
-  const note = selected?.kind === 'system' ? 'System aggregate · no site-specific grid data'
-    : selected?.kind === 'scenario' ? 'Scenario location · no site-specific grid data'
-      : selected?.kind === 'zone' ? 'SPP load zone · zone-specific model data; site exposure is your assumption'
+  const choices = locations.filter(location => location.kind !== 'system' && location.id !== 'SPP_SYSTEM')
+  const selected = choices.find(location => location.id === inputs.location_id)
+  const note = !selected ? ''
+    : selected.kind === 'scenario' ? 'Scenario location · no site-specific grid data'
+      : selected.kind === 'zone' ? 'SPP load zone · zone-specific model data; site exposure is your assumption'
         : 'SPP location · model coverage not confirmed'
   return <div className="location-field">
     <div className="field-label">
@@ -42,19 +43,20 @@ export function LocationField({ showTelemetry, setShowTelemetry }: { showTelemet
     <div className="select-wrap">
       <select
         id="location"
-        data-provenance={JSON.stringify({ value: estimateLocation.enabled ? estimateLocation.query : inputs.location_id, ...(estimateLocation.enabled ? { source_type: 'assumption', ref: 'user://location-query' } : sourceFor('location_id')) })}
-        value={estimateLocation.enabled ? 'custom-location' : inputs.location_id}
+        data-provenance={inputs.location_id === 'SPP_SYSTEM' && !estimateLocation.enabled ? undefined : JSON.stringify({ value: estimateLocation.enabled ? estimateLocation.query : inputs.location_id, ...(estimateLocation.enabled ? { source_type: 'assumption', ref: 'user://location-query' } : sourceFor('location_id')) })}
+        value={estimateLocation.enabled ? 'custom-location' : inputs.location_id === 'SPP_SYSTEM' ? '' : inputs.location_id}
         onChange={event => {
           const custom = event.target.value === 'custom-location';
           estimateLocation.activate(custom);
           if (custom) setShowTelemetry(false);
-          else update('location_id', event.target.value);
+          else update('location_id', event.target.value || 'SPP_SYSTEM');
         }}
         aria-describedby="location-note"
       >
+        <option value="" disabled>Select zone</option>
         <option value="custom-location">Choose a city or coordinates</option>
-        {locations.map(location => <option key={location.id} value={location.id}>{location.label}</option>)}
-        {!selected && !estimateLocation.enabled && (
+        {choices.map(location => <option key={location.id} value={location.id}>{location.label}</option>)}
+        {!selected && inputs.location_id !== 'SPP_SYSTEM' && !estimateLocation.enabled && (
           <option value={inputs.location_id} disabled>
             {inputs.location_id} · not in current catalog
           </option>

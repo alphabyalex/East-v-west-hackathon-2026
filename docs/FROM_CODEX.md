@@ -1050,3 +1050,64 @@
 - New/changed interface: none beyond the already documented UI save consolidation. No new implementation changes.
 - Validation: publishing the same tree already verified with 2016 Python tests plus 42 subtests, 351 frontend tests, production build and real Edge save/validation/tab/reload checks. Only this outbox entry was added afterward. Return to Alex for subsequent updates; teammate branches untouched.
 - Needs review: none.
+
+## Remove save-form economics note after main publication - 2026-09-13
+- Changed: removed the requested server-defaults/overrides paragraph from Save to Portfolio and its obsolete aria-describedby reference. Saving behavior unchanged.
+- Publication: preceding main push completed successfully; origin/main and origin/Alex both point to d5486be. This subsequent copy edit remains local on Alex.
+- Validation: all six save-flow tests pass.
+- New/changed interface: none. Needs review: none.
+
+## Remove portfolio session paragraph - 2026-09-14
+- Changed: removed the requested session-storage/manual-check/server-defaults paragraph from Portfolio & Alerts.
+- New/changed interface: none; backend behavior, expiration handling and evidence remain unchanged.
+- Validation: all six portfolio tests pass. Left local and uncommitted on Alex.
+- Needs review: none.
+
+## Remove portfolio checked-at line - 2026-09-14
+- Changed: removed the Checked at timestamp and refresh-instruction sentence from the portfolio UI.
+- New/changed interface: none; API checked_at_utc and the refresh action remain unchanged.
+- Validation: all six portfolio tests pass. Left local and uncommitted.
+- Needs review: none.
+
+## Demo UI diagnostic copy cleanup - 2026-09-14
+- Changed: removed the Portfolio Missing evidence and Why unavailable diagnostic expansions. Zone Analytics now lists locations without rankings with a concise unavailable status instead of raw annual-readiness, partial-period, and carbon diagnostic reasons.
+- New/changed interface: none. API reasons, source objects, readiness checks, and unavailable results remain unchanged; no missing results are replaced with numbers.
+- Validation: PortfolioPanel and ZoneLeaderboard suites passed, 13 tests across 2 files. Assertions cover retained unavailable states and absent raw diagnostics.
+- Needs review: none. Changes left local and uncommitted.
+
+## Portfolio detail and control removal - 2026-09-14
+- Changed: removed the portfolio wind reference paragraph and observation-coverage expansion, the modeled exposure/annual cost row, and the static threshold row/editor. Updated nearby heading and refresh copy to match the remaining comparison UI. Removed NO LIVE GRID FETCHES from the app footer.
+- New/changed interface: none; backend estimates, wind provenance, saved thresholds and validation remain intact. Threshold editing is no longer exposed in this panel, per request.
+- Validation: App (22) and SaveToPortfolio (6) tests passed; PortfolioPanel (6) passed after updating its retired-control assertion. Production build passed with the existing chunk-size warning; initial sandbox build required a rerun with parent-directory access.
+- Needs review: none. Left local and uncommitted.
+
+## Default to 3D chart views - 2026-09-14
+- Changed: Exposure and Grid Impact now initialize with Surface selected. These are the two existing 2D/3D toggles; users can still select Fan chart or Monthly, and unsupported graphics still fall back automatically.
+- New/changed interface: none; only initial view state changed. Data, math, provenance, and renderer lifecycle remain intact.
+- Validation: 36 tests passed across App, GridImpactPanel, ExposureSurface, and GridImpactSurface. Updated tests cover default surface initialization, switching to 2D, disposal, and automatic fallback. Production build passed with the existing chunk-size warning.
+- Needs review: none. Left local and uncommitted.
+
+## Center portfolio remove buttons - 2026-09-14
+- Changed: centered saved-site column headings and their Remove buttons on the same horizontal axis. Comparison row labels retain their existing alignment.
+- New/changed interface: none; CSS only.
+- Validation: inspected the scoped table selectors and existing markup. No behavior changes or new tests.
+- Needs review: none. Left local and uncommitted.
+
+## Start scenario analysis with Select zone - 2026-09-14
+- Changed: removed system aggregate from online/offline dropdown choices; initial and reset states display Select zone. Results, climate telemetry, export, and estimate HTTP requests stay inactive until a selection. City search and the existing zone/scenario choices remain available.
+- New/changed interface: internal context exposes zoneSelected and transport accepts an enabled flag. The existing SPP_SYSTEM model default is retained internally as the unselected sentinel to avoid changing the canonical model fixture/API; it is neither a selectable option nor a requested/rendered scenario. No API or calculation changes.
+- Validation: full frontend run had 340 passing tests and one new-test spy mistake, then corrected App suite passed all 23 tests; 12 live contract tests also passed (353 total covered). LocationField rerun passed all 9 tests. Production build passed with existing chunk warning. Live Edge verified empty selection, absent aggregate, no initial estimate POST, LES POST after selection, reset clears results, and no page errors.
+- Needs review: none. Left local and uncommitted.
+
+## Expanded portfolio comparison - 2026-09-14
+- Changed: added PortfolioComparison with 12 grouped measures, candidate/zone counts, load range, larger centered site headers, proportional comparison bars, selectable reference deltas, differences-only filtering, and contained mobile scrolling with sticky row labels. Removed the all-unavailable ranking row; published ranking rows appear if any supported ranking exists. Previous diagnostic dumps and threshold form remain removed.
+- Data: fetches existing GET /api/grid-impact/{location_id} once per unique zone per portfolio refresh; aborts on replacement/unmount and keeps failures unavailable. Uses saved load and the existing powerScenario formula for wind MWh and cheap-power USD, with an adjustable common upward-available fraction (initial 0.5). This comparison-only control is not saved or conflated with flexibility/site exposure. Capacity math: interruptible MW=load*split, non-interruptible MW=load*(1-split), before VPP support. All derived values/deltas retain assumption provenance. Observed totals are not annualized; deltas are suppressed across missing/different periods. Carbon remains unavailable unless supplied.
+- New/changed interface: no API, model, or saved-portfolio contract changes. Internal display component only; uses existing sourced responses.
+- Validation: full frontend suite passed 357 tests across 29 files, including 12 live contracts; focused comparison suite also passed after final period checks. Production build passed with existing chunk-size warning. Live Edge QA created separate test portfolios with CSWS/LES/KACY, verified reference/filter behavior and absent fabricated KACY numbers, and inspected desktop/mobile screenshots (.tools/browser-qa/compare-expanded-*.png). No browser errors or mobile document overflow.
+- Needs review: none. Left local and uncommitted for iteration.
+
+## Publish approved demo UI checkpoint - 2026-09-14
+- Changed: user authorized committing and publishing the accumulated UI updates to Alex and main: expanded sourced portfolio comparisons, compact diagnostic presentation, 3D defaults, centered site actions, and Select zone initial/reset behavior.
+- New/changed interface: no external API contract changes; frontend-only work and internal state/transport changes documented above.
+- Validation: latest fetched origin/Alex and origin/main both d5486be; no upstream divergence. Existing verification covers 357 passing frontend tests including live contracts, a passing production build, and live desktop/mobile checks. git diff --check passed.
+- Needs review: none. This checkpoint supersedes the preceding local/uncommitted notes.
