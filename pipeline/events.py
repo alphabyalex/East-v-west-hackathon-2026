@@ -102,7 +102,7 @@ def annotate_hours(frame: pd.DataFrame, catalog: dict, location_id: str, region_
                           for a, b, identifier in intervals if a < end and b > start)
         if not overlaps:
             continue
-        total = pd.Timedelta(0)
+        total = pd.Timedelta(0, unit="s")
         left, right = overlaps[0][:2]
         for a, b, _ in overlaps[1:]:
             if a <= right:
