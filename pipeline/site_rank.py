@@ -138,13 +138,19 @@ def compute_zone_rankings(exposure_parquet_path: Path, output_json_path: Path):
     df_rank = pd.DataFrame(records)
     
     # 3. Compute standardized scores (0.0 to 1.0)
-    # Risk Score: lower exposure hours = better (closer to 1.0)
-    max_p50 = df_rank["avg_p50_risk_hours"].max()
-    min_p50 = df_rank["avg_p50_risk_hours"].min()
-    if max_p50 == min_p50:
-        df_rank["score_risk"] = 1.0
-    else:
-        df_rank["score_risk"] = 1.0 - (df_rank["avg_p50_risk_hours"] - min_p50) / (max_p50 - min_p50)
+    # For risk, we compute a multi-criteria index incorporating median (p50), extreme tail (p99), and duration (worst contiguous)
+    def standardize_low_better(series):
+        s_max, s_min = series.max(), series.min()
+        if s_max == s_min:
+            return pd.Series(1.0, index=series.index)
+        return 1.0 - (series - s_min) / (s_max - s_min)
+
+    score_p50 = standardize_low_better(df_rank["avg_p50_risk_hours"])
+    score_p99 = standardize_low_better(df_rank["avg_p99_risk_hours"])
+    score_worst = standardize_low_better(df_rank["avg_worst_contiguous_hours"])
+
+    # Combined risk score (60% median frequency, 20% extreme frequency, 20% contiguous duration severity)
+    df_rank["score_risk"] = 0.6 * score_p50 + 0.2 * score_p99 + 0.2 * score_worst
         
     # Wind Score: higher wind absorption = better (closer to 1.0)
     max_wind = df_rank["wind_absorption_mwh_per_year"].max()
