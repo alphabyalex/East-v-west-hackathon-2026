@@ -4,6 +4,7 @@ import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip,
 import { ScenarioProvider, useScenario } from './ScenarioContext';
 import { ScenarioErrorBoundary } from './components/ScenarioErrorBoundary';
 import { Landing } from './Landing';
+import { Overview } from './components/Overview';
 import { SaveToPortfolio } from './components/SaveToPortfolio';
 import { PortfolioPanel } from './components/PortfolioPanel';
 import { ZoneLeaderboard } from './components/ZoneLeaderboard';
@@ -418,6 +419,7 @@ function Assumptions() {
 }
 
 const workspaceTabs = [
+  ['overview', 'Overview'],
   ['scenario', 'Scenario Stress Test'],
   ['zones', 'Zone Analytics'],
   ['portfolio', 'Portfolio & Alerts'],
@@ -446,6 +448,10 @@ function Workspace() {
       </div>
     <main id="main">
       <div key={tab} id={`panel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`} tabIndex={0} className="workspace-tab-panel">
+        {tab === 'overview' && <Overview
+          onScenario={() => { setTab('scenario'); document.getElementById('tab-scenario')?.focus(); }}
+          onZones={() => { setTab('zones'); document.getElementById('tab-zones')?.focus(); }}
+        />}
         {tab === 'scenario' && <><ScenarioHeading /><Inputs /><ExposureControl />{location.enabled ? <LocationResultPanels /> : !zoneSelected ? <p className="field-note" role="status">Select a zone to start your scenario.</p> : <><div className="results-grid"><ExposurePanel /><EconomicsPanel /></div><GridImpactPanel /><SensitivityPanel sensitivity={sensitivity} /></>}<Assumptions /></>}
         {tab === 'zones' && <ZoneLeaderboard />}
         {tab === 'portfolio' && <PortfolioPanel />}
