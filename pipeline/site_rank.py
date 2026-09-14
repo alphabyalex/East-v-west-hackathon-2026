@@ -43,6 +43,51 @@ def generate_mock_wind_absorption(location_id: str) -> dict:
         }
     }
 
+ZONE_SETTLEMENT_POINTS = {
+    "CSWS": "AEPM_CSWS", "LES": "LES_LES", "OKGE": "OKGE_OKGE",
+    "OPPD": "OPPD_OPPD", "SPS": "SPS_SPS", "WFEC": "WFEC_WFEC",
+}
+
+def get_actual_wind_absorption(location_id: str) -> dict:
+    """
+    Attempts to read Alex's real precomputed wind and carbon metrics from the live snapshots.
+    Falls back gracefully to the mock generator for missing or incomplete zones.
+    """
+    import json
+    snapshot_dir = Path(__file__).resolve().parent.parent / "data/processed/grid_impact/live_v1"
+    
+    # Check if a mapped zone reference exists
+    point = ZONE_SETTLEMENT_POINTS.get(location_id, location_id)
+    snapshot_path = snapshot_dir / f"{point}.snapshot.json"
+    
+    if snapshot_path.is_file():
+        try:
+            with open(snapshot_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            
+            result = data.get("result", {})
+            wind_obj = result.get("wind_absorption_mwh_in_observed_hours", {})
+            carbon_obj = result.get("carbon_absorbed_tonnes_in_observed_hours", {})
+            
+            wind_val = wind_obj.get("value")
+            carbon_val = carbon_obj.get("value")
+            
+            if wind_val is not None and carbon_val is not None:
+                log.info(f"Loaded REAL precomputed grid-impact values for {location_id} from {point}.snapshot.json (Wind: {wind_val} MWh, Carbon: {carbon_val} tCO2)")
+                return {
+                    "location_id": location_id,
+                    "wind_absorption_mwh_per_year": float(wind_val),
+                    "carbon_absorbed_tonnes_per_year": float(carbon_val),
+                    "source": {
+                        "source_type": "data",
+                        "ref": f"data/processed/grid_impact/live_v1/{point}.snapshot.json; source_location={point}"
+                    }
+                }
+        except Exception as e:
+            log.warning(f"Failed to read precomputed snapshot for {location_id} ({e}), falling back to mock generator...")
+            
+    return generate_mock_wind_absorption(location_id)
+
 def compute_zone_rankings(exposure_parquet_path: Path, output_json_path: Path):
     """
     Computes a composite score per SPP zone and saves the ranked results to JSON.
@@ -74,8 +119,8 @@ def compute_zone_rankings(exposure_parquet_path: Path, output_json_path: Path):
         p99_avg = float(row["p99_hours"])
         worst_avg = float(row["worst_contiguous_hours"])
         
-        # 2. Grab Alex's placeholder wind & carbon metrics
-        wind_data = generate_mock_wind_absorption(loc_id)
+        # 2. Grab Alex's real precomputed or placeholder wind & carbon metrics
+        wind_data = get_actual_wind_absorption(loc_id)
         wind_mwh = wind_data["wind_absorption_mwh_per_year"]
         carbon_tonnes = wind_data["carbon_absorbed_tonnes_per_year"]
         
