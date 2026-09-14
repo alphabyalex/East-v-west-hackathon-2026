@@ -1,7 +1,7 @@
 # BigQuery ML Thesis Report: Continental US Climatological Risk Index
 
 **Multi-Region Extreme Grid Interconnection Interruption Risk Model**
-Executed on Google Cloud BigQuery: 2026-09-14 00:42:02.366865+00:00
+Executed on Google Cloud BigQuery: 2026-09-14 01:27:21.780900+00:00
 
 ## 🔬 Scientific Methodology & Continental Scope
 To establish a nation-wide, out-of-sample valid prediction of grid-stress climatological risk, we engineered a locally-calibrated **Climatological Stress Target (CST)** across **6 distinct US grid regions (Northeast, Southeast, Midwest, Texas, Mountain, and Pacific Northwest)** covering **11 major cities**:
@@ -35,11 +35,11 @@ The model was evaluated against the completely untouched 2024 calendar year out-
 
 | Evaluation Metric | Value |
 |---|---:|
-| Log Loss | 0.114955 |
-| ROC-AUC | 0.985076 |
-| Precision-Recall AUC (PR-AUC) | 0.973333 |
-| Accuracy | 0.965248 |
-| F1-Score | 0.766404 |
+| Log Loss | 0.221102 |
+| ROC-AUC | 0.945143 |
+| Precision-Recall AUC (PR-AUC) | 0.535398 |
+| Accuracy | 0.917737 |
+| F1-Score | 0.616561 |
 
 ## 🧩 Global Feature Explanations (Cloud Vertex AI SHAP Attributions)
 

@@ -40,7 +40,7 @@ def run_cloud_ml_research():
         table_name = f"bigquery-public-data.noaa_gsod.gsod{year}"
         sub_query = f"""
         SELECT 
-            PARSE_DATE('%Y-%m-%d', CONCAT(year, '-', mo, '-', da)) AS date,
+            CONCAT(year, '-', mo, '-', da) AS date,
             stn AS usaf,
             wban,
             temp AS mean_temp_f,
@@ -60,7 +60,10 @@ def run_cloud_ml_research():
             (stn = '724690' AND wban = '03017') OR -- KDEN
             (stn = '722780' AND wban = '23119') OR -- KPHX
             (stn = '722950' AND wban = '23174') OR -- KLAX
-            (stn = '727930' AND wban = '24233')    -- KSEA
+            (stn = '727930' AND wban = '24233') OR -- KSEA
+            (stn = '723530' AND wban = '13967') OR -- KOKC
+            (stn = '723630' AND wban = '23047') OR -- KAMA
+            (stn = '724500' AND wban = '03928')    -- KICT
         """
         union_queries.append(sub_query)
         
@@ -91,7 +94,10 @@ def run_cloud_ml_research():
         SELECT '724690', '03017', 'KDEN', 'Mountain/WECC' UNION ALL
         SELECT '722780', '23119', 'KPHX', 'Southwest/WECC' UNION ALL
         SELECT '722950', '23174', 'KLAX', 'Pacific/CAISO' UNION ALL
-        SELECT '727930', '24233', 'KSEA', 'Pacific NW/WECC'
+        SELECT '727930', '24233', 'KSEA', 'Pacific NW/WECC' UNION ALL
+        SELECT '723530', '13967', 'KOKC', 'Midwest/SPP' UNION ALL
+        SELECT '723630', '23047', 'KAMA', 'Midwest/SPP' UNION ALL
+        SELECT '724500', '03928', 'KICT', 'Midwest/SPP'
     ),
     weather_with_names AS (
         SELECT 
@@ -135,13 +141,13 @@ def run_cloud_ml_research():
         END AS is_stress_day,
         -- Strict out-of-sample data splits
         CASE 
-            WHEN EXTRACT(YEAR FROM w.date) IN (2019, 2020, 2021, 2022) THEN 'TRAIN'
-            WHEN EXTRACT(YEAR FROM w.date) = 2023 THEN 'VALIDATE'
+            WHEN EXTRACT(YEAR FROM PARSE_DATE('%Y-%m-%d', w.date)) IN (2019, 2020, 2021, 2022) THEN 'TRAIN'
+            WHEN EXTRACT(YEAR FROM PARSE_DATE('%Y-%m-%d', w.date)) = 2023 THEN 'VALIDATE'
             ELSE 'TEST'
         END AS split_label,
         -- Train/Test Split code for BQML
         CASE 
-            WHEN EXTRACT(YEAR FROM w.date) IN (2019, 2020, 2021, 2022) THEN FALSE
+            WHEN EXTRACT(YEAR FROM PARSE_DATE('%Y-%m-%d', w.date)) IN (2019, 2020, 2021, 2022) THEN FALSE
             ELSE TRUE
         END AS is_test_set
     FROM weather_with_names w
