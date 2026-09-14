@@ -1,6 +1,7 @@
 import { useScenario } from '../ScenarioContext'
 import { Check, ClipboardList, Trash2, Upload, AlertCircle } from 'lucide-react'
 import { useState } from 'react'
+import { PortfolioPanel } from './PortfolioPanel'
 
 const numeric = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 })
 const integer = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 })
@@ -29,7 +30,7 @@ export function ScenarioComparison() {
   }
 
   return (
-    <section className="panel comparison-panel" aria-labelledby="comparison-title">
+    <><PortfolioPanel /><section className="panel comparison-panel" aria-labelledby="comparison-title">
       <div className="panel-heading">
         <div className="flex items-center gap-2">
           <ClipboardList size={15} className="text-teal" />
@@ -215,6 +216,6 @@ export function ScenarioComparison() {
           </table>
         </div>
       )}
-    </section>
+    </section></>
   )
 }

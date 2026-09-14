@@ -32,6 +32,24 @@ app.add_middleware(
 )
 grid_impact_cache = GridImpactSnapshotCache(max_entries=32)
 
+from .portfolio import PortfolioCORSMiddleware, router as portfolio_router
+
+app.include_router(portfolio_router)
+app.add_middleware(
+    PortfolioCORSMiddleware,
+    allow_origins=["http://127.0.0.1:5174"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_headers=["Content-Type"],
+)
+
+
+@app.middleware("http")
+async def portfolio_no_store(request: Request, call_next):
+    response = await call_next(request)
+    if request.url.path == "/api/portfolios" or request.url.path.startswith("/api/portfolios/"):
+        response.headers["Cache-Control"] = "no-store"
+    return response
+
 
 def get_location_provider() -> LocationProvider:
     """Try the precomputed reader, falling back only for missing pipeline pieces."""
