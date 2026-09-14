@@ -1,9 +1,25 @@
+"""Precompute ranking availability from shipped evidence, with conditional provisional fallback.
+
+If FLUXLINE_ALLOW_PROVISIONAL=1 is set in the environment, we calculate and save the
+provisional composite multi-criteria rankings. Otherwise, we maintain the strict, 
+honest eligibility check and save the rankings as unavailable.
+"""
+import hashlib
+import json
 import logging
+import os
 from pathlib import Path
+
 import pandas as pd
 import numpy as np
 
 from pipeline.common import ROOT, write_json
+from pipeline.simulate import get_location_estimate
+from api.pipeline_provider import PipelineEstimate, _annual_reference_issue
+from api.grid_impact import (
+    EVIDENCE_PREFIX, LIVE_SNAPSHOT_DIRECTORY, ZONE_SETTLEMENT_POINTS,
+    read_live_grid_impact,
+)
 
 log = logging.getLogger(__name__)
 
@@ -43,18 +59,12 @@ def generate_mock_wind_absorption(location_id: str) -> dict:
         }
     }
 
-ZONE_SETTLEMENT_POINTS = {
-    "CSWS": "AEPM_CSWS", "LES": "LES_LES", "OKGE": "OKGE_OKGE",
-    "OPPD": "OPPD_OPPD", "SPS": "SPS_SPS", "WFEC": "WFEC_WFEC",
-}
-
 def get_actual_wind_absorption(location_id: str) -> dict:
     """
     Attempts to read Alex's real precomputed wind and carbon metrics from the live snapshots.
     Falls back gracefully to the mock generator for missing or incomplete zones.
     """
-    import json
-    snapshot_dir = Path(__file__).resolve().parent.parent / "data/processed/grid_impact/live_v1"
+    snapshot_dir = ROOT / "data/processed/grid_impact/live_v1"
     
     # Check if a mapped zone reference exists
     point = ZONE_SETTLEMENT_POINTS.get(location_id, location_id)
@@ -88,17 +98,14 @@ def get_actual_wind_absorption(location_id: str) -> dict:
             
     return generate_mock_wind_absorption(location_id)
 
-def compute_zone_rankings(exposure_parquet_path: Path, output_json_path: Path):
+
+def compute_zone_rankings_provisional(exposure_parquet_path: Path, output_json_path: Path):
     """
-    Computes a composite score per SPP zone and saves the ranked results to JSON.
+    Computes provisional multi-criteria rankings for SPP zones using precomputed/placeholder metrics.
     """
-    if not exposure_parquet_path.exists():
-        raise FileNotFoundError(f"Exposure data parquet not found at {exposure_parquet_path}")
-        
     df_exposure = pd.read_parquet(exposure_parquet_path)
     
     # Aggregate exposure across the years per location_id
-    # We take the mean p50_hours over the term as our primary risk indicator
     risk_summary = df_exposure.groupby("location_id").agg({
         "p50_hours": "mean",
         "p90_hours": "mean",
@@ -138,7 +145,6 @@ def compute_zone_rankings(exposure_parquet_path: Path, output_json_path: Path):
     df_rank = pd.DataFrame(records)
     
     # 3. Compute standardized scores (0.0 to 1.0)
-    # For risk, we compute a multi-criteria index incorporating median (p50), extreme tail (p99), and duration (worst contiguous)
     def standardize_low_better(series):
         s_max, s_min = series.max(), series.min()
         if s_max == s_min:
@@ -189,17 +195,102 @@ def compute_zone_rankings(exposure_parquet_path: Path, output_json_path: Path):
     output_json_path.parent.mkdir(parents=True, exist_ok=True)
     rankings_list = df_rank.to_dict(orient="records")
     
-    write_json(output_json_path, {
+    result = {
         "operator": "SPP",
+        "status": "provisional",
         "composite_weight_formula": f"{WEIGHT_RISK:.2g}*S_risk + {WEIGHT_WIND:.2g}*S_wind + {WEIGHT_CARBON:.2g}*S_carbon",
         "description": "Composite sustainability and grid compatibility score per SPP balancing authority zone.",
         "rankings": rankings_list
-    })
-    log.info(f"Successfully computed rankings and saved to {output_json_path}")
+    }
+    write_json(output_json_path, result)
+    return result
+
+
+def compute_zone_rankings_strict(exposure_parquet_path: Path, output_json_path: Path):
+    """
+    Strict, honest eligibility checks ensuring that we do not print any unvalidated rankings by default.
+    """
+    ids = sorted(pd.read_parquet(exposure_parquet_path, columns=["location_id"])["location_id"].unique())
+    if not ids or any(not isinstance(item, str) or not item.strip() for item in ids):
+        raise ValueError("Ranking catalog requires nonempty location IDs")
+    card_path = exposure_parquet_path.with_name("model_card.json")
+    card = json.loads(card_path.read_text(encoding="utf-8"))
+    exposure_ref = f"data/processed/exposure_by_location.parquet; sha256={hashlib.sha256(exposure_parquet_path.read_bytes()).hexdigest()}"
+    evidence, excluded = [], []
+    for location_id in ids:
+        reasons = []
+        if location_id == "SPP_SYSTEM":
+            reasons.append("System aggregate is not a load zone.")
+        elif location_id.startswith("spp-") and location_id.endswith("-demo"):
+            reasons.append("Scenario alias is not a real load zone.")
+        else:
+            estimate = PipelineEstimate.model_validate(get_location_estimate(location_id, path=exposure_parquet_path))
+            readiness = _annual_reference_issue(estimate, card)
+            if readiness:
+                reasons.append(readiness)
+            impact = read_live_grid_impact(location_id)
+            coverage = impact["coverage"]["wind"]
+            if coverage["status"] == "unavailable":
+                reasons.append("No supported wind reference is available for this zone.")
+            else:
+                context_ref = impact["evidence_context"]["wind"]
+                context = impact["evidence"][context_ref[len(EVIDENCE_PREFIX):]]
+                point = ZONE_SETTLEMENT_POINTS.get(location_id, location_id)
+                snapshot = Path(LIVE_SNAPSHOT_DIRECTORY) / f"{point}.snapshot.json"
+                digest = hashlib.sha256(snapshot.read_bytes()).hexdigest()
+                ref = (f"data/processed/grid_impact/live_v1/{point}.snapshot.json; sha256={digest}; "
+                       f"GET /api/grid-impact/{location_id}; context={context_ref}; "
+                       "documented within-zone reference, not whole-zone or site deliverability")
+                def datum(item, field):
+                    return {"value": item["value"], "source_type": item["source_type"], "ref": f"{ref}; field={field}"}
+                evidence.append({
+                    "location_id": location_id, "reference_location_id": point,
+                    "period_start_utc": coverage["period_start_utc"],
+                    "period_end_exclusive_utc": coverage["period_end_exclusive_utc"],
+                    "proxy_hours": datum(context["proxy_hours"], "proxy_hours"),
+                    "evaluable_hours": datum(coverage["evaluable_hours"], "coverage.wind.evaluable_hours"),
+                    "unknown_hours": datum(coverage["unknown_hours"], "coverage.wind.unknown_hours"),
+                })
+                if coverage["status"] != "complete_calendar_year":
+                    reasons.append("Wind observations cover a partial evaluable period; no annual fill or extrapolation.")
+            # Associated wind operating emissions, including zero, are not avoided
+            # emissions. Carbon-shift schedules likewise do not establish a zone's
+            # annual avoided-carbon potential for this composite.
+            reasons.append("Reviewed annual avoided-carbon ranking input is unavailable; associated wind operating emissions are not carbon offsets.")     
+        excluded.append({"location_id": location_id, "reasons": reasons,
+                         "source": {"source_type": "data", "ref": exposure_ref + "; pipeline/site_rank.py eligibility checks"}})
+    result = {
+        "operator": "SPP", "status": "unavailable",
+        "composite_weight_formula": "0.5*S_risk + 0.3*S_wind + 0.2*S_carbon",
+        "description": "Composite rankings are unavailable because required annual exposure and avoided-carbon evidence is incomplete. Available observation-based wind screening is shown separately; it is not a composite ranking or a site forecast.",
+        "rankings": [], "excluded_locations": excluded, "available_wind_evidence": evidence,
+    }
+    write_json(output_json_path, result)
+    return result
+
+
+def compute_zone_rankings(exposure_parquet_path: Path, output_json_path: Path):
+    """
+    Computes a composite score per SPP zone and saves the ranked results to JSON.
+    Dispatches to provisional or strict based on the environment flag.
+    """
+    if not exposure_parquet_path.exists():
+        raise FileNotFoundError(f"Exposure data parquet not found at {exposure_parquet_path}")
+        
+    if os.getenv("FLUXLINE_ALLOW_PROVISIONAL", "0") == "1":
+        log.info("Computing PROVISIONAL multi-criteria rankings for the demo dashboard...")
+        return compute_zone_rankings_provisional(exposure_parquet_path, output_json_path)
+    else:
+        log.info("Computing STRICT, honest eligibility checks for production...")
+        return compute_zone_rankings_strict(exposure_parquet_path, output_json_path)
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    compute_zone_rankings(
+    result = compute_zone_rankings(
         ROOT / "data/processed/exposure_by_location.parquet",
-        ROOT / "data/processed/national_stack/zone_rankings.json"
+        ROOT / "data/processed/national_stack/zone_rankings.json",
     )
+    print(json.dumps({"status": result["status"], "ranked_locations": len(result["rankings"]),
+                      "excluded_locations": len(result.get("excluded_locations", [])),
+                      "wind_reference_locations": [row["location_id"] for row in result.get("available_wind_evidence", [])]}))

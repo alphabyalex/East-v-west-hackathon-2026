@@ -19,10 +19,25 @@ beforeAll(() => {
   Object.defineProperty(window, 'matchMedia', { writable: true, value: (query: string) => ({ matches: query.includes('prefers-reduced-motion'), media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() }) });
   globalThis.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
 });
-beforeEach(() => vi.stubEnv('VITE_ESTIMATE_MODE', 'local'));
+beforeEach(() => {
+  vi.stubEnv('VITE_ESTIMATE_MODE', 'local');
+  // Companion panels still load in local mode; keep these tests off the live network.
+  vi.stubGlobal('fetch', withEconomics(vi.fn().mockRejectedValue(new Error('Unexpected estimate request'))));
+});
 afterEach(() => { cleanup(); vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
 describe('scenario workspace interactions', () => {
+  it.each([1, 50, 500, 10000])('keeps the scenario and current sensitivity visible with %s VPP homes', homes => {
+    render(<App />);
+    const field = screen.getByRole('spinbutton', { name: 'VPP ORCHESTRATION' });
+    expect(() => fireEvent.change(field, { target: { value: String(homes) } })).not.toThrow();
+    expect(screen.getByText('Connection economics')).toBeTruthy();
+    expect(screen.getByText('VPP arbitrage revenue')).toBeTruthy();
+    expect(document.querySelectorAll('[data-sensitivity-bar]').length).toBe(3);
+    expect(screen.queryByText('Analysis could not be displayed')).toBeNull();
+    expect((field as HTMLInputElement).value).toBe(String(homes));
+  });
+
   it('renders the complete results view for a newly cataloged zone while its estimate is unavailable', async () => {
     vi.stubEnv('VITE_ESTIMATE_MODE', 'api');
     const post = vi.fn().mockImplementation((_url, options) => {

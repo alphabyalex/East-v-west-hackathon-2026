@@ -110,7 +110,7 @@ export function buildSensitivity(
   const request = response.inputs_echo
   const rawRequest = exposureAtOne.inputs_echo
   if (rawRequest.site_exposure !== 1) throw new RangeError('Sensitivity requires a site_exposure=1 baseline.')
-  for (const key of ['location_id', 'load_mw', 'term_years', 'flexibility_split'] as const) {
+  for (const key of ['location_id', 'load_mw', 'term_years', 'flexibility_split', 'vpp_solar_homes'] as const) {
     if (request[key] !== rawRequest[key]) throw new RangeError(`Sensitivity baseline request differs at ${key}.`)
   }
   if (inputs.location_id !== request.location_id) throw new RangeError('Sensitivity inputs differ at location_id.')
@@ -144,6 +144,10 @@ export function buildSensitivity(
     }
     quantiles.forEach(key => near(row[key], rawRows[index][key] * request.site_exposure, `by_year/${index}/${key}`))
   })
+  near(inputs.vpp_solar_homes, request.vpp_solar_homes ?? 0, 'vpp_solar_homes')
+  const vppOffset = (request.vpp_solar_homes ?? 0) * assumptions.vpp_battery_discharge_mw_per_home.value
+  const vppRevenuePerHour = vppOffset * assumptions.vpp_arbitrage_revenue_usd_per_mwh.value
+  const netLoad = (flexibility: number) => Math.max(0, request.load_mw * flexibility - vppOffset)
   const baseRental = inputs.gpu_hour_value_usd
   const density = response.economics.gpus_per_mw
   const benefit = response.economics.value_of_early_connection_usd
@@ -153,16 +157,18 @@ export function buildSensitivity(
   quantiles.forEach(key => {
     near(response.modeled_exposure[key], exposureAtOne.modeled_exposure[key] * request.site_exposure, `exposure/${key}`)
     near(response.economics.annual_cost_usd[key], response.modeled_exposure[key]
-      * (request.load_mw * request.flexibility_split) * density * baseRental, `annual_cost/${key}`)
+      * netLoad(request.flexibility_split) * density * baseRental
+      - response.modeled_exposure[key] * vppOffset * assumptions.vpp_arbitrage_revenue_usd_per_mwh.value, `annual_cost/${key}`)
   })
 
   const refs = [exposureSource, rawSource, response.economics.source,
     assumptions.gpu_rental_price_usd_per_hour, assumptions.industrial_electricity_price_usd_per_mwh,
-    assumptions.close_call_fraction]
+    assumptions.close_call_fraction, assumptions.vpp_battery_discharge_mw_per_home,
+    assumptions.vpp_arbitrage_revenue_usd_per_mwh]
   const source: Source = {
     source_type: 'assumption',
     ref: `${refs.some(isMock) ? 'mock://sensitivity-placeholder' : policyRef}; policy=${policyRef}; `
-      + 'one input varies at a time; early operating-margin value held fixed; gross reserved-capacity rental loss; '
+      + 'one input varies at a time; early operating-margin value held fixed; net interruptible GPU rental loss less VPP arbitrage revenue; VPP homes and assumptions held fixed; '
       + 'full exposure recovered by inverse canonical site scaling when nonzero, otherwise a matching site=1 response; '
       + `scenario=${JSON.stringify(request)}; baseline_rental=${baseRental}; density=${density}; `
       + `early_value=${benefit}; close_call_fraction=${tolerance}; dependencies=[${refs.map(item => item.ref).join(' | ')}]`,
@@ -171,10 +177,10 @@ export function buildSensitivity(
   const snapshot = (annualCost: Quantiles, rental: number, flexibility: number, itemSource: Source): SensitivitySnapshot => {
     // Preserve the API's arithmetic grouping: strict decision thresholds must not
     // drift across equality because a multiplication chain was reassociated.
-    const costPerExposureHour = (request.load_mw * flexibility) * density * rental
+    const costPerExposureHour = netLoad(flexibility) * density * rental - vppRevenuePerHour
     const denominator = request.term_years * costPerExposureHour
-    finite(denominator, 'break-even denominator')
-    const breakEven = denominator === 0 ? null : benefit / denominator
+    finite(denominator, 'break-even denominator', -Infinity)
+    const breakEven = denominator <= 0 ? null : benefit / denominator
     const net = mapQuantiles(key => sourced(benefit - annualCost[key] * request.term_years, itemSource, `net_value_usd/${key}`))
     const decision = annualCost.p50 * request.term_years > benefit * (1 + tolerance)
       ? 'not_worth_it'
@@ -185,7 +191,7 @@ export function buildSensitivity(
       annual_cost_usd: mapQuantiles(key => sourced(annualCost[key], itemSource, `annual_cost_usd/${key}`)),
       decision,
       breakeven_hours: sourced(breakEven, itemSource, 'breakeven_hours'),
-      ...(breakEven === null ? { breakeven_note: 'No finite crossover: interruption cost per exposure hour is zero.' } : {}),
+      ...(breakEven === null ? { breakeven_note: 'No finite crossover: net interruption cost per exposure hour is zero or negative.' } : {}),
       source: itemSource,
     }
   }
@@ -222,7 +228,7 @@ export function buildSensitivity(
       const flexibility = key === 'flexibility_split' ? input.value : request.flexibility_split
       const site = key === 'site_exposure' ? input.value : request.site_exposure
       const endpointSource = { ...itemSource, ref: `${itemSource.ref}; input=${input.value}` }
-      const interruptibleMw = request.load_mw * flexibility
+      const interruptibleMw = netLoad(flexibility)
       const annualCost = input.value === baselineInput.value
         ? response.economics.annual_cost_usd
         : mapQuantiles(quantile => {
@@ -232,6 +238,7 @@ export function buildSensitivity(
             ? response.modeled_exposure[quantile]
             : exposureAtOne.modeled_exposure[quantile] * site
           return exposure * interruptibleMw * density * rental
+            - exposure * vppOffset * assumptions.vpp_arbitrage_revenue_usd_per_mwh.value
         })
       const result = snapshot(annualCost, rental, flexibility, endpointSource)
       return {
