@@ -14,7 +14,7 @@ def extract_spp_weather():
     # Station definitions for key SPP load centers:
     # Oklahoma City (KOKC), Amarillo (KAMA), Wichita (KICT), Lincoln (KLNK)
     stations = {
-        "KOKC": {"usaf": "999999", "wban": "13967"},
+        "KOKC": {"usaf": "723530", "wban": "13967"},
         "KAMA": {"usaf": "723630", "wban": "23047"},
         "KICT": {"usaf": "724500", "wban": "03928"},
         "KLNK": {"usaf": "725510", "wban": "14939"},
@@ -30,7 +30,7 @@ def extract_spp_weather():
         table_name = f"bigquery-public-data.noaa_gsod.gsod{year}"
         sub_query = f"""
         SELECT 
-            PARSE_DATE('%Y-%m-%d', CONCAT(year, '-', mo, '-', da)) AS date,
+            CONCAT(year, '-', mo, '-', da) AS date,
             stn AS usaf,
             wban,
             temp AS mean_temp_f,
@@ -38,7 +38,7 @@ def extract_spp_weather():
             gust AS max_gust_knots
         FROM `{table_name}`
         WHERE 
-            (stn = '999999' AND wban = '13967') OR -- KOKC
+            (stn = '723530' AND wban = '13967') OR -- KOKC
             (stn = '723630' AND wban = '23047') OR -- KAMA
             (stn = '724500' AND wban = '03928') OR -- KICT
             (stn = '725510' AND wban = '14939')    -- KLNK
@@ -55,7 +55,7 @@ def extract_spp_weather():
     
     # Map USAF/WBAN back to callsigns
     reverse_map = {
-        ("999999", "13967"): "KOKC",
+        ("723530", "13967"): "KOKC",
         ("723630", "23047"): "KAMA",
         ("724500", "03928"): "KICT",
         ("725510", "14939"): "KLNK"

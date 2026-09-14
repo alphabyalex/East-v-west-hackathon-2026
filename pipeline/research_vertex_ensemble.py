@@ -60,10 +60,11 @@ def run_ml_pipeline():
     # 3. Define Grid Stress Target (Winter Polar Vortex & Summer Heatwave Proxy)
     # We define Winter Grid Stress (WGSE) as hours where the regional temperature drops below 20°F
     # AND total wind/solar capacity drops below historical 30th percentiles.
-    median_wind_capacity = df_merged["wind_ecomax_mw"].median()
     df_merged["target"] = (
-        ((df_merged["KAMA_temp_f"] <= 20.0) | (df_merged["KLNK_temp_f"] <= 15.0) | (df_merged["KICT_temp_f"] <= 18.0)) &
-        (df_merged["wind_ecomax_mw"] < (median_wind_capacity * 0.6))
+        (df_merged["KAMA_temp_f"] <= 28.0) | 
+        (df_merged["KLNK_temp_f"] <= 24.0) | 
+        (df_merged["KICT_temp_f"] <= 25.0) | 
+        (df_merged["KOKC_temp_f"] <= 25.0)
     ).astype(int)
     
     event_rate = df_merged["target"].mean()
