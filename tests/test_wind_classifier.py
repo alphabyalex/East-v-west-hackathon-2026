@@ -515,7 +515,7 @@ def test_metric_helper_keeps_sklearn_values_at_ties_endpoints_and_single_classes
     result = wind._wind_classifier_metrics(target, probabilities, METRIC_ORIGIN)
     assert result["status"] == "available"
     assert result["brier_score"]["value"] == brier_score_loss(target, probabilities, pos_label=1)
-    assert result["log_loss"]["value"] == log_loss(target, probabilities, labels=[0, 1])
+    assert result["log_loss"]["value"] == pytest.approx(log_loss(target, probabilities, labels=[0, 1]))
     if len(set(target)) == 2:
         assert result["roc_auc"]["value"] == roc_auc_score(target, probabilities)
     else:

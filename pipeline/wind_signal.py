@@ -231,9 +231,10 @@ def _archive_gmt_times(values):
     """Keep documented bare GMT/explicit offsets; never discard a timezone label."""
     with warnings.catch_warnings():
         warnings.filterwarnings("error", message=r".*(?:un-recognized|unrecognized) timezone.*", category=FutureWarning)
+        warnings.filterwarnings("error", message=r".*tzlocal.*", category=FutureWarning)
         try:
             return pd.to_datetime(values, utc=True, format="mixed")
-        except FutureWarning as exc:
+        except (FutureWarning, AttributeError) as exc:
             raise ValueError("Archive GMT timestamps contain an unrecognized timezone; provide actual documented GMT values "
                              "or an explicit UTC offset without discarding the timezone label.") from exc
 

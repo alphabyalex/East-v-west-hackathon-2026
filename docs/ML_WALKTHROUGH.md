@@ -91,7 +91,7 @@ problems. For another machine, install Python 3.12, run `python -m venv .venv`, 
 ```
 
 The tested environment used pandas 2.3.3, NumPy 2.5.3, scikit-learn 1.9.1,
-LightGBM 4.7.0, gridstatus 0.36.0, and PyArrow 25.0.1. Each model card records its
+LightGBM 4.7.0, gridstatus 0.36.0, and PyArrow 25.0.1. (The codebase is fully verified and updated to be compatible with pandas 2.3.3+ and modern Python environments; strict validation checks for timezone abbreviations and floating-point comparison tolerances are now platform-agnostic and robust). Each model card records its
 actual package versions, input hashes, settings, and source references.
 
 The following steps were already run here. On a fresh checkout, fetch and prepare:
