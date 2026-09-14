@@ -1,5 +1,6 @@
 param([switch]$NoBrowser)
 $ErrorActionPreference = 'Stop'
+$env:FLUXLINE_ALLOW_PROVISIONAL = "1"
 $fluxlineRoot = Split-Path -Parent $PSScriptRoot
 $fluxlinePython = Join-Path $fluxlineRoot '.venv\Scripts\python.exe'
 $fluxlineWeb = Join-Path $fluxlineRoot 'web'
