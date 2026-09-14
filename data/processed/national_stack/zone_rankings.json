@@ -1,0 +1,381 @@
+{
+  "operator": "SPP",
+  "status": "unavailable",
+  "composite_weight_formula": "0.5*S_risk + 0.3*S_wind + 0.2*S_carbon",
+  "description": "Composite rankings are unavailable because required annual exposure and avoided-carbon evidence is incomplete. Available observation-based wind screening is shown separately; it is not a composite ranking or a site forecast.",
+  "rankings": [],
+  "excluded_locations": [
+    {
+      "location_id": "CSWS",
+      "reasons": [
+        "annual reference not ready: held-out span=1742 hours, local scored hours=1717 for CSWS; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted",
+        "Wind observations cover a partial evaluable period; no annual fill or extrapolation.",
+        "Reviewed annual avoided-carbon ranking input is unavailable; associated wind operating emissions are not carbon offsets."
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "data/processed/exposure_by_location.parquet; sha256=1abaafa021c4c98339de67110dda107f806647b1d5281abbd66e8093385215b0; pipeline/site_rank.py eligibility checks"
+      }
+    },
+    {
+      "location_id": "EDE",
+      "reasons": [
+        "annual reference not ready: held-out span=1742 hours, local scored hours=1717 for EDE; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted",
+        "No supported wind reference is available for this zone.",
+        "Reviewed annual avoided-carbon ranking input is unavailable; associated wind operating emissions are not carbon offsets."
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "data/processed/exposure_by_location.parquet; sha256=1abaafa021c4c98339de67110dda107f806647b1d5281abbd66e8093385215b0; pipeline/site_rank.py eligibility checks"
+      }
+    },
+    {
+      "location_id": "GRDA",
+      "reasons": [
+        "annual reference not ready: held-out span=1742 hours, local scored hours=1717 for GRDA; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted",
+        "No supported wind reference is available for this zone.",
+        "Reviewed annual avoided-carbon ranking input is unavailable; associated wind operating emissions are not carbon offsets."
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "data/processed/exposure_by_location.parquet; sha256=1abaafa021c4c98339de67110dda107f806647b1d5281abbd66e8093385215b0; pipeline/site_rank.py eligibility checks"
+      }
+    },
+    {
+      "location_id": "INDN",
+      "reasons": [
+        "annual reference not ready: held-out span=1742 hours, local scored hours=1717 for INDN; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted",
+        "No supported wind reference is available for this zone.",
+        "Reviewed annual avoided-carbon ranking input is unavailable; associated wind operating emissions are not carbon offsets."
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "data/processed/exposure_by_location.parquet; sha256=1abaafa021c4c98339de67110dda107f806647b1d5281abbd66e8093385215b0; pipeline/site_rank.py eligibility checks"
+      }
+    },
+    {
+      "location_id": "KACY",
+      "reasons": [
+        "annual reference not ready: held-out span=1742 hours, local scored hours=1717 for KACY; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted",
+        "No supported wind reference is available for this zone.",
+        "Reviewed annual avoided-carbon ranking input is unavailable; associated wind operating emissions are not carbon offsets."
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "data/processed/exposure_by_location.parquet; sha256=1abaafa021c4c98339de67110dda107f806647b1d5281abbd66e8093385215b0; pipeline/site_rank.py eligibility checks"
+      }
+    },
+    {
+      "location_id": "KCPL",
+      "reasons": [
+        "annual reference not ready: held-out span=1742 hours, local scored hours=1717 for KCPL; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted",
+        "No supported wind reference is available for this zone.",
+        "Reviewed annual avoided-carbon ranking input is unavailable; associated wind operating emissions are not carbon offsets."
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "data/processed/exposure_by_location.parquet; sha256=1abaafa021c4c98339de67110dda107f806647b1d5281abbd66e8093385215b0; pipeline/site_rank.py eligibility checks"
+      }
+    },
+    {
+      "location_id": "LES",
+      "reasons": [
+        "annual reference not ready: held-out span=1742 hours, local scored hours=1717 for LES; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted",
+        "Wind observations cover a partial evaluable period; no annual fill or extrapolation.",
+        "Reviewed annual avoided-carbon ranking input is unavailable; associated wind operating emissions are not carbon offsets."
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "data/processed/exposure_by_location.parquet; sha256=1abaafa021c4c98339de67110dda107f806647b1d5281abbd66e8093385215b0; pipeline/site_rank.py eligibility checks"
+      }
+    },
+    {
+      "location_id": "MPS",
+      "reasons": [
+        "annual reference not ready: held-out span=1742 hours, local scored hours=1717 for MPS; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted",
+        "No supported wind reference is available for this zone.",
+        "Reviewed annual avoided-carbon ranking input is unavailable; associated wind operating emissions are not carbon offsets."
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "data/processed/exposure_by_location.parquet; sha256=1abaafa021c4c98339de67110dda107f806647b1d5281abbd66e8093385215b0; pipeline/site_rank.py eligibility checks"
+      }
+    },
+    {
+      "location_id": "NPPD",
+      "reasons": [
+        "annual reference not ready: held-out span=1742 hours, local scored hours=1717 for NPPD; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted",
+        "No supported wind reference is available for this zone.",
+        "Reviewed annual avoided-carbon ranking input is unavailable; associated wind operating emissions are not carbon offsets."
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "data/processed/exposure_by_location.parquet; sha256=1abaafa021c4c98339de67110dda107f806647b1d5281abbd66e8093385215b0; pipeline/site_rank.py eligibility checks"
+      }
+    },
+    {
+      "location_id": "OKGE",
+      "reasons": [
+        "annual reference not ready: held-out span=1742 hours, local scored hours=1717 for OKGE; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted",
+        "Wind observations cover a partial evaluable period; no annual fill or extrapolation.",
+        "Reviewed annual avoided-carbon ranking input is unavailable; associated wind operating emissions are not carbon offsets."
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "data/processed/exposure_by_location.parquet; sha256=1abaafa021c4c98339de67110dda107f806647b1d5281abbd66e8093385215b0; pipeline/site_rank.py eligibility checks"
+      }
+    },
+    {
+      "location_id": "OPPD",
+      "reasons": [
+        "annual reference not ready: held-out span=1742 hours, local scored hours=1717 for OPPD; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted",
+        "Wind observations cover a partial evaluable period; no annual fill or extrapolation.",
+        "Reviewed annual avoided-carbon ranking input is unavailable; associated wind operating emissions are not carbon offsets."
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "data/processed/exposure_by_location.parquet; sha256=1abaafa021c4c98339de67110dda107f806647b1d5281abbd66e8093385215b0; pipeline/site_rank.py eligibility checks"
+      }
+    },
+    {
+      "location_id": "SECI",
+      "reasons": [
+        "annual reference not ready: held-out span=1742 hours, local scored hours=1717 for SECI; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted",
+        "No supported wind reference is available for this zone.",
+        "Reviewed annual avoided-carbon ranking input is unavailable; associated wind operating emissions are not carbon offsets."
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "data/processed/exposure_by_location.parquet; sha256=1abaafa021c4c98339de67110dda107f806647b1d5281abbd66e8093385215b0; pipeline/site_rank.py eligibility checks"
+      }
+    },
+    {
+      "location_id": "SPP_SYSTEM",
+      "reasons": [
+        "System aggregate is not a load zone."
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "data/processed/exposure_by_location.parquet; sha256=1abaafa021c4c98339de67110dda107f806647b1d5281abbd66e8093385215b0; pipeline/site_rank.py eligibility checks"
+      }
+    },
+    {
+      "location_id": "SPRM",
+      "reasons": [
+        "annual reference not ready: held-out span=1742 hours, local scored hours=1717 for SPRM; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted",
+        "No supported wind reference is available for this zone.",
+        "Reviewed annual avoided-carbon ranking input is unavailable; associated wind operating emissions are not carbon offsets."
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "data/processed/exposure_by_location.parquet; sha256=1abaafa021c4c98339de67110dda107f806647b1d5281abbd66e8093385215b0; pipeline/site_rank.py eligibility checks"
+      }
+    },
+    {
+      "location_id": "SPS",
+      "reasons": [
+        "annual reference not ready: held-out span=1742 hours, local scored hours=1717 for SPS; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted",
+        "Wind observations cover a partial evaluable period; no annual fill or extrapolation.",
+        "Reviewed annual avoided-carbon ranking input is unavailable; associated wind operating emissions are not carbon offsets."
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "data/processed/exposure_by_location.parquet; sha256=1abaafa021c4c98339de67110dda107f806647b1d5281abbd66e8093385215b0; pipeline/site_rank.py eligibility checks"
+      }
+    },
+    {
+      "location_id": "WAUE",
+      "reasons": [
+        "annual reference not ready: held-out span=1742 hours, local scored hours=1717 for WAUE; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted",
+        "No supported wind reference is available for this zone.",
+        "Reviewed annual avoided-carbon ranking input is unavailable; associated wind operating emissions are not carbon offsets."
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "data/processed/exposure_by_location.parquet; sha256=1abaafa021c4c98339de67110dda107f806647b1d5281abbd66e8093385215b0; pipeline/site_rank.py eligibility checks"
+      }
+    },
+    {
+      "location_id": "WFEC",
+      "reasons": [
+        "annual reference not ready: held-out span=1742 hours, local scored hours=1717 for WFEC; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted",
+        "Wind observations cover a partial evaluable period; no annual fill or extrapolation.",
+        "Reviewed annual avoided-carbon ranking input is unavailable; associated wind operating emissions are not carbon offsets."
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "data/processed/exposure_by_location.parquet; sha256=1abaafa021c4c98339de67110dda107f806647b1d5281abbd66e8093385215b0; pipeline/site_rank.py eligibility checks"
+      }
+    },
+    {
+      "location_id": "WR",
+      "reasons": [
+        "annual reference not ready: held-out span=1742 hours, local scored hours=1717 for WR; requires at least 8760 hours (365 days) for both; missing seasons must not be substituted",
+        "No supported wind reference is available for this zone.",
+        "Reviewed annual avoided-carbon ranking input is unavailable; associated wind operating emissions are not carbon offsets."
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "data/processed/exposure_by_location.parquet; sha256=1abaafa021c4c98339de67110dda107f806647b1d5281abbd66e8093385215b0; pipeline/site_rank.py eligibility checks"
+      }
+    },
+    {
+      "location_id": "spp-lincoln-demo",
+      "reasons": [
+        "Scenario alias is not a real load zone."
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "data/processed/exposure_by_location.parquet; sha256=1abaafa021c4c98339de67110dda107f806647b1d5281abbd66e8093385215b0; pipeline/site_rank.py eligibility checks"
+      }
+    },
+    {
+      "location_id": "spp-oklahoma-city-demo",
+      "reasons": [
+        "Scenario alias is not a real load zone."
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "data/processed/exposure_by_location.parquet; sha256=1abaafa021c4c98339de67110dda107f806647b1d5281abbd66e8093385215b0; pipeline/site_rank.py eligibility checks"
+      }
+    },
+    {
+      "location_id": "spp-wichita-demo",
+      "reasons": [
+        "Scenario alias is not a real load zone."
+      ],
+      "source": {
+        "source_type": "data",
+        "ref": "data/processed/exposure_by_location.parquet; sha256=1abaafa021c4c98339de67110dda107f806647b1d5281abbd66e8093385215b0; pipeline/site_rank.py eligibility checks"
+      }
+    }
+  ],
+  "available_wind_evidence": [
+    {
+      "location_id": "CSWS",
+      "reference_location_id": "AEPM_CSWS",
+      "period_start_utc": "2025-01-01T00:00:00+00:00",
+      "period_end_exclusive_utc": "2026-01-01T00:00:00+00:00",
+      "proxy_hours": {
+        "value": 28,
+        "source_type": "assumption",
+        "ref": "data/processed/grid_impact/live_v1/AEPM_CSWS.snapshot.json; sha256=8249833ef44f8dae015a698639ff67513e778155ae5e8923e198bd4581f48362; GET /api/grid-impact/CSWS; context=grid-impact://evidence/b87f2b8a306454ce8f6ba55f64dd9d856844eae1c16a134603c9b26bdde6ec05; documented within-zone reference, not whole-zone or site deliverability; field=proxy_hours"
+      },
+      "evaluable_hours": {
+        "value": 8687,
+        "source_type": "assumption",
+        "ref": "data/processed/grid_impact/live_v1/AEPM_CSWS.snapshot.json; sha256=8249833ef44f8dae015a698639ff67513e778155ae5e8923e198bd4581f48362; GET /api/grid-impact/CSWS; context=grid-impact://evidence/b87f2b8a306454ce8f6ba55f64dd9d856844eae1c16a134603c9b26bdde6ec05; documented within-zone reference, not whole-zone or site deliverability; field=coverage.wind.evaluable_hours"
+      },
+      "unknown_hours": {
+        "value": 73,
+        "source_type": "assumption",
+        "ref": "data/processed/grid_impact/live_v1/AEPM_CSWS.snapshot.json; sha256=8249833ef44f8dae015a698639ff67513e778155ae5e8923e198bd4581f48362; GET /api/grid-impact/CSWS; context=grid-impact://evidence/b87f2b8a306454ce8f6ba55f64dd9d856844eae1c16a134603c9b26bdde6ec05; documented within-zone reference, not whole-zone or site deliverability; field=coverage.wind.unknown_hours"
+      }
+    },
+    {
+      "location_id": "LES",
+      "reference_location_id": "LES_LES",
+      "period_start_utc": "2025-01-01T00:00:00+00:00",
+      "period_end_exclusive_utc": "2026-01-01T00:00:00+00:00",
+      "proxy_hours": {
+        "value": 764,
+        "source_type": "assumption",
+        "ref": "data/processed/grid_impact/live_v1/LES_LES.snapshot.json; sha256=401aab8779c8ffeffc331b834315eda9b4de83bb0c6680791e90d0be613ef27f; GET /api/grid-impact/LES; context=grid-impact://evidence/a43ae58c26f585b0304e477c7327897ff1233c4db7c8a8c1295ebd6360ef7579; documented within-zone reference, not whole-zone or site deliverability; field=proxy_hours"
+      },
+      "evaluable_hours": {
+        "value": 8687,
+        "source_type": "assumption",
+        "ref": "data/processed/grid_impact/live_v1/LES_LES.snapshot.json; sha256=401aab8779c8ffeffc331b834315eda9b4de83bb0c6680791e90d0be613ef27f; GET /api/grid-impact/LES; context=grid-impact://evidence/a43ae58c26f585b0304e477c7327897ff1233c4db7c8a8c1295ebd6360ef7579; documented within-zone reference, not whole-zone or site deliverability; field=coverage.wind.evaluable_hours"
+      },
+      "unknown_hours": {
+        "value": 73,
+        "source_type": "assumption",
+        "ref": "data/processed/grid_impact/live_v1/LES_LES.snapshot.json; sha256=401aab8779c8ffeffc331b834315eda9b4de83bb0c6680791e90d0be613ef27f; GET /api/grid-impact/LES; context=grid-impact://evidence/a43ae58c26f585b0304e477c7327897ff1233c4db7c8a8c1295ebd6360ef7579; documented within-zone reference, not whole-zone or site deliverability; field=coverage.wind.unknown_hours"
+      }
+    },
+    {
+      "location_id": "OKGE",
+      "reference_location_id": "OKGE_OKGE",
+      "period_start_utc": "2025-01-01T00:00:00+00:00",
+      "period_end_exclusive_utc": "2026-01-01T00:00:00+00:00",
+      "proxy_hours": {
+        "value": 305,
+        "source_type": "assumption",
+        "ref": "data/processed/grid_impact/live_v1/OKGE_OKGE.snapshot.json; sha256=ace9ed934becb59e4d65c1f708743a57d173d6dba0e40a8ecdce4d4fccf04a91; GET /api/grid-impact/OKGE; context=grid-impact://evidence/eb3d6955cb7c4575a1d23e49c34471d452c71789c115d237d75b674e3dd1d464; documented within-zone reference, not whole-zone or site deliverability; field=proxy_hours"
+      },
+      "evaluable_hours": {
+        "value": 8687,
+        "source_type": "assumption",
+        "ref": "data/processed/grid_impact/live_v1/OKGE_OKGE.snapshot.json; sha256=ace9ed934becb59e4d65c1f708743a57d173d6dba0e40a8ecdce4d4fccf04a91; GET /api/grid-impact/OKGE; context=grid-impact://evidence/eb3d6955cb7c4575a1d23e49c34471d452c71789c115d237d75b674e3dd1d464; documented within-zone reference, not whole-zone or site deliverability; field=coverage.wind.evaluable_hours"
+      },
+      "unknown_hours": {
+        "value": 73,
+        "source_type": "assumption",
+        "ref": "data/processed/grid_impact/live_v1/OKGE_OKGE.snapshot.json; sha256=ace9ed934becb59e4d65c1f708743a57d173d6dba0e40a8ecdce4d4fccf04a91; GET /api/grid-impact/OKGE; context=grid-impact://evidence/eb3d6955cb7c4575a1d23e49c34471d452c71789c115d237d75b674e3dd1d464; documented within-zone reference, not whole-zone or site deliverability; field=coverage.wind.unknown_hours"
+      }
+    },
+    {
+      "location_id": "OPPD",
+      "reference_location_id": "OPPD_OPPD",
+      "period_start_utc": "2025-01-01T00:00:00+00:00",
+      "period_end_exclusive_utc": "2026-01-01T00:00:00+00:00",
+      "proxy_hours": {
+        "value": 492,
+        "source_type": "assumption",
+        "ref": "data/processed/grid_impact/live_v1/OPPD_OPPD.snapshot.json; sha256=3091ceb421866a8b7f1f9b26aec6d95be06951ff218075027294142b5003c3b6; GET /api/grid-impact/OPPD; context=grid-impact://evidence/e9f24c3bc74d6e4637a96ce9819939d06169eacf2754a67373379f812d82d045; documented within-zone reference, not whole-zone or site deliverability; field=proxy_hours"
+      },
+      "evaluable_hours": {
+        "value": 8687,
+        "source_type": "assumption",
+        "ref": "data/processed/grid_impact/live_v1/OPPD_OPPD.snapshot.json; sha256=3091ceb421866a8b7f1f9b26aec6d95be06951ff218075027294142b5003c3b6; GET /api/grid-impact/OPPD; context=grid-impact://evidence/e9f24c3bc74d6e4637a96ce9819939d06169eacf2754a67373379f812d82d045; documented within-zone reference, not whole-zone or site deliverability; field=coverage.wind.evaluable_hours"
+      },
+      "unknown_hours": {
+        "value": 73,
+        "source_type": "assumption",
+        "ref": "data/processed/grid_impact/live_v1/OPPD_OPPD.snapshot.json; sha256=3091ceb421866a8b7f1f9b26aec6d95be06951ff218075027294142b5003c3b6; GET /api/grid-impact/OPPD; context=grid-impact://evidence/e9f24c3bc74d6e4637a96ce9819939d06169eacf2754a67373379f812d82d045; documented within-zone reference, not whole-zone or site deliverability; field=coverage.wind.unknown_hours"
+      }
+    },
+    {
+      "location_id": "SPS",
+      "reference_location_id": "SPS_SPS",
+      "period_start_utc": "2025-01-01T00:00:00+00:00",
+      "period_end_exclusive_utc": "2026-01-01T00:00:00+00:00",
+      "proxy_hours": {
+        "value": 468,
+        "source_type": "assumption",
+        "ref": "data/processed/grid_impact/live_v1/SPS_SPS.snapshot.json; sha256=d2b7b082b95ba5da15f2931fe3042c1bb2a908dd279e15698dc62b8ac3441b14; GET /api/grid-impact/SPS; context=grid-impact://evidence/fe890b2295e35f76bae2b54404448a756f5d56d2134b7c8ff0d53ac61a2a3fd2; documented within-zone reference, not whole-zone or site deliverability; field=proxy_hours"
+      },
+      "evaluable_hours": {
+        "value": 8687,
+        "source_type": "assumption",
+        "ref": "data/processed/grid_impact/live_v1/SPS_SPS.snapshot.json; sha256=d2b7b082b95ba5da15f2931fe3042c1bb2a908dd279e15698dc62b8ac3441b14; GET /api/grid-impact/SPS; context=grid-impact://evidence/fe890b2295e35f76bae2b54404448a756f5d56d2134b7c8ff0d53ac61a2a3fd2; documented within-zone reference, not whole-zone or site deliverability; field=coverage.wind.evaluable_hours"
+      },
+      "unknown_hours": {
+        "value": 73,
+        "source_type": "assumption",
+        "ref": "data/processed/grid_impact/live_v1/SPS_SPS.snapshot.json; sha256=d2b7b082b95ba5da15f2931fe3042c1bb2a908dd279e15698dc62b8ac3441b14; GET /api/grid-impact/SPS; context=grid-impact://evidence/fe890b2295e35f76bae2b54404448a756f5d56d2134b7c8ff0d53ac61a2a3fd2; documented within-zone reference, not whole-zone or site deliverability; field=coverage.wind.unknown_hours"
+      }
+    },
+    {
+      "location_id": "WFEC",
+      "reference_location_id": "WFEC_WFEC",
+      "period_start_utc": "2025-01-01T00:00:00+00:00",
+      "period_end_exclusive_utc": "2026-01-01T00:00:00+00:00",
+      "proxy_hours": {
+        "value": 179,
+        "source_type": "assumption",
+        "ref": "data/processed/grid_impact/live_v1/WFEC_WFEC.snapshot.json; sha256=1621831ebd5103486ccc825f10f49e9b1316bdfe5201bf54701607659cee292e; GET /api/grid-impact/WFEC; context=grid-impact://evidence/c0977aca201acec41cb666475b714f39a1c1889ad9b6009976defa7994c04ea8; documented within-zone reference, not whole-zone or site deliverability; field=proxy_hours"
+      },
+      "evaluable_hours": {
+        "value": 8687,
+        "source_type": "assumption",
+        "ref": "data/processed/grid_impact/live_v1/WFEC_WFEC.snapshot.json; sha256=1621831ebd5103486ccc825f10f49e9b1316bdfe5201bf54701607659cee292e; GET /api/grid-impact/WFEC; context=grid-impact://evidence/c0977aca201acec41cb666475b714f39a1c1889ad9b6009976defa7994c04ea8; documented within-zone reference, not whole-zone or site deliverability; field=coverage.wind.evaluable_hours"
+      },
+      "unknown_hours": {
+        "value": 73,
+        "source_type": "assumption",
+        "ref": "data/processed/grid_impact/live_v1/WFEC_WFEC.snapshot.json; sha256=1621831ebd5103486ccc825f10f49e9b1316bdfe5201bf54701607659cee292e; GET /api/grid-impact/WFEC; context=grid-impact://evidence/c0977aca201acec41cb666475b714f39a1c1889ad9b6009976defa7994c04ea8; documented within-zone reference, not whole-zone or site deliverability; field=coverage.wind.unknown_hours"
+      }
+    }
+  ]
+}

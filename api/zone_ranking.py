@@ -5,7 +5,7 @@ from pydantic import Field, model_validator
 from typing_extensions import Self
 
 from .artifact_json import loads_artifact
-from .schemas import ContractModel, Fraction, NonEmpty, NonNegative
+from .schemas import ContractModel, Fraction, NonEmpty, NonNegative, Source
 
 log = logging.getLogger(__name__)
 
@@ -36,11 +36,42 @@ class ZoneRankingItem(ContractModel):
         return self
 
 
+class ExcludedLocation(ContractModel):
+    location_id: NonEmpty
+    reasons: list[NonEmpty] = Field(min_length=1)
+    source: Source
+
+
+class RankingDatum(Source):
+    value: NonNegative
+
+
+class WindRankingEvidence(ContractModel):
+    location_id: NonEmpty
+    reference_location_id: NonEmpty
+    period_start_utc: NonEmpty
+    period_end_exclusive_utc: NonEmpty
+    proxy_hours: RankingDatum
+    evaluable_hours: RankingDatum
+    unknown_hours: RankingDatum
+
+
 class ZoneRankingsResponse(ContractModel):
     operator: Literal["SPP"]
     composite_weight_formula: NonEmpty
     description: NonEmpty
-    rankings: Annotated[list[ZoneRankingItem], Field(min_length=1)]
+    rankings: list[ZoneRankingItem]
+    status: Literal["available", "unavailable"] = "available"
+    excluded_locations: list[ExcludedLocation] = Field(default_factory=list)
+    available_wind_evidence: list[WindRankingEvidence] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def honest_availability(self) -> Self:
+        if self.status == "available" and not self.rankings:
+            raise ValueError("Available rankings require ranked locations")
+        if self.status == "unavailable" and (self.rankings or not self.excluded_locations):
+            raise ValueError("Unavailable rankings require explicit exclusions and no invented ranks")
+        return self
 
     @model_validator(mode="after")
     def consistent_rankings(self) -> Self:

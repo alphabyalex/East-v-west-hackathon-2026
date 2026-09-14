@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { Award, Leaf, Wind, ShieldAlert, ChevronDown, ChevronUp, ClipboardList, Info } from 'lucide-react'
+import { apiUrl } from '../api/client'
+import type { Source, SourcedValue } from '../model'
+import { Sourced } from './Sourced'
 
 interface ZoneRankingItem {
   location_id: string
@@ -22,6 +25,13 @@ interface ZoneRankingsResponse {
   composite_weight_formula: string
   description: string
   rankings: ZoneRankingItem[]
+  status?: 'available' | 'unavailable'
+  excluded_locations?: { location_id: string; reasons: string[]; source: Source }[]
+  available_wind_evidence?: {
+    location_id: string; reference_location_id: string
+    period_start_utc: string; period_end_exclusive_utc: string
+    proxy_hours: SourcedValue; evaluable_hours: SourcedValue; unknown_hours: SourcedValue
+  }[]
 }
 
 const integer = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 })
@@ -34,21 +44,23 @@ export function ZoneLeaderboard() {
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
 
   useEffect(() => {
+    let active = true
     async function fetchRankings() {
       try {
-        const response = await fetch('http://127.0.0.1:8000/api/zone-rankings')
+        const response = await fetch(apiUrl('/api/zone-rankings'))
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`)
         }
         const json = await response.json()
-        setData(json)
+        if (active) setData(json)
       } catch (err: any) {
-        setError(err.message || 'Failed to fetch rankings')
+        if (active) setError(err.message || 'Failed to fetch rankings')
       } finally {
-        setLoading(false)
+        if (active) setLoading(false)
       }
     }
     fetchRankings()
+    return () => { active = false }
   }, [])
 
   const toggleRow = (locationId: string) => {
@@ -90,7 +102,31 @@ export function ZoneLeaderboard() {
         </div>
       </div>
 
-      <div className="leaderboard-table-wrap" tabIndex={0} aria-label="Spatial rankings list">
+      {data.status === 'unavailable' && <div className="leaderboard-intro" role="status">
+        <h3>Composite ranking unavailable</h3>
+        <p>No zones meet the evidence requirements for this composite. Missing inputs are not filled with assumed scores.</p>
+      </div>}
+      {!!data.available_wind_evidence?.length && <div className="leaderboard-table-wrap">
+        <table className="leaderboard-table"><caption>Available wind-screening evidence — not composite ranks</caption>
+          <thead><tr><th>Zone reference</th><th>Observed period (UTC)</th><th>High-wind / nonpositive-price hours</th><th>Evaluable hours</th><th>Unknown hours</th></tr></thead>
+          <tbody>{data.available_wind_evidence.map(item => <tr key={item.location_id}>
+            <td>{item.location_id} · {item.reference_location_id}</td>
+            <td><Sourced value={`${item.period_start_utc.slice(0, 10)} to ${item.period_end_exclusive_utc.slice(0, 10)} (end exclusive)`} source={item.proxy_hours} /></td>
+            <td><Sourced value={item.proxy_hours.value} source={item.proxy_hours} animate={false} /></td>
+            <td><Sourced value={item.evaluable_hours.value} source={item.evaluable_hours} animate={false} /></td>
+            <td><Sourced value={item.unknown_hours.value} source={item.unknown_hours} animate={false} /></td>
+          </tr>)}</tbody>
+        </table>
+        <p className="field-note">These are documented within-zone settlement-point references, not measured recoverable wind or site deliverability. Unknown hours are not filled; the evidence retains its timing and screening assumptions.</p>
+      </div>}
+      {!!data.excluded_locations?.length && <details className="leaderboard-intro">
+        <summary>Excluded locations and missing evidence</summary>
+        <ul>{data.excluded_locations.map(item => <li key={item.location_id}>
+          <Sourced value={item.location_id} source={item.source} />: {item.reasons.join(' ')}
+        </li>)}</ul>
+      </details>}
+
+      {data.status !== 'unavailable' && <div className="leaderboard-table-wrap" tabIndex={0} aria-label="Spatial rankings list">
         <table className="leaderboard-table">
           <thead>
             <tr>
@@ -199,7 +235,7 @@ export function ZoneLeaderboard() {
             })}
           </tbody>
         </table>
-      </div>
+      </div>}
     </section>
   )
 }
