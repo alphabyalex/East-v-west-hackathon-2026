@@ -1,35 +1,10 @@
 import json
 import pytest
-import hashlib
-from pathlib import Path
 from starlette.testclient import TestClient
 
 from api.main import app
 from api import zone_ranking
 from api.zone_ranking import load_zone_rankings, ZoneRankingsResponse
-
-
-@pytest.fixture
-def ranking_manifest(tmp_path, monkeypatch):
-    """Authored serving fixture; no dependency on a teammate's ignored outputs."""
-    monkeypatch.setattr(zone_ranking, "ROOT_DIR", tmp_path)
-    path = tmp_path / "data/processed/national_stack/zone_rankings.json"
-    path.parent.mkdir(parents=True)
-    rows = [{
-        "location_id": location, "rank": rank,
-        "avg_p50_risk_hours": 10, "avg_p90_risk_hours": 20,
-        "avg_p99_risk_hours": 30, "avg_worst_contiguous_hours": 2,
-        "wind_absorption_mwh_per_year": 100,
-        "carbon_absorbed_tonnes_per_year": 0,
-        "wind_source_ref": "test-fixture://authored-ranking; not production evidence",
-        "score_risk": score, "score_wind": score, "score_carbon": score,
-        "composite_score": score,
-    } for rank, (location, score) in enumerate([("LES", .8), ("OKGE", .6)], start=1)]
-    path.write_text(json.dumps({"operator": "SPP",
-        "composite_weight_formula": "0.5*S_risk + 0.3*S_wind + 0.2*S_carbon",
-        "description": "Authored software test fixture", "rankings": rows}), encoding="utf-8")
-    return path
-
 
 @pytest.fixture
 def rankings_manifest(tmp_path, monkeypatch):
@@ -68,7 +43,6 @@ def rankings_manifest(tmp_path, monkeypatch):
 def client():
     return TestClient(app)
 
-
 def test_load_zone_rankings_success(rankings_manifest):
     rankings = load_zone_rankings()
     assert isinstance(rankings, ZoneRankingsResponse)
@@ -83,7 +57,6 @@ def test_load_zone_rankings_success(rankings_manifest):
     # Assert ranks are sequential starting from 1
     ranks = [item.rank for item in rankings.rankings]
     assert ranks == list(range(1, len(rankings.rankings) + 1))
-
 
 def test_api_zone_rankings_endpoint(client, rankings_manifest):
     response = client.get("/api/zone-rankings")
@@ -107,7 +80,7 @@ def test_api_zone_rankings_missing_manifest_returns_unavailable(client, rankings
     rankings_manifest.unlink()
     response = client.get("/api/zone-rankings")
     assert response.status_code == 503
-    assert response.json() == {"detail": "Zone rankings JSON manifest is missing; run 'python -m pipeline.site_rank' first."}
+    assert "missing" in response.json()["detail"]
 
 
 @pytest.mark.parametrize("contents", ["not JSON", "{}"])
@@ -171,6 +144,13 @@ def test_unreadable_rankings_return_503_without_exposing_file_path(client, ranki
     assert response.status_code == 503
     assert response.json()["detail"] == "Zone rankings manifest could not be read"
 
+def test_api_zone_rankings_missing_manifest_is_unavailable(client, tmp_path, monkeypatch):
+    monkeypatch.setattr(zone_ranking, "ROOT_DIR", tmp_path)
+    response = client.get("/api/zone-rankings")
+    assert response.status_code == 503
+    assert response.json() == {"detail": "Zone rankings JSON manifest is missing; provide a reviewed rankings artifact."}
+
+
 
 def test_shipped_manifest_serves_real_wind_evidence_and_explicit_exclusions(client):
     """Must fail if the shipping artifact is absent; no authored fixture here."""
@@ -209,8 +189,8 @@ def test_shipping_manifest_reproduces_offline_without_random_rank_inputs(tmp_pat
     assert compiled == shipped == json.loads(output.read_text(encoding="utf-8"))
 
 
-def test_unavailable_manifest_cannot_smuggle_in_ranked_scores(ranking_manifest):
-    data = json.loads(ranking_manifest.read_text(encoding="utf-8"))
+def test_unavailable_manifest_cannot_smuggle_in_ranked_scores(rankings_manifest):
+    data = json.loads(rankings_manifest.read_text(encoding="utf-8"))
     data["status"] = "unavailable"
     with pytest.raises(ValueError, match="explicit exclusions"):
         ZoneRankingsResponse.model_validate(data)

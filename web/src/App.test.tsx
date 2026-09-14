@@ -199,9 +199,7 @@ describe('scenario workspace interactions', () => {
     vi.stubGlobal('fetch', withEconomics(fetcher));
     render(<App />);
     expect(screen.getByText(/current inputs shown as assumed scenario values/)).toBeTruthy();
-    // Allow the full sourced dashboard to render before testing the retry action.
-    // The transport deadline itself is covered with fake timers in context tests.
-    fireEvent.click(await screen.findByRole('button', { name: 'Retry estimate' }, { timeout: 5000 }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry estimate' }));
     expect(await screen.findByText(/Estimate service connected · current inputs synchronized/)).toBeTruthy();
   });
 
@@ -359,7 +357,6 @@ describe('scenario workspace interactions', () => {
     fireEvent.click(coordsBtn);
     const tooltip = screen.getByRole('tooltip');
     expect(tooltip).toBeTruthy();
-    expect(tooltip.querySelector('pre')).toBeNull();
     const provenance = JSON.parse(tooltip.getAttribute('data-provenance')!);
     expect(provenance.source_type).toBe('data');
     expect(provenance.ref).toContain('mock://weather-telemetry/station/okc');

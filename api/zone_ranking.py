@@ -1,7 +1,7 @@
 from pathlib import Path
 import logging
 from typing import Annotated, Literal
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import Field, model_validator
 from typing_extensions import Self
 
 from .artifact_json import loads_artifact
@@ -61,22 +61,20 @@ class ZoneRankingsResponse(ContractModel):
     composite_weight_formula: NonEmpty
     description: NonEmpty
     rankings: list[ZoneRankingItem]
-    status: Literal["available", "unavailable", "provisional"] = "available"
+    status: Literal["available", "unavailable"] = "available"
     excluded_locations: list[ExcludedLocation] = Field(default_factory=list)
     available_wind_evidence: list[WindRankingEvidence] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def honest_availability(self) -> Self:
-        if self.status in ("available", "provisional") and not self.rankings:
-            raise ValueError("Available or provisional rankings require ranked locations")
+        if self.status == "available" and not self.rankings:
+            raise ValueError("Available rankings require ranked locations")
         if self.status == "unavailable" and (self.rankings or not self.excluded_locations):
             raise ValueError("Unavailable rankings require explicit exclusions and no invented ranks")
         return self
 
     @model_validator(mode="after")
     def consistent_rankings(self) -> Self:
-        if self.status == "unavailable":
-            return self
         if len({item.location_id for item in self.rankings}) != len(self.rankings):
             raise ValueError("Ranking locations must be unique")
         if [item.rank for item in self.rankings] != list(range(1, len(self.rankings) + 1)):
@@ -90,7 +88,6 @@ class ZoneRankingsResponse(ContractModel):
 class ZoneRankingsError(Exception):
     """Signifies missing or malformed rankings data."""
 
-
 def load_zone_rankings() -> ZoneRankingsResponse:
     """
     Loads and parses the precomputed SPP zone rankings from the JSON manifest.
@@ -102,6 +99,7 @@ def load_zone_rankings() -> ZoneRankingsResponse:
     except FileNotFoundError as error:
         raise ZoneRankingsError("Zone rankings JSON manifest is missing; provide a reviewed rankings artifact.") from error
     except OSError as error:
+        log.exception("Cannot read zone rankings manifest")
         raise ZoneRankingsError("Zone rankings manifest could not be read") from error
     except ValueError as error:
         log.exception("Invalid zone rankings manifest")
