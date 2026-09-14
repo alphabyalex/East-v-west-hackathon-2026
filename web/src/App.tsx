@@ -2,6 +2,7 @@ import { Component, lazy, Suspense, useEffect, useRef, useState, type ReactNode 
 import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, Check, ChevronDown, CircleHelp, Download, RotateCcw, SlidersHorizontal, Unplug, Zap, CloudSun } from 'lucide-react';
 import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { ScenarioProvider, useScenario } from './ScenarioContext';
+import { ScenarioErrorBoundary } from './components/ScenarioErrorBoundary';
 import { ScenarioComparison } from './components/ScenarioComparison';
 import { ZoneLeaderboard } from './components/ZoneLeaderboard';
 import { Sourced, SourceInfo, SourcedTick } from './components/Sourced';
@@ -405,4 +406,4 @@ function Workspace() {
   return <div className="app-shell"><a className="skip-link" href="#main">Skip to analysis</a><Header /><main id="main"><Inputs /><ExposureControl /><div className="results-grid"><ExposurePanel /><EconomicsPanel /></div><GridImpactPanel /><SensitivityPanel sensitivity={sensitivity} /><Assumptions /><ScenarioComparison /><ZoneLeaderboard /></main><footer><span className="flex items-center gap-2"><Unplug size={12} />NO LIVE GRID FETCHES</span><span>Every number has a source. Click a value or its info control.</span></footer></div>;
 }
 
-export default function App() { return <ScenarioProvider><Workspace /></ScenarioProvider>; }
+export default function App() { return <ScenarioErrorBoundary><ScenarioProvider><Workspace /></ScenarioProvider></ScenarioErrorBoundary>; }

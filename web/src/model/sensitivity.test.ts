@@ -24,6 +24,32 @@ function modeled(result: SensitivityResult, key: SensitivityKey) {
 }
 
 describe('one-at-a-time canonical economics sensitivity', () => {
+  it.each([1, 50, 500, 10000])('recomputes the VPP baseline and every endpoint with %s solar homes', async homes => {
+    const { inputs, response, calculate, assumptions } = scenario({ vpp_solar_homes: homes })
+    const result = calculate()
+    expect(result.baseline.annual_cost_usd.p50.value).toBe(response.economics.annual_cost_usd.p50)
+    expect(result.baseline.breakeven_hours.value).toBe(response.economics.breakeven_exposure_hours_per_year)
+    for (const row of result.rows) {
+      if (row.status !== 'modeled') continue
+      for (const endpoint of [row.low, row.high]) {
+        const changed = { ...inputs,
+          ...(row.key === 'gpu_rental_price' ? { gpu_hour_value_usd: endpoint.input.value } : {}),
+          ...(row.key === 'flexibility_split' ? { flexibility_percent: endpoint.input.value * 100 } : {}),
+          ...(row.key === 'site_exposure' ? { site_exposure: endpoint.input.value } : {}),
+        }
+        const expected = createMockEstimate(toEstimateRequest(changed), changed).economics
+        for (const key of ['p50', 'p90', 'p99'] as const) {
+          expect(endpoint.snapshot.annual_cost_usd[key].value).toBeCloseTo(expected.annual_cost_usd[key], 6)
+        }
+        expect(endpoint.snapshot.decision).toBe(expected.decision)
+        expect(endpoint.snapshot.breakeven_hours.value).toBe(expected.breakeven_exposure_hours_per_year)
+        expect(endpoint.source.ref).toContain('VPP homes and assumptions held fixed')
+      }
+    }
+    expect((await buildEstimateSensitivity(response, assumptions)).baseline.annual_cost_usd.p50.value)
+      .toBe(response.economics.annual_cost_usd.p50)
+  })
+
   it('preserves baseline economics and the independent rounded early-margin input exactly', () => {
     const { response, calculate } = scenario()
     const { baseline } = calculate()

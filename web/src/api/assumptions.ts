@@ -104,17 +104,24 @@ export function validateEconomicConsistency(response: EstimateResponse, assumpti
   const density = assumptions.gpus_per_mw.value
   const rental = assumptions.gpu_rental_price_usd_per_hour.value
   const interruptibleMw = request.load_mw * request.flexibility_split
+  const vppOffset = (request.vpp_solar_homes ?? 0) * assumptions.vpp_battery_discharge_mw_per_home.value
+  const netInterruptibleMw = Math.max(0, interruptibleMw - vppOffset)
+  match(economics.interruptible_mw, interruptibleMw, 'interruptible_mw')
+  match(economics.vpp_offset_mw, vppOffset, 'vpp_offset_mw')
+  match(economics.net_interruptible_mw, netInterruptibleMw, 'net_interruptible_mw')
   match(economics.gpus_per_mw, density, 'gpus_per_mw')
   for (const quantile of ['p50', 'p90', 'p99'] as const) {
-    const gpuHours = response.modeled_exposure[quantile] * interruptibleMw * density
+    const gpuHours = response.modeled_exposure[quantile] * netInterruptibleMw * density
     match(economics.lost_gpu_hours_per_year[quantile], gpuHours, `lost_gpu_hours_per_year.${quantile}`)
-    match(economics.annual_cost_usd[quantile], gpuHours * rental, `annual_cost_usd.${quantile}`)
+    const revenue = response.modeled_exposure[quantile] * vppOffset * assumptions.vpp_arbitrage_revenue_usd_per_mwh.value
+    match(economics.vpp_arbitrage_revenue_usd_per_year[quantile], revenue, `vpp_arbitrage_revenue_usd_per_year.${quantile}`)
+    match(economics.annual_cost_usd[quantile], gpuHours * rental - revenue, `annual_cost_usd.${quantile}`)
   }
   const benefit = Math.min(assumptions.early_connection_years.value, request.term_years)
     * request.load_mw * assumptions.early_margin_usd_per_mw_year.value
   match(economics.value_of_early_connection_usd, benefit, 'value_of_early_connection_usd')
-  const costPerHour = interruptibleMw * density * rental
-  if (costPerHour === 0) {
+  const costPerHour = netInterruptibleMw * density * rental - vppOffset * assumptions.vpp_arbitrage_revenue_usd_per_mwh.value
+  if (costPerHour <= 0) {
     if (economics.breakeven_exposure_hours_per_year !== null) reject('breakeven_exposure_hours_per_year')
   } else {
     if (economics.breakeven_exposure_hours_per_year === null) reject('breakeven_exposure_hours_per_year')
