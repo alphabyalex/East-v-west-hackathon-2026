@@ -29,7 +29,7 @@ function ThresholdEditor({ site, disabled, onSave }: { site: PortfolioSite; disa
 }
 
 export function PortfolioPanel() {
-  const { inputs } = useScenario()
+  const { inputs, location } = useScenario()
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null)
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [name, setName] = useState('')
@@ -72,6 +72,7 @@ export function PortfolioPanel() {
   }
   function save(event: FormEvent) {
     event.preventDefault()
+    if (location?.enabled) return // A city query is not the retained zone ID.
     const submitted = { name: name.trim(), inputs: toEstimateRequest(inputs) }
     void run(async signal => {
       let current = portfolio
@@ -94,7 +95,8 @@ export function PortfolioPanel() {
       <p>Compare your next sites using saved scenario inputs and the evidence available today.</p>
       <p className="muted">Static checks of current precomputed data. No live monitoring or notifications. Session-only storage; restarting the API or a day of inactivity loses saved sites. Do not enter confidential information.</p>
       <p className="muted">Uses current server economics assumptions; workspace economics overrides are not saved. Published zone scores do not change with scenario inputs.</p>
-      <form onSubmit={save} className="portfolio-save"><label>Site name<input aria-label="Portfolio site name" value={name} onChange={e => setName(e.target.value)} maxLength={80} required disabled={busy || expired} /></label><button className="button" disabled={busy || expired || !name.trim()}>Save current site to portfolio</button></form>
+      <form onSubmit={save} className="portfolio-save"><label>Site name<input aria-label="Portfolio site name" value={name} onChange={e => setName(e.target.value)} maxLength={80} required disabled={busy || expired || location?.enabled} /></label><button className="button" disabled={busy || expired || !name.trim() || location?.enabled}>Save current site to portfolio</button></form>
+      {location?.enabled && <p role="status">City lookup is separate from this zone portfolio. Select an SPP zone to save it here; city results can be saved in the comparison ledger below.</p>}
       <p className="muted">Current selection: {inputs.location_id}. Adjust location, load, term, flexibility, site exposure and VPP above before saving.</p>
       {(portfolio || sessionId) && !expired && <button className="button button-quiet" disabled={busy} onClick={() => void run(signal => portfolioRequest(`/${encodeURIComponent(portfolio?.id ?? sessionId!)}`, 'GET', undefined, signal))}>Refresh evidence and checks</button>}
       {error && <p role="alert">{error} {portfolio && 'Previously displayed comparison has not been refreshed.'}</p>}

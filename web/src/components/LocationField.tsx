@@ -3,9 +3,10 @@ import { ChevronDown, MapPin } from 'lucide-react'
 import { useScenario } from '../ScenarioContext'
 import { getLocations, offlineLocations, type LocationOption } from '../api/locations'
 import { SourceInfo } from './Sourced'
+import { LocationSearchField } from './LocationEstimate'
 
-export function LocationField() {
-  const { inputs, update, sourceFor, mode } = useScenario()
+export function LocationField({ showTelemetry, setShowTelemetry }: { showTelemetry: boolean; setShowTelemetry: (show: boolean) => void }) {
+  const { inputs, update, sourceFor, mode, location: estimateLocation } = useScenario()
   const [locations, setLocations] = useState<LocationOption[]>(offlineLocations)
   const [unavailable, setUnavailable] = useState(false)
 
@@ -36,11 +37,43 @@ export function LocationField() {
       : selected?.kind === 'zone' ? 'SPP load zone · zone-specific model data; site exposure is your assumption'
         : 'SPP location · model coverage not confirmed'
   return <div className="location-field">
-    <div className="field-label"><label htmlFor="location"><MapPin size={13} />SPP LOCATION</label><SourceInfo value={inputs.location_id} source={sourceFor('location_id')} label="Location provenance" /></div>
-    <div className="select-wrap"><select id="location" value={inputs.location_id} onChange={event => update('location_id', event.target.value)} aria-describedby="location-note">
-      {!selected && <option value={inputs.location_id} disabled>{inputs.location_id} · not in current catalog</option>}
-      {locations.map(location => <option key={location.id} value={location.id}>{location.label}</option>)}
-    </select><ChevronDown size={15} /></div>
-    <span className="field-note" id="location-note">{note}{unavailable ? ' · Location list unavailable; showing last loaded choices.' : ''}</span>
+    <div className="field-label">
+      <label htmlFor="location"><MapPin size={13} />SPP LOCATION</label>
+      <SourceInfo
+        value={estimateLocation.enabled ? estimateLocation.query : inputs.location_id}
+        source={estimateLocation.enabled ? { source_type: 'assumption', ref: 'user://location-query' } : sourceFor('location_id')}
+        label="Location provenance"
+      />
+    </div>
+    <div className="select-wrap">
+      <select
+        id="location"
+        value={estimateLocation.enabled ? 'custom-location' : inputs.location_id}
+        onChange={event => {
+          const custom = event.target.value === 'custom-location';
+          estimateLocation.activate(custom);
+          if (custom) setShowTelemetry(false);
+          else update('location_id', event.target.value);
+        }}
+        aria-describedby="location-note"
+      >
+        <option value="custom-location">Choose a city or coordinates</option>
+        {locations.map(location => <option key={location.id} value={location.id}>{location.label}</option>)}
+        {!selected && !estimateLocation.enabled && (
+          <option value={inputs.location_id} disabled>
+            {inputs.location_id} · not in current catalog
+          </option>
+        )}
+      </select>
+      <ChevronDown size={15} />
+    </div>
+    {estimateLocation.enabled ? (
+      <LocationSearchField />
+    ) : (
+      <span className="field-note" id="location-note">
+        {note}
+        {unavailable ? ' · Location list unavailable; showing last loaded choices.' : ''}
+      </span>
+    )}
   </div>
 }

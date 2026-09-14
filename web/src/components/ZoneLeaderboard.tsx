@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import { Award, Leaf, Wind, ShieldAlert, ChevronDown, ChevronUp, ClipboardList, Info } from 'lucide-react'
 import { apiUrl } from '../api/client'
 import type { Source, SourcedValue } from '../model'
-import { Sourced } from './Sourced'
+import { Sourced, SourcedTick } from './Sourced'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 
 interface ZoneRankingItem {
   location_id: string
@@ -42,6 +43,29 @@ export function ZoneLeaderboard() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sortBy, setSortBy] = useState<'composite' | 'risk' | 'wind' | 'carbon'>('composite')
+  const [viewMode, setViewMode] = useState<'table' | 'chart'>('table')
+  const matches = (id: string) => id.toLowerCase().includes(searchQuery.trim().toLowerCase())
+  const sortedRankings = useMemo(() => {
+    if (!data || data.status === 'unavailable') return []
+    return data.rankings.filter(row => row.location_id.toLowerCase().includes(searchQuery.trim().toLowerCase()))
+      .filter(row => !data.excluded_locations?.some(excluded => excluded.location_id === row.location_id))
+      .sort((a, b) => sortBy === 'risk' ? a.avg_p90_risk_hours - b.avg_p90_risk_hours
+        : sortBy === 'wind' ? b.wind_absorption_mwh_per_year - a.wind_absorption_mwh_per_year
+          : sortBy === 'carbon' ? b.carbon_absorbed_tonnes_per_year - a.carbon_absorbed_tonnes_per_year
+            : b.composite_score - a.composite_score)
+  }, [data, searchQuery, sortBy])
+  const windRows = (data?.available_wind_evidence ?? []).filter(row => matches(row.location_id))
+    .sort((a, b) => sortBy === 'wind' ? b.proxy_hours.value - a.proxy_hours.value : a.location_id.localeCompare(b.location_id))
+  const chartSource: Source = { source_type: 'assumption', ref: 'api://zone-rankings; display of supplied evidence only, no imputation' }
+  const chartRows: { name: string; value: number; source: Source }[] = data?.status === 'unavailable'
+    ? windRows.map(row => ({ name: row.location_id, value: row.proxy_hours.value, source: row.proxy_hours }))
+    : sortedRankings.map(row => ({ name: row.location_id,
+      value: sortBy === 'risk' ? row.avg_p90_risk_hours : sortBy === 'wind' ? row.wind_absorption_mwh_per_year : sortBy === 'carbon' ? row.carbon_absorbed_tonnes_per_year : row.composite_score,
+      source: { source_type: 'assumption' as const, ref: `${row.wind_source_ref}; published ${sortBy} comparison; api://zone-rankings` } }))
+  const chartUnit = data?.status === 'unavailable' ? 'screened hours in supplied observation period'
+    : sortBy === 'risk' ? 'p90 modeled exposure · h/year' : sortBy === 'wind' ? 'wind absorption · MWh/year' : sortBy === 'carbon' ? 'supplied carbon estimate · tonnes/year' : 'published composite score'
 
   useEffect(() => {
     let active = true
@@ -102,14 +126,33 @@ export function ZoneLeaderboard() {
         </div>
       </div>
 
+      <div className="leaderboard-controls">
+        <label>Search zones<input type="search" aria-label="Search SPP zones" placeholder="Search SPP zones..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} /></label>
+        <label>Sort evidence<select aria-label="Sort leaderboard" value={sortBy} onChange={e => setSortBy(e.target.value as typeof sortBy)}>
+          <option value="composite">Composite score</option><option value="risk">Lowest p90 modeled exposure</option><option value="wind">Highest wind evidence</option><option value="carbon">Highest supplied carbon estimate</option>
+        </select></label>
+        <div className="segmented-control" aria-label="Leaderboard view"><button aria-pressed={viewMode === 'table'} onClick={() => setViewMode('table')}>Table</button><button aria-pressed={viewMode === 'chart'} onClick={() => setViewMode('chart')}>Chart</button></div>
+      </div>
+      {data.status === 'unavailable' && sortBy !== 'wind' && <p className="field-note">Composite, annual risk and carbon rankings are unavailable. Available wind references are listed alphabetically; choose wind to sort by screened hours.</p>}
+      {viewMode === 'chart' && <div className="leaderboard-chart-wrap">
+        <h3>{data.status === 'unavailable' ? 'Wind-screening evidence — not composite ranks' : 'Published zone comparison'}</h3><p className="field-note">{chartUnit}</p>
+        {chartRows.length ? <><ResponsiveContainer width="100%" height={Math.max(220, chartRows.length * 42)}>
+          <BarChart data={chartRows} layout="vertical" margin={{ top: 10, right: 30, left: 20, bottom: 15 }}>
+            <XAxis type="number" tick={<SourcedTick source={chartSource} />} /><YAxis type="category" dataKey="name" width={110} tick={<SourcedTick source={chartSource} />} />
+            <Tooltip content={({ active, payload }) => active && payload?.length ? <div className="chart-tooltip"><Sourced value={payload[0].payload.value} source={payload[0].payload.source} /> {chartUnit}</div> : null} />
+            <Bar dataKey="value" fill="var(--text-muted)" barSize={16} isAnimationActive={false} />
+          </BarChart>
+        </ResponsiveContainer><details><summary>Inspect supplied chart values</summary><ul>{chartRows.map(row => <li key={row.name}>{row.name}: <Sourced value={row.value} source={row.source} /> {chartUnit}</li>)}</ul></details></> : <p>No matching evidence to plot.</p>}
+      </div>}
+
       {data.status === 'unavailable' && <div className="leaderboard-intro" role="status">
         <h3>Composite ranking unavailable</h3>
         <p>No zones meet the evidence requirements for this composite. Missing inputs are not filled with assumed scores.</p>
       </div>}
-      {!!data.available_wind_evidence?.length && <div className="leaderboard-table-wrap">
+      {viewMode === 'table' && !!data.available_wind_evidence?.length && <div className="leaderboard-table-wrap">
         <table className="leaderboard-table"><caption>Available wind-screening evidence — not composite ranks</caption>
           <thead><tr><th>Zone reference</th><th>Observed period (UTC)</th><th>High-wind / nonpositive-price hours</th><th>Evaluable hours</th><th>Unknown hours</th></tr></thead>
-          <tbody>{data.available_wind_evidence.map(item => <tr key={item.location_id}>
+          <tbody>{windRows.map(item => <tr key={item.location_id}>
             <td>{item.location_id} · {item.reference_location_id}</td>
             <td><Sourced value={`${item.period_start_utc.slice(0, 10)} to ${item.period_end_exclusive_utc.slice(0, 10)} (end exclusive)`} source={item.proxy_hours} /></td>
             <td><Sourced value={item.proxy_hours.value} source={item.proxy_hours} animate={false} /></td>
@@ -126,7 +169,7 @@ export function ZoneLeaderboard() {
         </li>)}</ul>
       </details>}
 
-      {data.status !== 'unavailable' && <div className="leaderboard-table-wrap" tabIndex={0} aria-label="Spatial rankings list">
+      {viewMode === 'table' && data.status !== 'unavailable' && <div className="leaderboard-table-wrap" tabIndex={0} aria-label="Spatial rankings list">
         <table className="leaderboard-table">
           <thead>
             <tr>
@@ -140,7 +183,7 @@ export function ZoneLeaderboard() {
             </tr>
           </thead>
           <tbody>
-            {data.rankings.map(item => {
+            {sortedRankings.map(item => {
               const isExpanded = expandedRow === item.location_id
               const displayLabel = item.location_id.startsWith('spp-')
                 ? item.location_id.replace('spp-', '').replace('-demo', '').toUpperCase() + ' (Illustrative)'
@@ -222,7 +265,7 @@ export function ZoneLeaderboard() {
                                 <dt>CO2 Prevented</dt>
                                 <dd className="text-mint">{integer.format(item.carbon_absorbed_tonnes_per_year)} tonnes/yr</dd>
                                 <dt>Methodology</dt>
-                                <dd className="text-muted">Calculated as 0.45 tCO2 displaced per MWh wind integrated.</dd>
+                                <dd className="text-muted">Supplied ranking evidence only; associated wind operating emissions are not verified avoided emissions.</dd>
                               </dl>
                             </div>
                           </div>

@@ -79,7 +79,7 @@ function Probe() {
 }
 
 function mount(initialMode: 'api' | 'local' = 'api') {
-  return render(<ScenarioProvider initialMode={initialMode}><LocationField /><Probe /></ScenarioProvider>)
+  return render(<ScenarioProvider initialMode={initialMode}><LocationField showTelemetry={false} setShowTelemetry={() => {}} /><Probe /></ScenarioProvider>)
 }
 
 function state(): { inputs: { location_id: string }; response: EstimateResponse; mode: string; status: string } {
@@ -102,9 +102,9 @@ describe('location catalog and scenario transport', () => {
   it('loads all 18 actual IDs plus three clearly separate scenario choices from GET', async () => {
     const { fetcher } = installServer()
     mount()
-    expect(optionIds()).toEqual(['SPP_SYSTEM', ...scenarios.map(option => option.id)])
+    expect(optionIds()).toEqual(['custom-location', 'SPP_SYSTEM', ...scenarios.map(option => option.id)])
     await tick()
-    expect(optionIds()).toEqual(catalog.map(option => option.id))
+    expect(optionIds()).toEqual(['custom-location', ...catalog.map(option => option.id)])
     for (const zone of zones) expect(screen.getByRole('option', { name: `${zone} · SPP load zone` })).toBeTruthy()
     for (const scenario of scenarios) expect(screen.getByRole('option', { name: scenario.label })).toBeTruthy()
     expect(fetcher.mock.calls.filter(([url]) => String(url).endsWith('/api/locations'))).toHaveLength(1)
@@ -148,7 +148,7 @@ describe('location catalog and scenario transport', () => {
     installServer({ locations: () => Promise.reject(new TypeError('Synthetic catalog outage')) })
     mount()
     await tick()
-    expect(optionIds()).toEqual(['SPP_SYSTEM', ...scenarios.map(option => option.id)])
+    expect(optionIds()).toEqual(['custom-location', 'SPP_SYSTEM', ...scenarios.map(option => option.id)])
     expect(screen.getByText(/Location list unavailable/i)).toBeTruthy()
     expect(state().status).toBe('api')
     fireEvent.change(select(), { target: { value: scenarios[0].id } })
@@ -193,7 +193,7 @@ describe('location catalog and scenario transport', () => {
     const calls = fetcher.mock.calls.length
     await tick(4000)
     expect(fetcher).toHaveBeenCalledTimes(calls)
-    expect(optionIds()).toEqual(catalog.map(option => option.id))
+    expect(optionIds()).toEqual(['custom-location', ...catalog.map(option => option.id)])
     expect(select().value).toBe('LES')
     expect(state().mode).toBe('local')
     expect(state().response.inputs_echo.location_id).toBe('LES')
@@ -205,7 +205,7 @@ describe('location catalog and scenario transport', () => {
     mount('local')
     await tick(4000)
     expect(fetcher).not.toHaveBeenCalled()
-    expect(optionIds()).toEqual(['SPP_SYSTEM', ...scenarios.map(option => option.id)])
+    expect(optionIds()).toEqual(['custom-location', 'SPP_SYSTEM', ...scenarios.map(option => option.id)])
     expect(state().status).toBe('local')
   })
 })
