@@ -4,7 +4,7 @@ import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip,
 import { ScenarioProvider, useScenario } from './ScenarioContext';
 import { ScenarioComparison } from './components/ScenarioComparison';
 import { ZoneLeaderboard } from './components/ZoneLeaderboard';
-import { LocationSearchField, LocationConnection, LocationResultPanels } from './components/LocationEstimate';
+import { LocationConnection, LocationResultPanels } from './components/LocationEstimate';
 import { Sourced, SourceInfo, SourcedTick } from './components/Sourced';
 import { TransparencyPanel } from './components/TransparencyPanel';
 import { SensitivityPanel } from './components/SensitivityPanel';
