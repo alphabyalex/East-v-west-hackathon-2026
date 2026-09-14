@@ -6,7 +6,7 @@ import {
 } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { BaselineYear, SourcedValue } from '../../model';
-import { buildSurfaceData, QUANTILES, SURFACE_SIZE, type SurfaceSample } from './geometry';
+import { buildSurfaceData, buildGridData, QUANTILES, SURFACE_SIZE, type SurfaceSample, type SuppliedGrid } from './geometry';
 
 export type AxisLabel = {
   id: string; kind: 'year' | 'percentile' | 'hours'; datum: SourcedValue;
@@ -60,6 +60,8 @@ export function createSurfaceRenderer(host: HTMLDivElement, callbacks: Callbacks
   raycaster.params.Points = { threshold: 0.14 };
   const pointer = new Vector2();
   let samples: SurfaceSample[] = [];
+  let columns: SourcedValue[] = [];
+  let columnCount = QUANTILES.length as number;
   let positions = new Float32Array();
   let mesh: Mesh<BufferGeometry, MeshLambertMaterial> | undefined;
   let points: Points<BufferGeometry, PointsMaterial> | undefined;
@@ -78,7 +80,7 @@ export function createSurfaceRenderer(host: HTMLDivElement, callbacks: Callbacks
   let labelsDirty = true;
   let resizePending = true;
   let selectionDirty = true;
-  let pendingRows: { rows: BaselineYear[]; maximumHours: number } | undefined;
+  let pendingRows: { rows: BaselineYear[]; maximumHours: number; grid?: SuppliedGrid } | undefined;
   let pendingPointer: { clientX: number; clientY: number } | undefined;
   let transition: { from: Float32Array; to: Float32Array; started: number } | undefined;
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -166,7 +168,7 @@ export function createSurfaceRenderer(host: HTMLDivElement, callbacks: Callbacks
     quantileLines.forEach((line, quantileIndex) => {
       const array = line.geometry.getAttribute('position') as BufferAttribute;
       for (let year = 0; year < yearLines.length; year++) {
-        const offset = (year * QUANTILES.length + quantileIndex) * 3;
+        const offset = (year * columnCount + quantileIndex) * 3;
         array.setXYZ(year, positions[offset], positions[offset + 1], positions[offset + 2]);
       }
       array.needsUpdate = true;
@@ -174,7 +176,7 @@ export function createSurfaceRenderer(host: HTMLDivElement, callbacks: Callbacks
     });
     yearLines.forEach((line, yearIndex) => {
       const array = line.geometry.getAttribute('position') as BufferAttribute;
-      array.array.set(positions.subarray(yearIndex * QUANTILES.length * 3, (yearIndex + 1) * QUANTILES.length * 3));
+      array.array.set(positions.subarray(yearIndex * columnCount * 3, (yearIndex + 1) * columnCount * 3));
       array.needsUpdate = true;
       line.geometry.computeBoundingSphere();
     });
@@ -189,7 +191,7 @@ export function createSurfaceRenderer(host: HTMLDivElement, callbacks: Callbacks
       if (pendingRows) {
         const latest = pendingRows;
         pendingRows = undefined;
-        applyUpdate(latest.rows, latest.maximumHours, time);
+        applyUpdate(latest.rows, latest.maximumHours, time, latest.grid);
       }
       if (transition) {
         const progress = reducedMotion.matches ? 1 : Math.max(0, Math.min(1, (time - transition.started) / 280));
@@ -230,11 +232,20 @@ export function createSurfaceRenderer(host: HTMLDivElement, callbacks: Callbacks
     schedule();
   }
 
-  function applyUpdate(rows: BaselineYear[], maximumHours: number, time: number) {
-    const data = buildSurfaceData(rows, maximumHours);
+  function updateGrid(grid: SuppliedGrid, maximum: number) {
+    if (disposed) return;
+    pendingRows = { rows: [], maximumHours: maximum, grid };
+    schedule();
+  }
+
+  function applyUpdate(exposureRows: BaselineYear[], maximumHours: number, time: number, grid?: SuppliedGrid) {
+    const data = grid ? buildGridData(grid, maximumHours) : buildSurfaceData(exposureRows, maximumHours);
+    const rows = grid ? grid.rows.map(year => ({ year })) : exposureRows;
+    columns = grid?.columns ?? QUANTILES.map(q => source(q, `percentile/${q}; cumulative percentile, not probability density`));
+    columnCount = columns.length;
     const previous = positions;
     const canAnimate = initialized && previous.length === data.positions.length && !reducedMotion.matches;
-    const nextLayout = `${maximumHours}:${rows.map(row => row.year.value).join(',')}`;
+    const nextLayout = `${maximumHours}:${rows.map(row => row.year.value).join(',')}:${columns.map(column => column.value).join(',')}`;
     const reuseGeometry = initialized && layoutKey === nextLayout;
     layoutKey = nextLayout;
     samples = data.samples;
@@ -269,12 +280,13 @@ export function createSurfaceRenderer(host: HTMLDivElement, callbacks: Callbacks
     pointGeometry.setAttribute('position', new BufferAttribute(new Float32Array(positions), 3));
     points = new Points(pointGeometry, new PointsMaterial({ color: '#F2F1ED', size: 4, sizeAttenuation: false }));
     dataGroup.add(points);
-    QUANTILES.forEach((quantile, quantileIndex) => {
-      const vertices = rows.flatMap((__, yearIndex) => Array.from(positions.subarray((yearIndex * QUANTILES.length + quantileIndex) * 3, (yearIndex * QUANTILES.length + quantileIndex) * 3 + 3)));
+    columns.forEach((column, quantileIndex) => {
+      const quantile = column.value;
+      const vertices = rows.flatMap((__, yearIndex) => Array.from(positions.subarray((yearIndex * columnCount + quantileIndex) * 3, (yearIndex * columnCount + quantileIndex) * 3 + 3)));
       quantileLines.push(line(vertices, quantile === 50 || quantile === 99 ? '#F2F1ED' : '#8A8D88', dataGroup) as Line<BufferGeometry, LineBasicMaterial>);
     });
     rows.forEach((_, yearIndex) => {
-      yearLines.push(line(Array.from(positions.subarray(yearIndex * QUANTILES.length * 3, (yearIndex + 1) * QUANTILES.length * 3)), '#8A8D88', dataGroup) as Line<BufferGeometry, LineBasicMaterial>);
+      yearLines.push(line(Array.from(positions.subarray(yearIndex * columnCount * 3, (yearIndex + 1) * columnCount * 3)), '#8A8D88', dataGroup) as Line<BufferGeometry, LineBasicMaterial>);
     });
     const markerGeometry = new BufferGeometry();
     markerGeometry.setAttribute('position', new BufferAttribute(new Float32Array(3), 3));
@@ -290,21 +302,22 @@ export function createSurfaceRenderer(host: HTMLDivElement, callbacks: Callbacks
     const front = depth / 2, back = -depth / 2;
     line([left, 0, front, right, 0, front, right, 0, back], '#8A8D88', gridGroup);
     line([left, 0, front, left, graphHeight, front], '#8A8D88', gridGroup);
-    QUANTILES.forEach((quantile, index) => {
+    columns.forEach((column, index) => {
+      const quantile = column.value;
       const z = data.samples[index].position[2];
       line([left, 0, z, right, 0, z], '#212325', gridGroup);
-      axisLabels.push({ id: `q-${quantile}`, kind: 'percentile', datum: source(quantile, `percentile/${quantile}; cumulative percentile, not probability density`), point: new Vector3(right + 0.15, 0, z) });
+      if (!grid || index % 6 === 0 || index === columnCount - 1) axisLabels.push({ id: `q-${quantile}`, kind: 'percentile', datum: column, point: new Vector3(right + 0.15, 0, z) });
     });
     const stride = Math.max(1, Math.ceil((rows.length - 1) / 4));
     rows.forEach((row, index) => {
-      const x = data.samples[index * QUANTILES.length].position[0];
+      const x = data.samples[index * columnCount].position[0];
       line([x, 0, front, x, 0, back], '#212325', gridGroup);
       if (index % stride === 0 || index === rows.length - 1) axisLabels.push({ id: `year-${row.year.value}`, kind: 'year', datum: row.year, point: new Vector3(x, 0, front + 0.12) });
     });
     for (let tick = 0; tick <= 4; tick++) {
       const y = graphHeight * tick / 4;
       line([left, y, front, left, y, back, right, y, back], '#212325', gridGroup);
-      axisLabels.push({ id: `hours-${tick}`, kind: 'hours', datum: source(maximumHours * tick / 4, 'hours_per_year; fixed baseline axis scale, not an observation'), point: new Vector3(left - 0.15, y, front) });
+      axisLabels.push({ id: `hours-${tick}`, kind: 'hours', datum: grid ? { value: maximumHours * tick / 4, source_type: 'assumption', ref: 'display://grid-impact/USD; axis scale from supplied scenario dollar heights, not an observation' } : source(maximumHours * tick / 4, 'hours_per_year; fixed baseline axis scale, not an observation'), point: new Vector3(left - 0.15, y, front) });
     }
     selected = Math.min(selected, samples.length - 1);
     syncSelection();
@@ -429,7 +442,7 @@ export function createSurfaceRenderer(host: HTMLDivElement, callbacks: Callbacks
     renderer.forceContextLoss();
     renderer.domElement.remove();
   }
-  return { update, select, reset, rotate, zoom, dispose };
+  return { update, updateGrid, select, reset, rotate, zoom, dispose };
   } catch (error) {
     for (const cleanup of setupCleanup.reverse()) {
       try { cleanup(); } catch { /* Preserve the original initialization error. */ }

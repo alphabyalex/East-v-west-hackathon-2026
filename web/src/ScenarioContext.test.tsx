@@ -246,6 +246,7 @@ describe('scenario HTTP provider', () => {
     await tick();
     const request = JSON.parse(fetcher.mock.calls[1][1].body) as EstimateRequest;
     expect(request).toEqual(initialRequest);
+    expect(Object.keys(request)).toHaveLength(6);
   });
 
   it('does not leave API mode for an unchanged economic value, and aborts on unmount', async () => {

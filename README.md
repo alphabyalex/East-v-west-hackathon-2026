@@ -84,6 +84,23 @@ Data: `gridstatus`, EIA-930, Open-Meteo, FERC eLibrary. All free, no credentiali
 
 ## Running the current checkpoint
 
+**Open the integrated local app:** double-click `Open Fluxline.cmd` and use
+http://127.0.0.1:5174/app. Under **SPP LOCATION**, choose **Choose a city or
+coordinates**, enter a city/state or latitude/longitude, and select **Estimate
+location**. The existing facility, site-exposure and economic controls are sent
+together. If a city name has several matches, select the correct one. Results
+appear in Fluxline's exposure and economics panels; changing inputs requires
+selecting **Estimate location** again. Export and the comparison ledger retain
+the selected location and result.
+
+The launcher starts the API and location estimator as hidden local services.
+Completed regional reports are reused for immediate scenario calculations. New
+locations start an explicit offline job and may take several minutes. The
+location model returns expected hours with Low confidence, not P50/P90/P99
+outcomes; the interface preserves that distinction. Existing supplied scenarios
+remain available in the location selector. See [the adapter contract](api/README.md#local-location-estimator-adapter)
+for setup and endpoint details.
+
 The API attempts to read `pipeline.simulate.get_location_estimate()` and its
 precomputed parquet, with explicitly labeled placeholders while those files are
 absent. Real SPP 2024 load ingestion has succeeded, but missing reviewed event labels

@@ -1,5 +1,42 @@
 # Local estimate API
 
+## Local location estimator adapter
+
+`Open Fluxline.cmd` starts the React app on 5174, this API on 8000, and the existing
+location workspace on 8765 without opening its separate interface. It requires
+the existing local Python/ML environment, saved models/caches, and `npm ci` in
+`web`. `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-fluxline.ps1 -NoBrowser`
+starts/reuses the services without opening a browser. Restart the API after Python
+code changes; the launcher reports a conflict if an older API occupies port 8000.
+
+The `/api/location-estimator` routes are an explicit local authoring flow:
+
+- `GET /locations`: cached location search suggestions; no offline work.
+- `POST /search` with `{query}`: returns `{status, scan_id, candidates}` from a
+  saved search, or `{status: "running", job_id}` for an explicit workspace search.
+- `POST /estimate` with `{scan_id, candidate, inputs, report_id?}`: `inputs` contains
+  every `ScenarioInputs` field in the frontend, including economic overrides. A
+  completed report at the selected coordinates yields `{status: "succeeded",
+  result}`. Otherwise the existing workspace receives a `site-transfer` job and
+  the route returns `{status: "running", job_id}`. Job inputs never imply manual
+  SPP confirmation. Reports requiring independent coverage review cannot be reused.
+- `GET /jobs/{job_id}`: polls that exact persisted job. After success, repeat
+  `/search` for the cached matches, or `/estimate` with the completed `result_id`
+  as `report_id`. The latter verifies the result belongs to the selected point.
+
+The response preserves `inputs_echo`, location, model/version/hash references,
+confidence, weather/coverage evidence and limitations. `exposure` contains annual
+expected site hours, regional hours, full-term hours and annual MWh. `economics`
+uses those expected hours with the submitted facility/economic inputs and the
+file-backed VPP rates. The original saved report is never rewritten. Site exposure
+is applied once to the unscaled regional expectation. No percentile estimates,
+outage durations, confidence scores or upper-tail decisions are manufactured.
+
+Only loopback clients and allowed local browser origins can use these routes.
+Explicit jobs go to the fixed local workspace using its existing token, registered
+inputs and single-job lock. This adapter does not create a second model runner.
+The canonical `/api/estimate` contract and its read-only behavior remain unchanged.
+
 FastAPI serves the canonical `POST /api/estimate` contract using Kristian's
 precomputed reader when available, with an explicit placeholder fallback when the
 reader, parquet, or provenance companions are absent, or annual reference evidence
@@ -121,9 +158,21 @@ Keep these files together when publishing an offline run to `data/processed`;
 the workflow's run directory is not automatically promoted into the API.
 It retains the model version, precedent count, and experimental annual-tail
 limitations in `source_type: "model"` references. Confidence uses the contracted
-`ensemble_disagreement` basis and is not changed by the site assumption.
-The current simulator caps annual confidence at Low; its score measures classifier
-agreement, not annual-tail calibration. `worst_contiguous_hours` is the p99 of
+string `basis` field with value `ensemble_agreement_and_historical_support` and
+is not changed by the site assumption. Both sidecars must carry the current
+`confidence_policy` (version 2). The API recomputes the saved score, components,
+and classifier badge from recorded spread, same-location precedent, and limitations
+using the producer's shared arithmetic, without importing the training stack.
+Zero precedent means zero confidence; agreement alone cannot earn a high score.
+Stale policies, mismatched evidence, duplicate JSON keys, and non-finite metadata
+return 503. Regenerate the matching bundle offline before publishing it.
+This checks consistency of recorded evidence; it does not recompute neighbors or
+establish the authenticity of a model run.
+The current simulator separately caps annual confidence at Low; its numeric score
+combines classifier agreement with historical support and validation limits, not
+annual-tail calibration or a probability of correctness. Source references include
+the policy version, both score components, precedent count, and limitations.
+`worst_contiguous_hours` is the p99 of
 annual longest modeled episodes, not a guaranteed upper bound. The API reports
 the maximum of those annual statistics over the requested term, scaled by the
 user's site factor; it is not an observed outage length.
@@ -160,6 +209,17 @@ when exposure comes from the pipeline.
 | Present reader has a broken dependency/import, runtime failure, or malformed output | 503 |
 | Precomputed output does not cover the requested term | 503 |
 | Missing or invalid economics assumptions file | 503 |
+
+## Zone rankings
+
+`GET /api/zone-rankings` reads the saved manifest without generating rankings.
+It requires a nonempty list of unique locations, sequential ranks starting at one,
+and descending composite scores (ties retain the saved order). Component scores
+must lie in [0, 1], composite scores in [0, 100], and ordered risk quantiles and
+episode lengths within the producer's 8,760-hour comparison year. Invalid or
+unreadable artifacts return 503 rather than an inconsistent leaderboard.
+Wind provenance remains attached to each row; structural validation does not turn
+the current offline generator's illustrative wind/carbon inputs into observations.
 
 Broken data is never silently replaced with a successful placeholder response.
 A newly appearing module/file is checked on subsequent requests; restart the API

@@ -22,13 +22,13 @@ let controller: SurfaceController;
 let callbacks: Parameters<typeof createSurfaceRenderer>[1];
 
 function readProvenance() {
-  return JSON.parse(screen.getByRole('tooltip').querySelector('pre')!.textContent!);
+  return JSON.parse(screen.getByRole('tooltip').getAttribute('data-provenance')!);
 }
 
 beforeEach(() => {
   vi.stubGlobal('WebGL2RenderingContext', class {});
   vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('prefers-reduced-motion'), media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
-  controller = { update: vi.fn(), select: vi.fn(), reset: vi.fn(), rotate: vi.fn(), zoom: vi.fn(), dispose: vi.fn() };
+  controller = { update: vi.fn(), updateGrid: vi.fn(), select: vi.fn(), reset: vi.fn(), rotate: vi.fn(), zoom: vi.fn(), dispose: vi.fn() };
   rendererMock.mockReset();
   rendererMock.mockImplementation((_host, suppliedCallbacks) => { callbacks = suppliedCallbacks; return controller; });
 });
@@ -46,9 +46,13 @@ describe('exposure surface inspection', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Inspect next year' }));
     expect(controller.select).toHaveBeenLastCalledWith(5);
     expect(screen.getByRole('button', { name: 'Inspect p99' }).getAttribute('aria-pressed')).toBe('true');
+    const percentileControl = screen.getByRole('button', { name: 'Inspect p99' });
+    expect(percentileControl.getAttribute('title')).toBeNull();
+    expect(JSON.parse(percentileControl.getAttribute('data-provenance')!)).toEqual({ value: 99, source_type: 'assumption', ref: 'mock://display/surface/percentile/99; cumulative percentile, not probability density' });
+    expect(document.querySelector('.mock-label, .source-wrap .source-mark')).toBeNull();
     expect((screen.getByRole('button', { name: 'Inspect next year' }) as HTMLButtonElement).disabled).toBe(true);
 
-    const value = screen.getByRole('button', { name: '246.9. assumption provenance. Activate to pin.' });
+    const value = screen.getByRole('button', { name: '246.9. assumption provenance. Activate for source details.' });
     expect(value.querySelector('.sourced-value')!.textContent).toBe('246.9');
     fireEvent.click(value);
     expect(readProvenance()).toEqual(rows[1].p99);
@@ -70,11 +74,11 @@ describe('exposure surface inspection', () => {
     expect(screen.getByRole('button', { name: 'Inspect p50' }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.queryByRole('button', { name: 'Inspect p10' })).toBeNull();
     const inspector = screen.getByLabelText('Selected supplied quantile');
-    fireEvent.click(within(inspector).getByRole('button', { name: '80. assumption provenance. Activate to pin.' }));
+    fireEvent.click(within(inspector).getByRole('button', { name: '80. assumption provenance. Activate for source details.' }));
     expect(readProvenance()).toEqual(rows[1].p50);
     fireEvent.keyDown(document, { key: 'Escape' });
     const stage = screen.getByRole('group', { name: 'Interactive modeled exposure quantile surface' });
-    fireEvent.click(within(stage).getByRole('button', { name: '300 h. assumption provenance. Activate to pin.' }));
+    fireEvent.click(within(stage).getByRole('button', { name: '300 h. assumption provenance. Activate for source details.' }));
     expect(readProvenance()).toEqual(sourced(300, 'mock://test/display/axis-hours'));
   });
 
@@ -89,7 +93,7 @@ describe('exposure surface inspection', () => {
     expect(controller.update).toHaveBeenLastCalledWith(changed, 300);
     expect(controller.select).toHaveBeenLastCalledWith(2);
     expect(screen.getByText(/single-year quantile cross-section/)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: '61.7. assumption provenance. Activate to pin.' }));
+    fireEvent.click(screen.getByRole('button', { name: '61.7. assumption provenance. Activate for source details.' }));
     expect(readProvenance()).toEqual(changed[0].p99);
     expect(onUnavailable).not.toHaveBeenCalled();
     unmount();

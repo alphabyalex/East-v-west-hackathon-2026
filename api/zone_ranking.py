@@ -1,51 +1,75 @@
 from pathlib import Path
-import json
 import logging
-from typing import Literal
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Annotated, Literal
+from pydantic import Field, model_validator
 from typing_extensions import Self
 
-from .schemas import ContractModel, NonEmpty, NonNegative, Source
+from .artifact_json import loads_artifact
+from .schemas import ContractModel, Fraction, NonEmpty, NonNegative
 
 log = logging.getLogger(__name__)
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 
+AnnualHours = Annotated[float, Field(ge=0, le=8760)]
+
+
 class ZoneRankingItem(ContractModel):
     location_id: NonEmpty
-    avg_p50_risk_hours: NonNegative
-    avg_p90_risk_hours: NonNegative
-    avg_p99_risk_hours: NonNegative
-    avg_worst_contiguous_hours: NonNegative
+    avg_p50_risk_hours: AnnualHours
+    avg_p90_risk_hours: AnnualHours
+    avg_p99_risk_hours: AnnualHours
+    avg_worst_contiguous_hours: AnnualHours
     wind_absorption_mwh_per_year: NonNegative
     carbon_absorbed_tonnes_per_year: NonNegative
     wind_source_ref: NonEmpty
-    score_risk: NonNegative
-    score_wind: NonNegative
-    score_carbon: NonNegative
-    composite_score: NonNegative
-    rank: int
+    score_risk: Fraction
+    score_wind: Fraction
+    score_carbon: Fraction
+    composite_score: Annotated[float, Field(ge=0, le=100)]
+    rank: Annotated[int, Field(ge=1)]
+
+    @model_validator(mode="after")
+    def ordered_quantiles(self) -> Self:
+        if not self.avg_p50_risk_hours <= self.avg_p90_risk_hours <= self.avg_p99_risk_hours:
+            raise ValueError("Ranking risk hours must satisfy p50 <= p90 <= p99")
+        return self
+
 
 class ZoneRankingsResponse(ContractModel):
     operator: Literal["SPP"]
     composite_weight_formula: NonEmpty
     description: NonEmpty
-    rankings: list[ZoneRankingItem]
+    rankings: Annotated[list[ZoneRankingItem], Field(min_length=1)]
+
+    @model_validator(mode="after")
+    def consistent_rankings(self) -> Self:
+        if len({item.location_id for item in self.rankings}) != len(self.rankings):
+            raise ValueError("Ranking locations must be unique")
+        if [item.rank for item in self.rankings] != list(range(1, len(self.rankings) + 1)):
+            raise ValueError("Ranks must be sequential starting at one")
+        if any(left.composite_score < right.composite_score
+               for left, right in zip(self.rankings, self.rankings[1:])):
+            raise ValueError("Rankings must be sorted by descending composite score")
+        return self
+
 
 class ZoneRankingsError(Exception):
     """Signifies missing or malformed rankings data."""
-    pass
 
 def load_zone_rankings() -> ZoneRankingsResponse:
     """
     Loads and parses the precomputed SPP zone rankings from the JSON manifest.
     """
     path = ROOT_DIR / "data/processed/national_stack/zone_rankings.json"
-    if not path.exists():
-        raise ZoneRankingsError("Zone rankings JSON manifest is missing; run 'python -m pipeline.site_rank' first.")
-    
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-        return ZoneRankingsResponse(**data)
-    except Exception as error:
-        raise ZoneRankingsError(f"Malformed zone rankings schema: {error}") from error
+        data = loads_artifact(path.read_text(encoding="utf-8"))
+        return ZoneRankingsResponse.model_validate(data)
+    except FileNotFoundError as error:
+        raise ZoneRankingsError("Zone rankings JSON manifest is missing; provide a reviewed rankings artifact.") from error
+    except OSError as error:
+        log.exception("Cannot read zone rankings manifest")
+        raise ZoneRankingsError("Zone rankings manifest could not be read") from error
+    except ValueError as error:
+        log.exception("Invalid zone rankings manifest")
+        raise ZoneRankingsError("Malformed zone rankings schema; check the saved manifest") from error

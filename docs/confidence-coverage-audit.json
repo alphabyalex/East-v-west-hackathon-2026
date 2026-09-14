@@ -1,0 +1,211 @@
+{
+  "status": "coverage_validation_corrected_no_model_refitting",
+  "coverage_policy": {
+    "ref": "pipeline/confidence.py:CONFIDENCE_COVERAGE_POLICY",
+    "minimum_scored_hours_for_above_low": 8760,
+    "hour_identity": "Distinct location and timezone-aware hourly interval-start timestamp.",
+    "span": "Inclusive interval starts: (last - first) in hours plus one.",
+    "meaning": "Minimum classifier-validation coverage; not a test of annual-tail accuracy."
+  },
+  "synthetic_regression_cases": [
+    {
+      "case": "30 distinct hours every 14 days",
+      "scored_hours": 30,
+      "span_hours": 9745,
+      "precedent": 200,
+      "before": {
+        "level": "High",
+        "score": 0.9090909090909091
+      },
+      "after": {
+        "level": "Low",
+        "score": 0.69
+      }
+    },
+    {
+      "case": "Exactly 8760 consecutive hourly interval starts",
+      "scored_hours": 8760,
+      "span_hours": 8760,
+      "precedent": 200,
+      "before": {
+        "level": "Low",
+        "score": 0.69
+      },
+      "after": {
+        "level": "High",
+        "score": 0.9090909090909091
+      }
+    }
+  ],
+  "real_runs": [
+    {
+      "run": "data/processed/workbench/runs/confidence_v2_20260913",
+      "model_version": "spp_lgbm_20260913T215248_30b0029de7",
+      "model_sha256": "ef84a0c885c7f912c13a2bfa94f926a8178f380e95e633166be6ece8d92cbe81",
+      "features_sha256": "713b2c313b09771bffe6b3c723a0d9f4784d70de157a1bdcb6fbb28917b45236",
+      "before": {
+        "SPP_SYSTEM": {
+          "level": "Low",
+          "score": 0.0,
+          "agreement_score": 0.9976631414546541,
+          "historical_support_score": 0.0,
+          "n_similar_historical_hours": 0,
+          "mean_ensemble_probability_std": 0.0011684292726729674,
+          "limitations": [
+            "insufficient_same_location_precedent"
+          ],
+          "policy_version": 2,
+          "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
+        }
+      },
+      "after": {
+        "SPP_SYSTEM": {
+          "level": "Low",
+          "score": 0.0,
+          "agreement_score": 0.9976631414546541,
+          "historical_support_score": 0.0,
+          "n_similar_historical_hours": 0,
+          "mean_ensemble_probability_std": 0.0011684292726729674,
+          "limitations": [
+            "insufficient_same_location_precedent"
+          ],
+          "policy_version": 2,
+          "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
+        }
+      },
+      "coverage": {
+        "SPP_SYSTEM": {
+          "scored_hours": 10426,
+          "span_hours": 10501,
+          "missing_hours_within_span": 75,
+          "positive_hours": 835
+        }
+      },
+      "confidence_unchanged": true,
+      "api_provenance_passed": true,
+      "annual_reference_issue": null
+    },
+    {
+      "run": "data/processed/workbench/runs/history_2025_20260913",
+      "model_version": "spp_lgbm_20260913T222517_37b750a063",
+      "model_sha256": "1c53ec7c7939ee902a437db06d715da9aa436620f01282025ca018dee03e76bc",
+      "features_sha256": "b6e46a91b4ba55fd3b0dd802155033248a22574cf7a993a2776958d5d60b8287",
+      "before": {
+        "SPP_SYSTEM": {
+          "level": "Low",
+          "score": 0.0,
+          "agreement_score": 0.9953742540862066,
+          "historical_support_score": 0.0,
+          "n_similar_historical_hours": 0,
+          "mean_ensemble_probability_std": 0.002312872956896689,
+          "limitations": [
+            "insufficient_same_location_precedent"
+          ],
+          "policy_version": 2,
+          "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
+        }
+      },
+      "after": {
+        "SPP_SYSTEM": {
+          "level": "Low",
+          "score": 0.0,
+          "agreement_score": 0.9953742540862066,
+          "historical_support_score": 0.0,
+          "n_similar_historical_hours": 0,
+          "mean_ensemble_probability_std": 0.002312872956896689,
+          "limitations": [
+            "insufficient_same_location_precedent"
+          ],
+          "policy_version": 2,
+          "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
+        }
+      },
+      "coverage": {
+        "SPP_SYSTEM": {
+          "scored_hours": 12172,
+          "span_hours": 12222,
+          "missing_hours_within_span": 50,
+          "positive_hours": 1120
+        }
+      },
+      "confidence_unchanged": true,
+      "api_provenance_passed": true,
+      "annual_reference_issue": null
+    },
+    {
+      "run": "data/processed/workbench/runs/outage_outlook_20260913",
+      "model_version": "spp_lgbm_20260913T225319_c6aa726554",
+      "model_sha256": "5398ab9cab7db0949f80f67e47cd81425d248703fdcc054cfa36f8d43bd4c2b7",
+      "features_sha256": "8deb7661bf1384ef31d81880a4b8281fc7704d4c25ca0bc4bfdcd306c79a26a7",
+      "before": {
+        "SPP_SYSTEM": {
+          "level": "Low",
+          "score": 0.0,
+          "agreement_score": 0.9953304188641422,
+          "historical_support_score": 0.0,
+          "n_similar_historical_hours": 0,
+          "mean_ensemble_probability_std": 0.00233479056792892,
+          "limitations": [
+            "insufficient_same_location_precedent"
+          ],
+          "policy_version": 2,
+          "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
+        }
+      },
+      "after": {
+        "SPP_SYSTEM": {
+          "level": "Low",
+          "score": 0.0,
+          "agreement_score": 0.9953304188641422,
+          "historical_support_score": 0.0,
+          "n_similar_historical_hours": 0,
+          "mean_ensemble_probability_std": 0.00233479056792892,
+          "limitations": [
+            "insufficient_same_location_precedent"
+          ],
+          "policy_version": 2,
+          "source_ref": "pipeline/confidence.py:CONFIDENCE_POLICY"
+        }
+      },
+      "coverage": {
+        "SPP_SYSTEM": {
+          "scored_hours": 12172,
+          "span_hours": 12222,
+          "missing_hours_within_span": 50,
+          "positive_hours": 1120
+        }
+      },
+      "confidence_unchanged": true,
+      "api_provenance_passed": true,
+      "annual_reference_issue": null
+    }
+  ],
+  "canonical_artifacts": {
+    "path": "data/processed/exposure_by_location.parquet",
+    "sha256": "1abaafa021c4c98339de67110dda107f806647b1d5281abbd66e8093385215b0",
+    "unchanged": true,
+    "rows": 147,
+    "zones": 21,
+    "level_counts": {
+      "Low": 147
+    },
+    "score_description": {
+      "count": 147.0,
+      "mean": 0.04805545653026667,
+      "std": 0.06823524545811005,
+      "min": 0.0,
+      "25%": 0.0,
+      "50%": 0.0,
+      "75%": 0.08983166839916969,
+      "max": 0.19764926299050053
+    },
+    "limitation": "Original training inputs and weights remain unavailable; no re-estimation claimed for the canonical 21-zone bundle."
+  },
+  "verification": {
+    "full_python_suite_passed": 1798,
+    "subtests_passed": 42,
+    "warnings": 2,
+    "focused_confidence_tests_passed": 29,
+    "real_saved_runs_replayed": 3
+  }
+}

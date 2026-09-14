@@ -311,10 +311,25 @@ def fetch_public_evidence(url: str, key: str, *, cache_dir: Path | None = None) 
     folder = cache_dir or Path(__file__).resolve().parents[1] / "data/raw/spp/evidence"
     path = folder / f"{key}.parquet"
     if path.exists():
-        cached = pd.read_parquet(path).iloc[0]
+        snapshot = pd.read_parquet(path)
+        if len(snapshot) != 1 or set(snapshot.columns) != {"request_url", "content", "source_json"}:
+            raise ValueError("Evidence snapshot must contain exactly one document with provenance.")
+        cached = snapshot.iloc[0]
         if cached.request_url != url:
             raise ValueError("Evidence snapshot key already belongs to another URL.")
-        return bytes(cached.content), json.loads(cached.source_json)
+        if not isinstance(cached.content, bytes) or not cached.content:
+            raise ValueError("Evidence snapshot must contain nonempty document bytes.")
+        source = json.loads(cached.source_json)
+        if (not isinstance(source, dict) or source.get("source_type") != "data"
+                or source.get("requested_url") != url
+                or source.get("sha256") != hashlib.sha256(cached.content).hexdigest()):
+            raise ValueError("Evidence snapshot content or source metadata does not match its fingerprint.")
+        ref = source.get("ref")
+        retrieved = pd.Timestamp(source.get("retrieved_utc"))
+        if (not isinstance(ref, str) or urlsplit(ref).scheme != "https" or not urlsplit(ref).hostname
+                or pd.isna(retrieved) or retrieved.tzinfo is None):
+            raise ValueError("Evidence snapshot has invalid source or retrieval provenance.")
+        return cached.content, source
     try:
         response = requests.get(url, timeout=40)
         response.raise_for_status()

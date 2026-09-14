@@ -151,6 +151,9 @@ class TrainingTests(unittest.TestCase):
             self.assertEqual(len(report["input_hashes"]["hourly_sha256"]), 64)
             self.assertGreater(report["brier_skill_vs_train_prevalence"], 0)
             self.assertEqual(report["confidence"]["TEST_ONLY_SPP_SYSTEM"]["level"], "Low")
+            self.assertEqual(report["confidence_coverage_policy"]["minimum_scored_hours_for_above_low"], 8760)
+            coverage = report["confidence_coverage"]["TEST_ONLY_SPP_SYSTEM"]
+            self.assertEqual(coverage["scored_hours"], report["test_by_location"]["TEST_ONLY_SPP_SYSTEM"]["n_hours"])
             predictions = pd.read_parquet(run / "test_predictions.parquet")
             self.assertTrue(predictions.probability.between(0, 1).all())
             self.assertNotIn("site_exposure", predictions)
@@ -239,8 +242,9 @@ class SimulationTests(unittest.TestCase):
             simulate_exposure(self.predictions(), confidence, "test", simulations=10, years=1)
 
     def test_simulation_contract_quantiles_determinism_and_zero_exposure(self):
+        from pipeline.confidence import confidence_from_evidence
         reference = self.predictions()
-        confidence = {"TEST_ONLY_SPP_SYSTEM": {"score": .9, "n_similar_historical_hours": 10}}
+        confidence = {"TEST_ONLY_SPP_SYSTEM": confidence_from_evidence(.05, 10, [])}
         first, trials, metadata = simulate_exposure(reference, confidence, "test", simulations=1000, years=1)
         second, _, _ = simulate_exposure(reference, confidence, "test", simulations=1000, years=1)
         pd.testing.assert_frame_equal(first, second)
@@ -250,6 +254,9 @@ class SimulationTests(unittest.TestCase):
         self.assertLessEqual(row.p99_hours, 8760)
         self.assertEqual(len(trials), 1000)
         self.assertFalse(metadata["site_exposure_applied"])
+        self.assertEqual(row.confidence_score, confidence["TEST_ONLY_SPP_SYSTEM"]["score"])
+        self.assertLess(row.confidence_score, .7)
+        self.assertEqual(metadata["confidence_policy"]["version"], 2)
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "exposure.parquet"
             first.to_parquet(path, index=False)

@@ -30,6 +30,12 @@ export function ConfidenceBadge({ confidence, compact = false }: ConfidenceBadge
     `Confidence basis source (${confidence.source.source_type}): ${confidence.source.ref}.`,
     'Confidence describes support for the estimate, not the probability of a future outcome.',
   ].join(' ')
+  const summary = [
+    mocked
+      ? 'Assumed confidence input; no ensemble evaluation is available for this value.'
+      : 'Model signal describing support for the exposure estimate.',
+    'Confidence describes support for the estimate, not the probability of a future outcome.',
+  ].join(' ')
 
   return (
     <Sourced
@@ -37,11 +43,11 @@ export function ConfidenceBadge({ confidence, compact = false }: ConfidenceBadge
       source={confidence.score}
       label={label}
       description={description}
+      summary={summary}
       className={`confidence-badge${compact ? ' confidence-compact' : ''}`}
       animate={false}
     >
       <span ref={levelRef}>{compact ? confidence.level : `Confidence: ${confidence.level}`}</span>
-      {mocked && <span className="confidence-mock mock-label">Assumed</span>}
     </Sourced>
   )
 }
