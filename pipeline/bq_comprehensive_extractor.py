@@ -48,7 +48,7 @@ def extract_comprehensive_data():
         SUM(l.number_of_strikes) AS total_lightning_strikes
     FROM `bigquery-public-data.noaa_lightning.lightning_strikes` l
     CROSS JOIN cities c
-    WHERE EXTRACT(YEAR FROM l.date) BETWEEN 2019 AND 2024
+    WHERE EXTRACT(YEAR FROM l.date) BETWEEN 2019 AND 2025
     AND ST_DWithin(l.center_point_geom, c.geom, 50000) -- within 50km radius
     GROUP BY date, station_id
     """

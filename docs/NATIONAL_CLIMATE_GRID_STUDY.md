@@ -1,7 +1,7 @@
 # BigQuery ML Thesis Report: Continental US Climatological Risk Index
 
 **Multi-Region Extreme Grid Interconnection Interruption Risk Model**
-Executed on Google Cloud BigQuery: 2026-09-14 01:27:21.780900+00:00
+Executed on Google Cloud BigQuery: 2026-09-14 02:23:22.914199+00:00
 
 ## 🔬 Scientific Methodology & Continental Scope
 To establish a nation-wide, out-of-sample valid prediction of grid-stress climatological risk, we engineered a locally-calibrated **Climatological Stress Target (CST)** across **6 distinct US grid regions (Northeast, Southeast, Midwest, Texas, Mountain, and Pacific Northwest)** covering **11 major cities**:
@@ -35,11 +35,11 @@ The model was evaluated against the completely untouched 2024 calendar year out-
 
 | Evaluation Metric | Value |
 |---|---:|
-| Log Loss | 0.221102 |
-| ROC-AUC | 0.945143 |
-| Precision-Recall AUC (PR-AUC) | 0.535398 |
-| Accuracy | 0.917737 |
-| F1-Score | 0.616561 |
+| Log Loss | 0.227519 |
+| ROC-AUC | 0.943421 |
+| Precision-Recall AUC (PR-AUC) | 0.561224 |
+| Accuracy | 0.916322 |
+| F1-Score | 0.634921 |
 
 ## 🧩 Global Feature Explanations (Cloud Vertex AI SHAP Attributions)
 
@@ -71,11 +71,11 @@ To establish the full downstream impact of climatological grid strain, we correl
 Our initial hypothesis was that the activation of fossil-fuel 'peaker' plants during grid emergencies would lead to measurable localized spikes in Nitrogen Dioxide (NO₂). However, rigorous statistical testing across 14 metropolitan load centers revealed a profound and highly significant **inverse relationship**.
 
 ### Empirical Findings (2019-2024)
-- **Dataset**: 10,458 matched city-day NO₂ observations across 14 major US load centers.
-- **Baseline (Normal Grid Operations)**: Average NO₂ AQI = `21.02`
-- **Extreme Grid Stress Days**: Average NO₂ AQI = `18.64`
+- **Dataset**: 11,393 matched city-day NO₂ observations across 14 major US load centers.
+- **Baseline (Normal Grid Operations)**: Average NO₂ AQI = `21.19`
+- **Extreme Grid Stress Days**: Average NO₂ AQI = `18.75`
 
 ### Statistical Significance & Scientific Interpretation
-The reduction in localized NO₂ air pollution during climate-driven grid stress is **highly statistically significant** (T-Statistic = `-6.6566`, p-value = `4.2262e-11`).
+The reduction in localized NO₂ air pollution during climate-driven grid stress is **highly statistically significant** (T-Statistic = `-7.1685`, p-value = `1.2506e-12`).
 
 **Conclusion (The Meteorological Dispersion Effect)**: This counter-intuitive finding demonstrates that grid stress is primarily driven by extreme meteorological events (such as polar vortex winter storms and high-wind sustained systems) which intrinsically act as massive atmospheric dispersion mechanisms. Furthermore, extreme blizzards drastically reduce local vehicular traffic—the primary driver of urban NO₂. Consequently, while peaker plants *are* firing to sustain the grid, the severe weather systems causing the grid stress concurrently scrub and disperse localized urban pollution. This highlights the vital importance of multi-modal, empirical ML pipelines over pure theoretical assumptions in energy climatology.

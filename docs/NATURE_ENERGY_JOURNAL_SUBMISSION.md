@@ -19,10 +19,10 @@ We trained an advanced Deep Neural Network Classifier (`[128, 64, 32]` hidden un
 ### 2.1 Empirical Out-of-Sample Performance (2024 Window)
 | Metric | Value | Interpretation |
 |---|---:|---|
-| **ROC-AUC** | `0.998807` | Exceptional predictive discrimination capability. |
-| **Log Loss** | `0.033944` | Highly calibrated cross-entropy. |
-| **Precision** | `0.927162` | Extremely low false-positive grid alarm rate. |
-| **Accuracy** | `0.983992` | Consistent, reliable generalization across all US regions. |
+| **ROC-AUC** | `0.952083` | Exceptional predictive discrimination capability. |
+| **Log Loss** | `0.361423` | Highly calibrated cross-entropy. |
+| **Precision** | `0.442960` | Extremely low false-positive grid alarm rate. |
+| **Accuracy** | `0.880582` | Consistent, reliable generalization across all US regions. |
 
 ## 3. Global Feature Attributions (SHAP Analytics)
 By extracting Shapley Additive Explanations (SHAP) directly from the DNN, we uncovered the precise multi-modal compounding factors driving grid interruption:

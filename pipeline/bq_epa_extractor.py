@@ -23,7 +23,7 @@ def extract_epa_air_quality():
         AVG(aqi) AS avg_no2_aqi,
         MAX(first_max_value) AS max_no2_value
     FROM `bigquery-public-data.epa_historical_air_quality.no2_daily_summary`
-    WHERE EXTRACT(YEAR FROM date_local) BETWEEN 2019 AND 2024
+    WHERE EXTRACT(YEAR FROM date_local) BETWEEN 2019 AND 2025
     AND city_name IN ('New York', 'Boston', 'Atlanta', 'Chicago', 'Lincoln', 'Houston', 'Dallas', 'Denver', 'Phoenix', 'Los Angeles', 'Seattle', 'Oklahoma City', 'Amarillo', 'Wichita')
     GROUP BY date, state_name, city_name
     """

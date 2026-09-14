@@ -31,9 +31,9 @@ def run_cloud_ml_research():
     print(stations_info)
     
     # Create the unified, nation-wide climate table in our BigQuery dataset
-    print("\n[Step 1] Aggregating weather observations from BigQuery public NOAA GSOD tables (2019-2024)...")
+    print("\n[Step 1] Aggregating weather observations from BigQuery public NOAA GSOD tables (2019-2025)...")
     
-    years = [2019, 2020, 2021, 2022, 2023, 2024]
+    years = [2019, 2020, 2021, 2022, 2023, 2024, 2025]
     union_queries = []
     
     for year in years:
