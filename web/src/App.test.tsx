@@ -24,6 +24,7 @@ beforeAll(() => {
   globalThis.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
 });
 beforeEach(() => {
+  window.history.replaceState({}, '', '/app');
   localStorage.clear();
   sessionStorage.clear();
   vi.stubEnv('VITE_ESTIMATE_MODE', 'local');
@@ -33,14 +34,15 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
 describe('scenario workspace interactions', () => {
-  it('opens on Overview and mounts only the selected tab without changing the URL', async () => {
+  it('opens on Scenario Stress Test and mounts only the selected tab without changing the URL', async () => {
     const errors = vi.spyOn(console, 'error');
     const requests = vi.spyOn(globalThis, 'fetch');
     const url = window.location.href;
     render(<App />);
-    expect(screen.getByRole('tab', { name: 'Overview' }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByRole('tab', { name: 'Scenario Stress Test' }).getAttribute('aria-selected')).toBe('true');
     expect(screen.queryByText('NO LIVE GRID FETCHES')).toBeNull();
     expect(screen.queryByText(/Every number has a source\. Click/)).toBeNull();
+    fireEvent.click(screen.getByRole('tab', { name: 'Overview' }));
     expect(screen.getByRole('heading', { name: 'Connect sooner. Understand the trade-off.' })).toBeTruthy();
     expect(screen.queryByLabelText('SPP LOCATION')).toBeNull();
     expect(screen.queryByRole('region', { name: 'Site portfolio' })).toBeNull();

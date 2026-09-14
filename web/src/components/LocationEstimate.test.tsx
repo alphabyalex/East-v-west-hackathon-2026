@@ -23,6 +23,7 @@ it('uses the existing controls, shows expected results, exports city results and
     return new Response(JSON.stringify(body), { status: url.endsWith('/zone-rankings') ? 503 : 200 });
   }));
   try {
+    window.history.replaceState({}, '', '/app');
     render(<App />);
     fireEvent.click(screen.getByRole('tab', { name: 'Scenario Stress Test' }));
     fireEvent.change(screen.getByLabelText('SPP LOCATION'), { target: { value: 'custom-location' } });
