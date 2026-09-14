@@ -3,8 +3,8 @@ import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, Check, ChevronDown,
 import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { ScenarioProvider, useScenario } from './ScenarioContext';
 import { ScenarioErrorBoundary } from './components/ScenarioErrorBoundary';
+import { Landing } from './Landing';
 import { SaveToPortfolio } from './components/SaveToPortfolio';
-import { Overview } from './components/Overview';
 import { PortfolioPanel } from './components/PortfolioPanel';
 import { ZoneLeaderboard } from './components/ZoneLeaderboard';
 import { LocationConnection, LocationResultPanels } from './components/LocationEstimate';
@@ -418,7 +418,6 @@ function Assumptions() {
 }
 
 const workspaceTabs = [
-  ['overview', 'Overview'],
   ['scenario', 'Scenario Stress Test'],
   ['zones', 'Zone Analytics'],
   ['portfolio', 'Portfolio & Alerts'],
@@ -427,7 +426,7 @@ type WorkspaceTab = typeof workspaceTabs[number][0];
 
 function Workspace() {
   const { sensitivity, location, zoneSelected } = useScenario();
-  const [tab, setTab] = useState<WorkspaceTab>('overview');
+  const [tab, setTab] = useState<WorkspaceTab>('scenario');
   return <div className="app-shell">
     <a className="skip-link" href="#main">Skip to workspace</a>
     <Header />
@@ -444,19 +443,20 @@ function Workspace() {
           setTab(workspaceTabs[next][0]);
           document.getElementById(`tab-${workspaceTabs[next][0]}`)?.focus();
         }}>{label}</button>)}
-    </div>
+      </div>
     <main id="main">
       <div key={tab} id={`panel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`} tabIndex={0} className="workspace-tab-panel">
-        {tab === 'overview' && <Overview
-          onScenario={() => { setTab('scenario'); document.getElementById('tab-scenario')?.focus(); }}
-          onZones={() => { setTab('zones'); document.getElementById('tab-zones')?.focus(); }} />}
         {tab === 'scenario' && <><ScenarioHeading /><Inputs /><ExposureControl />{location.enabled ? <LocationResultPanels /> : !zoneSelected ? <p className="field-note" role="status">Select a zone to start your scenario.</p> : <><div className="results-grid"><ExposurePanel /><EconomicsPanel /></div><GridImpactPanel /><SensitivityPanel sensitivity={sensitivity} /></>}<Assumptions /></>}
         {tab === 'zones' && <ZoneLeaderboard />}
         {tab === 'portfolio' && <PortfolioPanel />}
       </div>
     </main>
-    {tab !== 'overview' && location.enabled && <footer><span className="flex items-center gap-2"><Unplug size={12} />HISTORICAL LOCATION COMPARISON</span></footer>}
+    {location.enabled && <footer><span className="flex items-center gap-2"><Unplug size={12} />HISTORICAL LOCATION COMPARISON</span></footer>}
   </div>;
 }
 
-export default function App() { return <ScenarioErrorBoundary><ScenarioProvider><Workspace /></ScenarioProvider></ScenarioErrorBoundary>; }
+export default function App() {
+  const path = typeof window === 'undefined' ? '/app' : window.location.pathname;
+  if (path === '/' || path === '/index.html') return <Landing />;
+  return <ScenarioErrorBoundary><ScenarioProvider><Workspace /></ScenarioProvider></ScenarioErrorBoundary>;
+}
