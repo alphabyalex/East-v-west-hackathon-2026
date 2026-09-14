@@ -2,6 +2,7 @@
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { ZoneLeaderboard } from './ZoneLeaderboard'
+import shippedManifest from '../../../data/processed/national_stack/zone_rankings.json'
 
 const mockRankings = {
   operator: "SPP",
@@ -43,6 +44,7 @@ const mockRankings = {
 
 describe('ZoneLeaderboard', () => {
   beforeEach(() => {
+    window.matchMedia = vi.fn().mockReturnValue({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() })
     vi.stubGlobal('fetch', vi.fn().mockImplementation((url) => {
       if (String(url).endsWith('/api/zone-rankings')) {
         return Promise.resolve(new Response(JSON.stringify(mockRankings), { status: 200 }))
@@ -53,6 +55,7 @@ describe('ZoneLeaderboard', () => {
 
   afterEach(() => {
     cleanup()
+    vi.unstubAllGlobals()
   })
 
   it('renders loading state initially', () => {
@@ -115,5 +118,23 @@ describe('ZoneLeaderboard', () => {
     await waitFor(() => {
       expect(screen.getByText(/LEADERBOARD OFFLINE: Connection timeout/i)).toBeTruthy()
     })
+  })
+
+  it('renders the shipped wind evidence and explains every excluded location without invented ranks', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(shippedManifest), { status: 200 })))
+    render(<ZoneLeaderboard />)
+    expect(await screen.findByText('Composite ranking unavailable')).toBeTruthy()
+    expect(screen.getByText('LES · LES_LES')).toBeTruthy()
+    expect(screen.getByText('OKGE · OKGE_OKGE')).toBeTruthy()
+    expect(screen.queryByLabelText('Spatial rankings list')).toBeNull()
+    expect(screen.queryByText('#1')).toBeNull()
+    fireEvent.click(screen.getByText('Excluded locations and missing evidence'))
+    for (const item of shippedManifest.excluded_locations) {
+      expect(screen.getByRole('button', { name: new RegExp(`^${item.location_id}.*data provenance`) })).toBeTruthy()
+    }
+    const les = shippedManifest.available_wind_evidence.find(row => row.location_id === 'LES')!
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${les.proxy_hours.value}.*assumption provenance`) }))
+    const source = JSON.parse(screen.getByRole('tooltip').getAttribute('data-provenance')!)
+    expect(source).toEqual(les.proxy_hours)
   })
 })

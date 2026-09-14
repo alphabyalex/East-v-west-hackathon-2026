@@ -2,7 +2,7 @@ from pathlib import Path
 import json
 import logging
 from typing import Literal
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from typing_extensions import Self
 
 from .schemas import ContractModel, NonEmpty, NonNegative, Source
@@ -26,11 +26,42 @@ class ZoneRankingItem(ContractModel):
     composite_score: NonNegative
     rank: int
 
+class ExcludedLocation(ContractModel):
+    location_id: NonEmpty
+    reasons: list[NonEmpty] = Field(min_length=1)
+    source: Source
+
+
+class RankingDatum(Source):
+    value: NonNegative
+
+
+class WindRankingEvidence(ContractModel):
+    location_id: NonEmpty
+    reference_location_id: NonEmpty
+    period_start_utc: NonEmpty
+    period_end_exclusive_utc: NonEmpty
+    proxy_hours: RankingDatum
+    evaluable_hours: RankingDatum
+    unknown_hours: RankingDatum
+
+
 class ZoneRankingsResponse(ContractModel):
     operator: Literal["SPP"]
     composite_weight_formula: NonEmpty
     description: NonEmpty
     rankings: list[ZoneRankingItem]
+    status: Literal["available", "unavailable"] = "available"
+    excluded_locations: list[ExcludedLocation] = Field(default_factory=list)
+    available_wind_evidence: list[WindRankingEvidence] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def honest_availability(self) -> Self:
+        if self.status == "available" and not self.rankings:
+            raise ValueError("Available rankings require ranked locations")
+        if self.status == "unavailable" and (self.rankings or not self.excluded_locations):
+            raise ValueError("Unavailable rankings require explicit exclusions and no invented ranks")
+        return self
 
 class ZoneRankingsError(Exception):
     """Signifies missing or malformed rankings data."""
