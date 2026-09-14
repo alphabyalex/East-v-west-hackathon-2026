@@ -50,7 +50,6 @@ describe('scenario workspace interactions', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open scenario stress test' }));
     expect((screen.getByRole('slider', { name: 'Site exposure factor' }) as HTMLInputElement).value).toBe('0.4');
     fireEvent.change(screen.getByLabelText('VPP ORCHESTRATION'), { target: { value: '500' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save Active Scenario' }));
     fireEvent.click(screen.getByRole('tab', { name: 'Zone Analytics' }));
     expect(await screen.findByRole('region', { name: 'Optimal Zones for Flexible Computes' })).toBeTruthy();
     expect(screen.queryByLabelText('SPP LOCATION')).toBeNull();
@@ -60,7 +59,7 @@ describe('scenario workspace interactions', () => {
     expect(screen.queryByRole('region', { name: 'Optimal Zones for Flexible Computes' })).toBeNull();
     fireEvent.click(screen.getByRole('tab', { name: 'Scenario Stress Test' }));
     expect((screen.getByLabelText('VPP ORCHESTRATION') as HTMLInputElement).value).toBe('500');
-    expect(screen.getByText('Scenario 1: SPP System (100 MW)')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Save Active Scenario' })).toBeNull();
     expect(document.querySelectorAll('[data-sensitivity-bar]')).toHaveLength(3);
     fireEvent.click(screen.getByRole('tab', { name: 'Overview' }));
     expect(screen.getAllByRole('tabpanel')).toHaveLength(1);
@@ -172,7 +171,7 @@ describe('scenario workspace interactions', () => {
     expect(screen.queryByText('Assumed economics')).toBeNull();
     expect(screen.queryByText('Assumed decision')).toBeNull();
     expect(screen.queryByText('USER ASSUMPTION')).toBeNull();
-    expect(document.querySelector('.mock-label, .assumption-badge, .source-wrap .source-mark')).toBeNull();
+    expect(document.querySelector('.mock-label, .assumption-badge, .source-mark, .lucide-info')).toBeNull();
     expect(screen.getByText('Scenario values · fitted model output unavailable')).toBeTruthy();
     expect(screen.getByText('GPU-hours, dollars and break-even use unverified scenario inputs.')).toBeTruthy();
     expect(screen.getByText(/The confidence signal has not been computed by an ensemble/)).toBeTruthy();
@@ -355,19 +354,26 @@ describe('scenario workspace interactions', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Scenario Stress Test' }));
     const input = screen.getByRole('spinbutton', { name: 'LOAD SIZE' });
     fireEvent.change(input, { target: { value: '120' } });
-    const source = screen.getByRole('button', { name: /LOAD SIZE provenance/ });
-    expect(source.textContent).toBe('');
-    expect(source.querySelector('svg')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /LOAD SIZE provenance/ })).toBeNull();
+    expect(JSON.parse(input.getAttribute('data-provenance')!)).toEqual({ value: 120, source_type: 'assumption', ref: 'user://scenario/load_mw' });
+    for (const field of document.querySelectorAll('.number-field, .location-field, .slider-readout, .slider-endpoints')) {
+      expect(field.querySelector('.source-wrap, .source-info')).toBeNull();
+      fireEvent.click(field);
+      expect(screen.queryByRole('tooltip')).toBeNull();
+    }
+    const source = document.querySelector<HTMLButtonElement>('.source-wrap')!;
+    expect(source.textContent).not.toBe('');
+    expect(source.querySelector('svg')).toBeNull();
     fireEvent.mouseEnter(source);
     fireEvent.focus(source);
     expect(screen.queryByRole('tooltip')).toBeNull();
-    expect(JSON.parse(source.getAttribute('data-provenance')!)).toEqual({ value: 120, source_type: 'assumption', ref: 'user://scenario/load_mw' });
+    const expected = JSON.parse(source.getAttribute('data-provenance')!);
     fireEvent.click(source);
     const tooltip = screen.getByRole('tooltip');
     const provenance = JSON.parse(tooltip.getAttribute('data-provenance')!);
-    expect(provenance).toEqual({ value: 120, source_type: 'assumption', ref: 'user://scenario/load_mw' });
+    expect(provenance).toEqual(expected);
     expect(tooltip.querySelector('.provenance-heading')?.textContent).toBe('Source details');
-    expect(tooltip.textContent).toContain('assumption');
+    expect(tooltip.textContent).toContain(expected.source_type);
     expect(tooltip.querySelector('pre')).toBeNull();
     expect(screen.queryByText(/Activate the value or its source tag to pin/)).toBeNull();
     expect(source.getAttribute('aria-pressed')).toBe('true');
@@ -455,65 +461,14 @@ describe('scenario workspace interactions', () => {
     expect(screen.queryByRole('region', { name: 'Climate telemetry nodes' })).toBeNull();
   });
 
-  it('manages scenario comparison ledger saving, loading, and deleting side-by-side', () => {
+  it('has one portfolio save entry point in the scenario header and no local ledger', () => {
     render(<App />);
     fireEvent.click(screen.getByRole('tab', { name: 'Scenario Stress Test' }));
-
-    // Initially, comparison panel is empty
-    const ledgerEmptyMsg = screen.getByText(/Comparison ledger is currently empty/);
-    expect(ledgerEmptyMsg).toBeTruthy();
-
-    const saveBtn = screen.getByRole('button', { name: 'Save Active Scenario' });
-    expect(saveBtn).toBeTruthy();
-
-    // 1. Save default scenario (100 MW, SPP_SYSTEM)
-    fireEvent.click(saveBtn);
-    expect(screen.getByText('Saved to Comparison')).toBeTruthy();
-    expect(screen.queryByText(/Comparison ledger is currently empty/)).toBeNull();
-
-    // The saved column header should be rendered
-    const defaultColHeader = screen.getByText('Scenario 1: SPP System (100 MW)');
-    expect(defaultColHeader).toBeTruthy();
-
-    // 2. Change inputs (Load size -> 250 MW, Location -> spp-oklahoma-city-demo) and save as custom name
-    fireEvent.change(screen.getByRole('spinbutton', { name: 'LOAD SIZE' }), { target: { value: '250' } });
-    fireEvent.change(screen.getByRole('combobox', { name: 'SPP LOCATION' }), { target: { value: 'spp-oklahoma-city-demo' } });
-    
-    const nameInput = screen.getByPlaceholderText('Enter custom scenario label (optional)...');
-    fireEvent.change(nameInput, { target: { value: 'Oklahoma City High-Load' } });
-    fireEvent.click(saveBtn);
-
-    // Assert second column header is rendered
-    expect(screen.getByText('Oklahoma City High-Load')).toBeTruthy();
-
-    // Assert side-by-side inputs exist in comparison table
-    const tableWrap = screen.getByLabelText('Scenario comparison grid');
-    expect(tableWrap).toBeTruthy();
-    expect(within(tableWrap).getByText('250 MW')).toBeTruthy();
-    expect(within(tableWrap).getByText('100 MW')).toBeTruthy();
-
-    // 3. Trigger load of the first scenario
-    const loadButtons = within(tableWrap).getAllByRole('button', { name: /Load inputs for/ });
-    expect(loadButtons).toHaveLength(2);
-    
-    // Clicking load on Scenario 1 should restore its inputs in active editor
-    fireEvent.click(loadButtons[0]);
-    expect((screen.getByRole('spinbutton', { name: 'LOAD SIZE' }) as HTMLInputElement).value).toBe('100');
-    expect((screen.getByRole('combobox', { name: 'SPP LOCATION' }) as HTMLSelectElement).value).toBe('SPP_SYSTEM');
-
-    // 4. Delete high-load scenario column
-    const deleteButtons = within(tableWrap).getAllByRole('button', { name: /Delete/ });
-    expect(deleteButtons).toHaveLength(2);
-    fireEvent.click(deleteButtons[1]); // Delete Oklahoma City High-Load
-
-    expect(screen.queryByText('Oklahoma City High-Load')).toBeNull();
-    expect(screen.getByText('Scenario 1: SPP System (100 MW)')).toBeTruthy();
-
-    // 5. Clear entire comparison ledger
-    const clearBtn = screen.getByRole('button', { name: 'Clear Comparison Ledger' });
-    expect(clearBtn).toBeTruthy();
-    fireEvent.click(clearBtn);
-
-    expect(screen.getByText(/Comparison ledger is currently empty/)).toBeTruthy();
+    expect(document.querySelector('.workspace-actions')?.contains(screen.getByRole('button', { name: 'Save to Portfolio' }))).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Save Active Scenario' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Scenario Comparison Ledger' })).toBeNull();
+    fireEvent.click(screen.getByRole('tab', { name: 'Portfolio & Alerts' }));
+    expect(screen.queryByRole('button', { name: 'Save current site to portfolio' })).toBeNull();
+    expect(screen.queryByLabelText('Portfolio site name')).toBeNull();
   });
 });

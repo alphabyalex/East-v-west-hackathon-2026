@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react'
-import { Award, Leaf, Wind, ShieldAlert, ChevronDown, ChevronUp, ClipboardList, Info } from 'lucide-react'
+import { Award, Leaf, Wind, ShieldAlert, ChevronDown, ChevronUp, Info } from 'lucide-react'
 import { apiUrl } from '../api/client'
 import type { Source, SourcedValue } from '../model'
 import { Sourced, SourcedTick } from './Sourced'
@@ -120,10 +120,6 @@ export function ZoneLeaderboard() {
 
       <div className="leaderboard-intro">
         <p>{data.description}</p>
-        <div className="formula-badge">
-          <ClipboardList size={11} />
-          <span>Composite Score Formula: <code>{data.composite_weight_formula}</code></span>
-        </div>
       </div>
 
       <div className="leaderboard-controls">
@@ -133,9 +129,8 @@ export function ZoneLeaderboard() {
         </select></label>
         <div className="segmented-control" aria-label="Leaderboard view"><button aria-pressed={viewMode === 'table'} onClick={() => setViewMode('table')}>Table</button><button aria-pressed={viewMode === 'chart'} onClick={() => setViewMode('chart')}>Chart</button></div>
       </div>
-      {data.status === 'unavailable' && sortBy !== 'wind' && <p className="field-note">Composite, annual risk and carbon rankings are unavailable. Available wind references are listed alphabetically; choose wind to sort by screened hours.</p>}
       {viewMode === 'chart' && <div className="leaderboard-chart-wrap">
-        <h3>{data.status === 'unavailable' ? 'Wind-screening evidence — not composite ranks' : 'Published zone comparison'}</h3><p className="field-note">{chartUnit}</p>
+        <h3>{data.status === 'unavailable' ? 'Wind-screening evidence (not composite ranks)' : 'Published zone comparison'}</h3><p className="field-note">{chartUnit}</p>
         {chartRows.length ? <><ResponsiveContainer width="100%" height={Math.max(220, chartRows.length * 42)}>
           <BarChart data={chartRows} layout="vertical" margin={{ top: 10, right: 30, left: 20, bottom: 15 }}>
             <XAxis type="number" tick={<SourcedTick source={chartSource} />} /><YAxis type="category" dataKey="name" width={110} tick={<SourcedTick source={chartSource} />} />

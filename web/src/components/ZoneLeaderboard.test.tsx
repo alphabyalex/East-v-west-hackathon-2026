@@ -149,7 +149,7 @@ describe('ZoneLeaderboard', () => {
     fireEvent.change(screen.getByRole('searchbox', { name: 'Search SPP zones' }), { target: { value: 'OKGE' } })
     expect(within(table).getAllByRole('row')).toHaveLength(2)
     fireEvent.click(screen.getByRole('button', { name: 'Chart' }))
-    expect(screen.getByText('Wind-screening evidence — not composite ranks')).toBeTruthy()
+    expect(screen.getByText('Wind-screening evidence (not composite ranks)')).toBeTruthy()
     expect(screen.getByText('OKGE:', { exact: false })).toBeTruthy()
     fireEvent.click(screen.getByText('Excluded locations and missing evidence'))
     expect(document.querySelectorAll('details.leaderboard-intro li')).toHaveLength(21)

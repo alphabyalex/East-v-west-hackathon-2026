@@ -1,0 +1,13 @@
+.portfolio-save-control { position: relative; }
+.portfolio-save-popover { position: absolute; top: calc(100% + 8px); right: 0; z-index: 30; width: min(340px, calc(100vw - 40px)); padding: 16px; display: grid; gap: 10px; background: var(--raised); border: 1px solid var(--border); }
+.portfolio-save-popover label { font-family: var(--font-heading); font-size: 12px; }
+.portfolio-save-popover input { width: 100%; min-width: 0; background: var(--panel); color: var(--text-primary); border: 1px solid var(--border); border-radius: 2px; padding: 8px; }
+.workspace-heading .portfolio-save-popover p { margin: 0; font-size: 12px; }
+.portfolio-save-popover [role=alert] { color: var(--text-primary); border-left: 2px solid var(--text-muted); padding-left: 8px; }
+.workspace-heading .portfolio-save-success { color: var(--signal); }
+.portfolio-save-actions { display: flex; gap: 8px; }
+@media (max-width: 850px) { .workspace-heading { flex-wrap: wrap; } .workspace-actions { margin-left: auto; flex-wrap: wrap; } }
+@media (max-width: 600px) {
+  .workspace-actions { position: relative; width: 100%; flex-shrink: 1; justify-content: flex-end; }
+  .portfolio-save-control { position: static; }
+}

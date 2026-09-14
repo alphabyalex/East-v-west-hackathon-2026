@@ -53,7 +53,7 @@ export function LocationResultPanels() {
   if (!result) return <div className="results-grid" aria-busy={location.busy}>
     {['Modeled exposure', 'Connection economics'].map(title => <section className="panel location-pending" key={title}>
       <div className="panel-heading"><h2>{title}</h2></div>
-      <div className="metric-number">—</div>
+      <div className="metric-number">N/A</div>
       <p>{location.busy ? 'Your estimate is processing.' : 'Estimate a location to see results for the current inputs.'}</p>
     </section>)}
   </div>;

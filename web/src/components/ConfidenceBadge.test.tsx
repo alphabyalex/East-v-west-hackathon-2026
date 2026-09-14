@@ -105,10 +105,11 @@ describe('confidence provenance', () => {
     expect(readProvenance()).toEqual(mockConfidence.score)
   })
 
-  it('keeps the shared compact and chart provenance primitives compatible with model sources', () => {
-    const { rerender } = render(<SourceInfo value={modelConfidence.score.value} source={modelConfidence.score} />)
-    fireEvent.click(screen.getByRole('button', { name: /model provenance/ }))
-    expect(readProvenance()).toEqual(modelConfidence.score)
+  it('removes standalone info icons while retaining source metadata and clickable chart values', () => {
+    const { rerender, container } = render(<SourceInfo value={modelConfidence.score.value} source={modelConfidence.score} />)
+    expect(screen.queryByRole('button')).toBeNull()
+    expect(container.querySelector('svg, .source-mark')).toBeNull()
+    expect(JSON.parse(container.querySelector('[data-source-metadata]')!.getAttribute('data-provenance')!)).toEqual(modelConfidence.score)
     rerender(<svg><SourcedTick payload={{ value: 123 }} source={modelConfidence.source} /></svg>)
     const tick = screen.getByRole('button', { name: /model provenance/ })
     fireEvent.focus(tick)

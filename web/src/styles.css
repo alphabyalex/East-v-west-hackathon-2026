@@ -230,6 +230,7 @@ footer > span:last-child { font-family: var(--font-sans); font-size: 11px; }
 .source-wrap { display: inline-flex; align-items: baseline; gap: 3px; white-space: nowrap; }
 .source-wrap[data-value-type="number"] .sourced-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums lining-nums; }
 button.source-wrap { padding: 0; border: 0; background: transparent; text-align: inherit; }
+.transparency-clause p > .source-wrap { white-space: normal; font: inherit; letter-spacing: inherit; }
 .source-wrap[aria-pressed="true"] .source-mark { color: var(--signal); border-color: var(--signal); background: transparent; }
 .source-mark { display: inline-flex; align-items: center; justify-content: center; width: 13px; height: 13px; min-width: 13px; padding: 0; line-height: 1; color: var(--text-muted); background: transparent; border: 0; vertical-align: middle; font: 8px/1 var(--font-mono); letter-spacing: 0; position: relative; top: -1px; }
 .source-assumption { color: var(--text-secondary); }

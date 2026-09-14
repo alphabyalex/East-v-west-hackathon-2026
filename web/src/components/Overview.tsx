@@ -42,7 +42,7 @@ export function Overview({ onScenario, onZones }: { onScenario: () => void; onZo
             <p>Reference<br /><Sourced value={referenceHours} source={previewSource} /> h/year<br />× exposure factor</p>
           </div>
           <div className="overview-preview-control">
-            <div className="slider-readout"><label htmlFor="overview-exposure">Site exposure factor</label><Sourced value={exposure} source={previewSource} label="Preview factor" format={v => v.toFixed(2)} className="exposure-number" /></div>
+            <div className="slider-readout"><label htmlFor="overview-exposure">Site exposure factor</label><Sourced inspectable={false} value={exposure} source={previewSource} label="Preview factor" format={v => v.toFixed(2)} className="exposure-number" /></div>
             <div className="slider-track-wrap">
               <span className="slider-progress" style={{ width: `calc(10px + (100% - 20px) * ${exposure})` }} aria-hidden="true" />
               <input id="overview-exposure" type="range" min={0} max={1} step={0.01} value={exposure}
@@ -50,7 +50,7 @@ export function Overview({ onScenario, onZones }: { onScenario: () => void; onZo
                 aria-describedby="preview-description" aria-valuetext={`${exposure.toFixed(2)}, interactive preview`}
                 data-provenance={JSON.stringify({ value: exposure, ...previewSource })} />
             </div>
-            <div className="slider-endpoints"><span><Sourced value={0} source={previewSource} format={v => v.toFixed(1)} animate={false} /> No exposure</span><span>Full exposure <Sourced value={1} source={previewSource} format={v => v.toFixed(1)} animate={false} /></span></div>
+            <div className="slider-endpoints"><span><Sourced inspectable={false} value={0} source={previewSource} format={v => v.toFixed(1)} animate={false} /> No exposure</span><span>Full exposure <Sourced inspectable={false} value={1} source={previewSource} format={v => v.toFixed(1)} animate={false} /></span></div>
           </div>
         </div>
       </section>
@@ -58,7 +58,7 @@ export function Overview({ onScenario, onZones }: { onScenario: () => void; onZo
 
     <section className="overview-promise" aria-labelledby="overview-promise-title">
       <span className="eyebrow muted">THE HONESTY LAYER</span>
-      <div><h2 id="overview-promise-title">Evidence where we have it.<br />Explicit limits where we don’t.</h2><p>We never fabricate a score — if evidence is insufficient, we say so. Public grid stress does not establish a specific site’s actual curtailment. You set the site exposure assumption; every displayed number carries its source.</p></div>
+      <div><h2 id="overview-promise-title">Evidence where we have it.<br />Explicit limits where we don’t.</h2><p>We never fabricate a score. If evidence is insufficient, we say so. Public grid stress does not establish a specific site’s actual curtailment. You set the site exposure assumption; every displayed number carries its source.</p></div>
     </section>
 
     <section className="overview-method" aria-labelledby="overview-method-title">

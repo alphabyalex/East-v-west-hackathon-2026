@@ -32,8 +32,9 @@ describe('session portfolio', () => {
   })
   afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
-  it('saves two selections, compares real wind evidence/exclusions, stores thresholds, reloads and removes', async () => {
-    let saved = structuredClone(empty)
+  it('loads saved selections, compares real wind evidence/exclusions, stores thresholds, reloads and removes', async () => {
+    let saved = { ...structuredClone(empty), sites: [site('LES', 'First site'), site('EDE', 'Next site')] }
+    sessionStorage.setItem('fluxline_portfolio_session', 'session')
     const fetcher = vi.fn(async (url: string, init: RequestInit) => {
       const path = new URL(url).pathname
       if (init.method === 'POST' && path.endsWith('/sites')) {
@@ -51,16 +52,12 @@ describe('session portfolio', () => {
     })
     vi.stubGlobal('fetch', fetcher)
     const view = render(<PortfolioPanel />)
-    expect(screen.getByText(/No live monitoring or notifications/)).toBeTruthy()
-    fireEvent.change(screen.getByLabelText('Portfolio site name'), { target: { value: 'First site' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save current site to portfolio' }))
+    expect(screen.queryByText(/Static checks of current precomputed data/)).toBeNull()
+    expect(screen.queryByLabelText('Portfolio site name')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Save current site to portfolio' })).toBeNull()
+    expect(screen.queryByText(/Uses current server economics assumptions/)).toBeNull()
     await screen.findByRole('button', { name: 'Remove First site' })
     expect(screen.getByRole('button', { name: /^764\./ })).toBeTruthy()
-    expect(JSON.parse(String(fetcher.mock.calls.find(([, init]) => String(init.body).includes('First site'))![1].body)).inputs.vpp_solar_homes).toBe(500)
-    state.inputs = { ...defaultInputs, location_id: 'EDE' }; view.rerender(<PortfolioPanel />)
-    fireEvent.change(screen.getByLabelText('Portfolio site name'), { target: { value: 'Next site' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save current site to portfolio' }))
-    await screen.findByRole('button', { name: 'Remove Next site' })
     expect(screen.getAllByText('Composite ranking unavailable')).toHaveLength(2)
     expect(screen.getByText('Wind evidence unavailable for this zone.')).toBeTruthy()
     fireEvent.change(screen.getByLabelText('Exposure threshold for First site'), { target: { value: '200' } })
@@ -81,17 +78,16 @@ describe('session portfolio', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ detail: 'Portfolio session expired.' }), { status: 404 })).mockResolvedValueOnce(new Response(JSON.stringify(empty))))
     render(<PortfolioPanel />)
     await screen.findByRole('alert')
-    expect((screen.getByRole('button', { name: 'Save current site to portfolio' }) as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.queryByRole('button', { name: 'Save current site to portfolio' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Start new portfolio session' }))
     await waitFor(() => expect(screen.queryByRole('alert')).toBeNull())
     expect(screen.getByText('No saved sites in this session.')).toBeTruthy()
   })
 
-  it('keeps a network failure visible and does not report an unsuccessful save as saved', async () => {
+  it('keeps a network failure visible and does not invent saved sites', async () => {
+    sessionStorage.setItem('fluxline_portfolio_session', 'session')
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('API offline')))
     render(<PortfolioPanel />)
-    fireEvent.change(screen.getByLabelText('Portfolio site name'), { target: { value: 'Site' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save current site to portfolio' }))
     expect((await screen.findByRole('alert')).textContent).toContain('API offline')
     expect(screen.queryByRole('button', { name: 'Remove Site' })).toBeNull()
   })
@@ -101,16 +97,14 @@ describe('session portfolio', () => {
     const data = { ...empty, sites: [site('EDE', 'Existing site')] }
     const fetcher = vi.fn().mockRejectedValueOnce(new Error('API offline'))
       .mockResolvedValueOnce(new Response(JSON.stringify(data)))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ ...data, sites: [...data.sites, site('LES', 'New site')] })))
+
     vi.stubGlobal('fetch', fetcher)
     render(<PortfolioPanel />)
     await screen.findByRole('alert')
-    fireEvent.change(screen.getByLabelText('Portfolio site name'), { target: { value: 'New site' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save current site to portfolio' }))
-    await screen.findByRole('button', { name: 'Remove New site' })
-    expect(screen.getByRole('button', { name: 'Remove Existing site' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh evidence and checks' }))
+    await screen.findByRole('button', { name: 'Remove Existing site' })
     expect(fetcher.mock.calls.map(([url, init]) => [new URL(url).pathname, init.method])).toEqual([
-      ['/api/portfolios/session', 'GET'], ['/api/portfolios/session', 'GET'], ['/api/portfolios/session/sites', 'POST'],
+      ['/api/portfolios/session', 'GET'], ['/api/portfolios/session', 'GET'],
     ])
   })
 

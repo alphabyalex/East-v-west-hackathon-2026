@@ -984,3 +984,63 @@
 - Live verification: real Edge at 1440px and 390px; pointer drag and Home/End update preview values, zero API calls during interaction, zero browser exceptions, unchanged real scenario factor=0.4, preview resets to local 0.4 on remount. Both navigation destinations, all four tabs, and VPP=500 still work. No mobile horizontal page overflow. Final screenshots .tools/browser-qa/overview-desktop.png and overview-mobile.png; raw checks overview-live.json. Initial screenshot harness needed the actual uppercase header selector; production behavior was unaffected.
 - Preservation: started Alex at latest main ef01c03; older seven-file source-icon cleanup remains in a backup stash while publishing only this task. The newly requested footer removal supersedes that stash's older footer-hint wording. Push Alex only; main/Kristian/Tharun must stay untouched.
 - Final validation: full Python 2016 passed plus 42 subtests (two existing deprecation warnings); full frontend 345 passed across 27 files, including live HTTP contracts; production build passed with existing large-chunk warning. Two new Overview tests and expanded App/leaderboard assertions verify isolated preview arithmetic/provenance, no fetches, navigation, actual manifest count and requested copy removals. Updated the old leaderboard-label expectation to Scenario; no tests deleted. Logs: .tools/overview-python.log, overview-verified-frontend.log, overview-approved-build.log and overview-browser.log.
+
+## UI punctuation cleanup - 2026-09-13
+- Changed: removed em dashes from landing/Overview copy, portfolio messages, zone evidence heading, browser titles, and the empty exposure display (now N/A). Used sentence breaks, commas, parentheses, or colons as appropriate; updated the existing leaderboard text assertion.
+- New/changed interface: none. Calculations, provenance, and evidence qualifications unchanged. Existing local source-icon edits preserved.
+- Validation: no literal/entity/escaped em dashes remain in web/src or web/index.html; 16 affected frontend tests pass; production build passes with the existing large-chunk warning.
+- Needs review: none. Changes left in the working tree.
+
+## Remove source popovers from user inputs - 2026-09-13
+- Changed: removed numeric/location field source controls; exposure slider readouts and endpoints in Scenario and Overview now use non-interactive sourced text. Values still animate and retain exact metadata. Calculated results keep source inspection. Existing local cleanup preserved.
+- New/changed interface: Sourced accepts optional inspectable=false for input readouts; API, math, exports and source objects unchanged.
+- Validation: 31 frontend interaction/provenance tests pass; production build passes with the existing chunk-size warning. Regression checks cover absence of input source buttons/popovers and retained result inspection.
+- Needs review: none. Left local and uncommitted.
+
+## Remove leaderboard formula label - 2026-09-13
+- Changed: deleted the Composite Score Formula badge and its unused icon import from ZoneLeaderboard.
+- New/changed interface: none; ranking calculation and API formula metadata unchanged.
+- Validation: all seven existing leaderboard tests pass. Left local and uncommitted.
+- Needs review: none.
+
+## Remove comparison recommendation tags - 2026-09-13
+- Changed: removed the Recommendation row and worth-it badges from the Scenario Comparison Ledger as requested.
+- New/changed interface: none; saved scenario data and economics remain unchanged.
+- Validation: existing comparison save/load/delete interaction test passes. Left local and uncommitted.
+- Needs review: none.
+
+## Remove Zone Analytics sorting paragraph - 2026-09-13
+- Changed: removed the requested composite/risk/carbon availability and alphabetical wind sorting paragraph.
+- New/changed interface: none; sorting, data, per-zone availability and source metadata unchanged.
+- Validation: all seven leaderboard tests pass. Left local and uncommitted.
+- Needs review: none.
+
+## Remove portfolio introductory paragraph - 2026-09-13
+- Changed: removed the requested static-check/storage/confidentiality paragraph from Portfolio & Alerts; updated the existing text assertion to verify its absence.
+- New/changed interface: none; storage lifetime, checks and API behavior unchanged.
+- Validation: all six portfolio tests pass. Left local and uncommitted.
+- Needs review: none.
+
+## Remove portfolio save form and economics note - 2026-09-13
+- Changed: removed the requested server-economics paragraph and Site name / Save current site controls. Removed their unused local save handler and obsolete instructions about saving the current selection. Existing portfolio read/refresh/remove/threshold operations remain available; adding new sites through this panel is no longer exposed.
+- New/changed interface: no API changes. Adjusted six existing component tests to load saved session fixtures and verify retained operations and the absent controls.
+- Validation: all six portfolio tests and production build pass (existing chunk-size warning). Left local and uncommitted.
+- Needs review: none.
+
+## Remove old landing-page header link - 2026-09-13
+- Changed: app header now displays the Fluxline mark/wordmark as non-linked branding; removed INTERCONNECTION RISK and its divider.
+- New/changed interface: none; existing workspace tabs remain the navigation.
+- Validation: existing Overview/tab navigation test passes. Left local and uncommitted.
+- Needs review: none.
+
+## Consolidate scenario saves into the backend portfolio - 2026-09-13
+- Changed: added Save to Portfolio beside Reset/Export in the Scenario Stress Test header. An inline form captures a name, snapshots the six canonical request inputs, validates real-zone membership using GET /api/locations, creates/reuses the backend session and POSTs to /api/portfolios/{id}/sites. Success is only reported after a validated backend response. Duplicate in-flight submissions are blocked; blank names, aggregate/demo/city selections, API errors and expired sessions get visible explanations. An expired session can be replaced explicitly without losing the typed name.
+- Shared session: web/src/api/portfolioSession.ts is now used by both the save control and PortfolioPanel, retaining the existing fluxline_portfolio_session sessionStorage key plus an in-page fallback when storage is unavailable. Created session IDs survive an add_site error so a retry does not silently abandon the session. The Portfolio tab reads the same store on mount and retains refresh, comparison, delete, threshold editing, sourced unavailable states and explicit expiration recovery.
+- Ledger choice: removed the entire Scenario Comparison Ledger from the rendered app, including its competing save/load/delete interface. Its old unmounted component and localStorage/context records remain untouched beyond the previously requested recommendation-row removal, avoiding destructive migration or unrelated context refactoring. There is no legacy save button in any tab, and no automatic import of old local scenarios into the backend. City JSON export remains available.
+- Portfolio presentation: display/manage only, with no site-name/save form or current-selection echo. The latest attachment explicitly asks to keep limitations, so retained them in one compact paragraph describing session lifetime, manually refreshed evidence and server economics defaults. The save form also states that workspace economics overrides are not included. No API, ranking, estimate, threshold, ML or economics implementation changes.
+- Honest scope: the current portfolio contract takes an SPP catalog location_id, not a city-estimator report. City selections therefore get an explicit select-a-real-zone / Export scenario message; they are never saved under the hidden previously selected zone. SPP_SYSTEM and demo aliases are also explicitly rejected by the new UI. Backend eligibility/reader behavior is unchanged.
+- Live verification: real Edge against Vite 127.0.0.1:5174 and API 127.0.0.1:8000. CSWS, load=250 MW, term=7, flexibility_split=0.6, site_exposure=0.4, VPP=500 saved via HTTP 201, appeared in Portfolio & Alerts with matching inputs, and survived a browser reload via the same session. Its sourced within-zone wind reference has 28 screened hours; composite ranking and annual estimate honestly remain unavailable. No placeholder ranks or annual estimates added. Aggregate and blank-name messages made zero portfolio requests. Mobile form stays within 390px with no page overflow; Escape closes it and returns focus; zero browser exceptions.
+- Screenshots: .tools/browser-qa/portfolio-save-header.png, portfolio-save-system-validation.png, portfolio-save-name-validation.png, portfolio-unified-saved.png, portfolio-save-mobile.png. Raw live results/returned entry are in portfolio-unified-live.json; automation is portfolio-unified-live.cjs. These artifacts are ignored local QA output.
+- Baseline: full Python 2016 passed plus 42 subtests (two existing deprecation warnings); frontend 344 passed / 1 failed because the older city test still expected the just-removed portfolio save form. Updated that test to exercise city export, retained results across tabs, and explicit city-save rejection. Updated the old Ledger integration test for its removal; six new save tests cover backend-session reuse, multi-site tab/reload round trips, aggregate/demo/blank validation, failed saves and expiration recovery. Initial new-test failures were fixture catalog interception, a slider/region selector collision, and not waiting for the catalog after remount; fixed those test setup issues without loosening production checks.
+- Branch/preservation: fetched origin; Alex already contains latest main ef01c03, so no merge/reset required. Preserved the accumulated user-requested local UI cleanup (punctuation, source icons/input popovers, obsolete labels and header link), now included with this explicitly authorized Alex publication. No AGENTS.md/FROM_CLAUDE edits and no main/Kristian/Tharun pushes. Final test/publication results follow.
+- Final validation: full Python 2016 passed plus 42 subtests, two existing deprecation warnings (.tools/save-final-python.log); full frontend 351 passed across 28 files including 12 live HTTP contracts (.tools/save-verified-frontend.log); production build passed with existing chunk-size warning (.tools/save-verified-build.log). Live screenshots inspected. Publishing the tested UI and prior requested cleanup to Alex only. Needs review: none beyond the documented existing city/annual-data limits.

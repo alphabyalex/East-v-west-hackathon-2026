@@ -10,7 +10,6 @@ import {
   type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
-import { Info } from 'lucide-react'
 import type { Source } from '../model'
 import { useAnimatedNumber } from '../hooks/useAnimatedNumber'
 
@@ -30,6 +29,7 @@ type ProvenanceProps = {
 }
 
 export type SourcedProps = ProvenanceProps & {
+  inspectable?: boolean
   format?: (value: number) => string
   className?: string
   animate?: boolean
@@ -167,7 +167,7 @@ function plainText(node: ReactNode): string | null {
 }
 
 /** Numeric UI primitive. The original, unrounded value is retained in provenance. */
-export function Sourced({ value, source, format = defaultFormat, className = '', animate = true, children, label, description, summary }: SourcedProps) {
+export function Sourced({ value, source, format = defaultFormat, className = '', animate = true, inspectable = true, children, label, description, summary }: SourcedProps) {
   const animated = useAnimatedNumber(typeof value === 'number' ? value : 0, animate && typeof value === 'number')
   // Match the visible span exactly when it's plain text, using the settled
   // (not mid-animation) formatted value - never the raw value. Complex JSX
@@ -176,6 +176,9 @@ export function Sourced({ value, source, format = defaultFormat, className = '',
     ? plainText(children)
     : (typeof value === 'number' ? format(value) : value)
   const provenance = useProvenance({ value, source, label, description, summary, displayText: displayText ?? undefined })
+  if (!inspectable) return <span className={className} data-provenance={provenance.json} style={{ fontVariantNumeric: 'tabular-nums' }}>
+    {children ?? (typeof value === 'number' ? format(animated) : value)}
+  </span>
   return (
     <>
       <button
@@ -194,22 +197,12 @@ export function Sourced({ value, source, format = defaultFormat, className = '',
   )
 }
 
-/** A compact provenance control placed beside a numeric input or range. */
-export function SourceInfo({ value, source, label, description, summary }: SourceInfoProps) {
-  const provenance = useProvenance({ value, source, label, description, summary })
-  return (
-    <>
-      <button
-        type="button"
-        ref={provenance.attachAnchor}
-        className="source-mark"
-        {...provenance.triggerProps}
-      >
-        <Info size={11} aria-hidden="true" />
-      </button>
-      {provenance.layer}
-    </>
-  )
+/** Retain companion metadata without a separate info icon or popup trigger.
+ * Displayed Sourced values and chart ticks remain directly inspectable. */
+export function SourceInfo({ value, source, description }: SourceInfoProps) {
+  return <span hidden data-source-metadata="true"
+    data-provenance={JSON.stringify({ value, source_type: source.source_type, ref: source.ref })}
+    data-provenance-description={description} />
 }
 
 /** Recharts ticks retain exact source metadata and keyboard source inspection. */

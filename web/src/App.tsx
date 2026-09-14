@@ -3,12 +3,12 @@ import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, Check, ChevronDown,
 import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { ScenarioProvider, useScenario } from './ScenarioContext';
 import { ScenarioErrorBoundary } from './components/ScenarioErrorBoundary';
-import { ScenarioComparison } from './components/ScenarioComparison';
+import { SaveToPortfolio } from './components/SaveToPortfolio';
 import { Overview } from './components/Overview';
 import { PortfolioPanel } from './components/PortfolioPanel';
 import { ZoneLeaderboard } from './components/ZoneLeaderboard';
 import { LocationConnection, LocationResultPanels } from './components/LocationEstimate';
-import { Sourced, SourceInfo, SourcedTick } from './components/Sourced';
+import { Sourced, SourcedTick } from './components/Sourced';
 import { TransparencyPanel } from './components/TransparencyPanel';
 import { SensitivityPanel } from './components/SensitivityPanel';
 import { LocationField } from './components/LocationField';
@@ -69,7 +69,7 @@ function NumberField({ name, label, unit, min, max, step = 1, icon, compact = fa
     } else if (finish) setDraft(String(inputs[name]));
   };
   return <div className={`number-field ${compact ? 'compact-field' : ''}`}>
-    <div className="field-label"><label htmlFor={name}>{icon}{label}</label><span className="field-source"><SourceInfo value={visibleValue} source={visibleSource} label={`${label} provenance`} /></span></div>
+    <div className="field-label"><label htmlFor={name}>{icon}{label}</label></div>
     <div className="input-with-unit">
       <input id={name} type="number" inputMode="decimal" min={min} max={max} step={step} value={draft}
         onChange={event => commit(event.target.value)} onBlur={event => commit(event.target.value, true)}
@@ -83,7 +83,7 @@ function NumberField({ name, label, unit, min, max, step = 1, icon, compact = fa
 function Header() {
   const { status, location } = useScenario();
   return <header className="app-header">
-      <a href="/" className="brand" aria-label="Fluxline home"><span className="brand-mark" aria-hidden="true"><img className="brand-image" src="/fluxline-mark.svg" width="48" height="48" alt="" /></span>fluxline<span className="brand-divider" /><span className="brand-subtitle">INTERCONNECTION RISK</span></a>
+      <div className="brand" aria-label="Fluxline"><span className="brand-mark" aria-hidden="true"><img className="brand-image" src="/fluxline-mark.svg" width="48" height="48" alt="" /></span>fluxline</div>
       <div className="header-status" data-connected={status === 'api' || (location.enabled && !!location.result)}><span className="status-dot" />{location.enabled ? location.result ? 'LOCATION ESTIMATE' : location.busy ? 'ESTIMATE PENDING' : 'LOCATION SELECTED' : status === 'api' ? 'ESTIMATE SERVICE CONNECTED' : status === 'loading' ? 'ESTIMATE PENDING' : status === 'fallback' ? 'ASSUMED SCENARIO' : 'SCENARIO WORKSPACE'}</div>
     </header>;
 }
@@ -108,7 +108,7 @@ function ScenarioHeading() {
   return <>
     <div className="workspace-heading">
       <div><div className="eyebrow breadcrumb">SPP <span>/</span> SCENARIO ANALYSIS</div><h1>Flexible connection analysis</h1><p>Earlier grid access, modeled interruption exposure, and the cost of waiting.</p></div>
-      <div className="workspace-actions"><button className="button button-quiet" onClick={reset}><RotateCcw size={14} />Reset</button><button className="button" onClick={exportScenario} disabled={location.enabled && !location.result}>{exported ? <Check size={14} /> : <Download size={14} />}{exported ? 'Exported' : 'Export scenario'}</button><span className="sr-only" role="status">{exported ? 'Scenario JSON exported.' : ''}</span></div>
+      <div className="workspace-actions"><SaveToPortfolio /><button className="button button-quiet" onClick={reset}><RotateCcw size={14} />Reset</button><button className="button" onClick={exportScenario} disabled={location.enabled && !location.result}>{exported ? <Check size={14} /> : <Download size={14} />}{exported ? 'Exported' : 'Export scenario'}</button><span className="sr-only" role="status">{exported ? 'Scenario JSON exported.' : ''}</span></div>
     </div>
     <EstimateConnection />
   </>;
@@ -239,7 +239,7 @@ function Inputs() {
                   <td><strong>{station.callsign}</strong></td>
                   <td>{station.name}</td>
                   <td>
-                    <SourceInfo value={station.coords} source={src} label={`${station.callsign} coordinates`} displayText={station.coords} />
+                    <Sourced value={station.coords} source={src} />
                   </td>
                   <td>{station.weight}</td>
                   <td><span className="telemetry-db-badge">{station.db}</span></td>
@@ -271,14 +271,14 @@ function ExposureControl() {
       <p>Public grid stress does not establish a specific site’s actual curtailment. <strong>You set the mapping.</strong></p>
     </div>
     <div className="exposure-slider-area">
-      <div className="slider-readout"><span>Share of system stress mapped to this site</span><Sourced value={inputs.site_exposure} source={sourceFor('site_exposure')} format={fixed} className="exposure-number" /></div>
+      <div className="slider-readout"><span>Share of system stress mapped to this site</span><Sourced inspectable={false} value={inputs.site_exposure} source={sourceFor('site_exposure')} format={fixed} className="exposure-number" /></div>
       <div className="slider-track-wrap">
         <span className="slider-progress" style={{ width: `calc(10px + (100% - 20px) * ${inputs.site_exposure})` }} aria-hidden="true" />
         <input type="range" min={0} max={1} step={0.01} value={inputs.site_exposure} onChange={event => update('site_exposure', Number(event.target.value))}
           aria-label="Site exposure factor" aria-describedby="exposure-explanation" aria-valuetext={`${inputs.site_exposure.toFixed(2)}, user-set assumption`} />
 {marker !== null && <span className="break-even-marker" style={{ left: `calc(10px + (100% - 20px) * ${marker})` }} title={location.enabled ? 'Expected cost crossover under current assumptions' : `${crossoverSources.some(isMockSource) ? 'Assumed ' : ''}Median cost crossover under current assumptions`} />}
       </div>
-      <div className="slider-endpoints"><span><Sourced value={0} source={uiSource('site_exposure/min')} format={v => v.toFixed(1)} animate={false} /> No exposure</span><span>Full modeled exposure <Sourced value={1} source={uiSource('site_exposure/max')} format={v => v.toFixed(1)} animate={false} /></span></div>
+      <div className="slider-endpoints"><span><Sourced inspectable={false} value={0} source={uiSource('site_exposure/min')} format={v => v.toFixed(1)} animate={false} /> No exposure</span><span>Full modeled exposure <Sourced inspectable={false} value={1} source={uiSource('site_exposure/max')} format={v => v.toFixed(1)} animate={false} /></span></div>
       <div className="slider-caption" id="exposure-explanation"><span className="tiny-diamond" />{marker !== null ? <span>{location.enabled ? 'Expected' : 'Median'} cost crossover at <Value datum={crossover as SourcedValue} format={fixed} /></span> : <span>{location.enabled && !location.result ? 'Estimate this location to calculate the cost crossover' : 'No cost crossover within this slider range'}</span>}</div>
     </div>
   </section>;
@@ -449,7 +449,7 @@ function Workspace() {
         {tab === 'overview' && <Overview
           onScenario={() => { setTab('scenario'); document.getElementById('tab-scenario')?.focus(); }}
           onZones={() => { setTab('zones'); document.getElementById('tab-zones')?.focus(); }} />}
-        {tab === 'scenario' && <><ScenarioHeading /><Inputs /><ExposureControl />{location.enabled ? <LocationResultPanels /> : <><div className="results-grid"><ExposurePanel /><EconomicsPanel /></div><GridImpactPanel /><SensitivityPanel sensitivity={sensitivity} /></>}<Assumptions /><ScenarioComparison /></>}
+        {tab === 'scenario' && <><ScenarioHeading /><Inputs /><ExposureControl />{location.enabled ? <LocationResultPanels /> : <><div className="results-grid"><ExposurePanel /><EconomicsPanel /></div><GridImpactPanel /><SensitivityPanel sensitivity={sensitivity} /></>}<Assumptions /></>}
         {tab === 'zones' && <ZoneLeaderboard />}
         {tab === 'portfolio' && <PortfolioPanel />}
       </div>

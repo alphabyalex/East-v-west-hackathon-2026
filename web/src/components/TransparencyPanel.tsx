@@ -6,7 +6,7 @@ import {
 import type { EstimateResponse, Source, SourcedValue } from '../model'
 import { mockTransparencyDiagnostics } from '../model/transparency'
 import { ConfidenceBadge, type ConfidenceEstimate } from './ConfidenceBadge'
-import { SourceInfo, Sourced, SourcedTick } from './Sourced'
+import { Sourced, SourcedTick } from './Sourced'
 import { isMockSource } from './MockLabel'
 
 export interface TransparencyPanelProps {
@@ -116,8 +116,8 @@ export function TransparencyPanel({ confidence, tariff, siteExposure, onClose }:
           const url = clauseUrl(trigger.source)
           return <li key={`${trigger.source.ref}-${index}`} className="transparency-clause">
             {mocked ? <span>Tariff evidence not supplied</span> : <strong>Supplied clause record</strong>}
-            <p>{mocked ? 'System reliability may affect service; no extracted contract language has been supplied.' : trigger.text}</p>
-            <div className="transparency-citation"><SourceInfo value={trigger.text} source={trigger.source} label="Tariff clause provenance" />{url ? <a href={url} target="_blank" rel="noopener noreferrer">Open supplied clause citation<ExternalLink size={12} aria-hidden="true" /></a> : <span>{mocked ? 'No verified citation available.' : 'Supplied reference: '}{!mocked && trigger.source.ref}</span>}</div>
+            <p><Sourced value={trigger.text} source={trigger.source} label="Tariff clause provenance">{mocked ? 'System reliability may affect service; no extracted contract language has been supplied.' : trigger.text}</Sourced></p>
+            <div className="transparency-citation">{url ? <a href={url} target="_blank" rel="noopener noreferrer">Open supplied clause citation<ExternalLink size={12} aria-hidden="true" /></a> : <span>{mocked ? 'No verified citation available.' : 'Supplied reference: '}{!mocked && trigger.source.ref}</span>}</div>
             <small>{trigger.observable ? 'Marked observable in the supplied record; site applicability still requires review.' : 'Not established from the public system data available here.'}</small>
           </li>
         })}</ul>}

@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { ChevronDown, MapPin } from 'lucide-react'
 import { useScenario } from '../ScenarioContext'
 import { getLocations, offlineLocations, type LocationOption } from '../api/locations'
-import { SourceInfo } from './Sourced'
 import { LocationSearchField } from './LocationEstimate'
 
 export function LocationField({ showTelemetry, setShowTelemetry }: { showTelemetry: boolean; setShowTelemetry: (show: boolean) => void }) {
@@ -39,15 +38,11 @@ export function LocationField({ showTelemetry, setShowTelemetry }: { showTelemet
   return <div className="location-field">
     <div className="field-label">
       <label htmlFor="location"><MapPin size={13} />SPP LOCATION</label>
-      <SourceInfo
-        value={estimateLocation.enabled ? estimateLocation.query : inputs.location_id}
-        source={estimateLocation.enabled ? { source_type: 'assumption', ref: 'user://location-query' } : sourceFor('location_id')}
-        label="Location provenance"
-      />
     </div>
     <div className="select-wrap">
       <select
         id="location"
+        data-provenance={JSON.stringify({ value: estimateLocation.enabled ? estimateLocation.query : inputs.location_id, ...(estimateLocation.enabled ? { source_type: 'assumption', ref: 'user://location-query' } : sourceFor('location_id')) })}
         value={estimateLocation.enabled ? 'custom-location' : inputs.location_id}
         onChange={event => {
           const custom = event.target.value === 'custom-location';

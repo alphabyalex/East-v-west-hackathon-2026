@@ -45,7 +45,7 @@ function HeroDemo() {
           </div>
         </div>
       </div>
-      <p className="hero-demo-note">Assumed SPP scenario, <span className="num">100</span> MW load, <span className="num">60%</span> flexible, <span className="num">7</span>-year term. Drag the slider — these are scenario assumptions, not a forecast for a specific site.</p>
+      <p className="hero-demo-note">Assumed SPP scenario, <span className="num">100</span> MW load, <span className="num">60%</span> flexible, <span className="num">7</span>-year term. Drag the slider. These are scenario assumptions, not a forecast for a specific site.</p>
     </div>
   );
 }
@@ -59,10 +59,10 @@ export function Landing() {
     </header>
 
     <section className="hero">
-      <span className="eyebrow land-eyebrow">SPP · CHILLS — LIVE JULY <span className="num">1, 2026</span></span>
+      <span className="eyebrow land-eyebrow">SPP · CHILLS / LIVE JULY <span className="num">1, 2026</span></span>
       <h1>The contract won&rsquo;t tell you<br />when they&rsquo;ll cut your power.</h1>
       <p className="hero-lede">So we learned it from what they actually do.</p>
-      <p className="hero-sub">Enter a location, a load size, and how much of your compute can pause. Get a modeled exposure range, a cost, and a break-even point &mdash; every number traced to a dataset, a filed tariff clause, or an assumption you set yourself.</p>
+      <p className="hero-sub">Enter a location, a load size, and how much of your compute can pause. Get a modeled exposure range, a cost, and a break-even point, with every number traced to a dataset, a filed tariff clause, or an assumption you set yourself.</p>
       <div className="hero-actions">
         <a className="button button-primary" href="/app">Run your scenario<ArrowRight size={14} /></a>
         <a className="text-button" href="#main">See how it&rsquo;s priced &darr;</a>
@@ -76,7 +76,7 @@ export function Landing() {
         <div>
           <span className="eyebrow land-eyebrow">THE PROBLEM</span>
           <h2>A faster grid connection with an unpriced catch</h2>
-          <p>Grid operators are starting to offer large loads a trade: connect years sooner, in exchange for accepting that the operator can cut your power whenever the system is strained. SPP calls its version CHILLS. It runs up to seven years, and shares the same curtailment priority as ordinary non-firm transmission service &mdash; a decades-old, uncapped framework never built for a <span className="num">$100M</span>, multi-year AI data center commitment.</p>
+          <p>Grid operators are starting to offer large loads a trade: connect years sooner, in exchange for accepting that the operator can cut your power whenever the system is strained. SPP calls its version CHILLS. It runs up to seven years, and shares the same curtailment priority as ordinary non-firm transmission service, a decades-old, uncapped framework never built for a <span className="num">$100M</span>, multi-year AI data center commitment.</p>
           <p>In June <span className="num">2026</span>, FERC ordered all six U.S. grid operators to justify or reform their large-load interconnection rules. The ambiguity isn&rsquo;t a gap regulators are racing to close: one intervenor asked FERC to require SPP to define its curtailment triggers and procedures. FERC found the existing language sufficient.</p>
         </div>
         <dl className="land-stat-ledger">
@@ -90,7 +90,7 @@ export function Landing() {
         <span className="eyebrow land-eyebrow">HOW IT WORKS</span>
         <h2>Three layers, one honest number</h2>
         <ol className="land-layer-list">
-          <li><span className="land-layer-tag">LAYER <span className="num">01</span></span><div><h3>Exposure model</h3><p>An ensemble trained on years of public SPP grid data &mdash; load, reserves, binding transmission constraints &mdash; learns when the system was actually under stress. Not a guess from the contract&rsquo;s vague language.</p></div></li>
+          <li><span className="land-layer-tag">LAYER <span className="num">01</span></span><div><h3>Exposure model</h3><p>An ensemble trained on years of public SPP grid data (load, reserves, binding transmission constraints) learns when the system was actually under stress. Not a guess from the contract&rsquo;s vague language.</p></div></li>
           <li><span className="land-layer-tag">LAYER <span className="num">02</span></span><div><h3>Tariff extraction</h3><p>A second model reads the FERC-filed tariff text itself and pulls out the curtailment triggers it can find, with a citation back to the filing for each one.</p></div></li>
           <li><span className="land-layer-tag">LAYER <span className="num">03</span></span><div><h3>Confidence</h3><p>A third layer measures how much the model&rsquo;s members agree with each other, and how much historical precedent exists for a grid state like this one. Every exposure number carries a High, Medium, or Low read on how far to trust it.</p></div></li>
         </ol>
@@ -98,7 +98,7 @@ export function Landing() {
 
       <section className="land-section land-why">
         <span className="eyebrow land-eyebrow">WHY IT MATTERS</span>
-        <p className="land-why-lede">There are two ways to connect the new demand from AI data centers: build a new power plant, usually gas &mdash; or make the load flexible enough to back off when the grid is strained. Flexibility is the option that avoids the plant. Almost nobody takes it, because the risk of it has never been priced.</p>
+        <p className="land-why-lede">There are two ways to connect the new demand from AI data centers: build a new power plant, usually gas, or make the load flexible enough to back off when the grid is strained. Flexibility is the option that avoids the plant. Almost nobody takes it, because the risk of it has never been priced.</p>
         <p className="land-why-punch">The thing blocking the cleaner path is an unpriced risk.</p>
         <p className="land-why-punch land-why-payoff">We price it.</p>
       </section>

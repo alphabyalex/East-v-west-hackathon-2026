@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import App from '../App';
 import { locationFixture } from '../api/locationEstimator.fixture';
@@ -7,7 +7,7 @@ import { locationFixture } from '../api/locationEstimator.fixture';
 vi.mock('recharts', async importOriginal => ({ ...await importOriginal<typeof import('recharts')>(), ResponsiveContainer: () => <div /> }));
 afterEach(() => { cleanup(); localStorage.clear(); vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
-it('uses the existing controls, shows expected results, exports and restores location scenarios', async () => {
+it('uses the existing controls, shows expected results, exports city results and prevents saving a different retained zone', async () => {
   vi.stubEnv('VITE_ESTIMATE_MODE', 'local');
   Object.defineProperty(window, 'matchMedia', { configurable: true, value: () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }) });
   let exported: Blob | undefined;
@@ -28,8 +28,7 @@ it('uses the existing controls, shows expected results, exports and restores loc
     fireEvent.change(screen.getByLabelText('SPP LOCATION'), { target: { value: 'custom-location' } });
     fireEvent.change(screen.getByLabelText('City, state or coordinates'), { target: { value: 'Test, KS' } });
     fireEvent.click(screen.getByRole('tab', { name: 'Portfolio & Alerts' }));
-    expect((screen.getByLabelText('Portfolio site name') as HTMLInputElement).disabled).toBe(true);
-    expect(screen.getByText(/City lookup is separate from this zone portfolio/)).toBeTruthy();
+    expect(screen.queryByLabelText('Portfolio site name')).toBeNull();
     fireEvent.click(screen.getByRole('tab', { name: 'Scenario Stress Test' }));
     expect(screen.queryByText('Median scenario')).toBeNull();
     expect(screen.getAllByLabelText('LOAD SIZE')).toHaveLength(1);
@@ -41,17 +40,16 @@ it('uses the existing controls, shows expected results, exports and restores loc
     const payload = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(reader.error); reader.readAsText(exported!); });
     expect(JSON.parse(payload).response_origin).toBe('location_estimator');
     expect(JSON.parse(payload).result.exposure.regional_expected_hours).toBe(400);
-    fireEvent.click(screen.getByRole('button', { name: /Save Active Scenario/ }));
-    const ledger = screen.getByRole('region', { name: 'Scenario Comparison Ledger' });
-    expect(within(ledger).getByText('Expected location exposure')).toBeDefined();
-    expect(within(ledger).getAllByText('Unavailable')).toHaveLength(3);
+    fireEvent.click(screen.getByRole('button', { name: 'Save to Portfolio' }));
+    expect(screen.getByRole('alert').textContent).toContain('City estimates cannot be saved to the zone portfolio');
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Overview' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Scenario Stress Test' }));
+    await waitFor(() => expect(screen.getAllByText('Expected site exposure')).toHaveLength(2));
     fireEvent.change(screen.getByLabelText('LOAD SIZE'), { target: { value: '250' } });
     expect(screen.queryAllByText('Expected site exposure')).toHaveLength(0);
-    expect((screen.getByRole('button', { name: 'Exported' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Export scenario' }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: 'Reset' }));
     expect(screen.getByText('Median scenario')).toBeDefined();
-    fireEvent.click(screen.getByRole('button', { name: /^Load inputs for Test City/ }));
-    await waitFor(() => expect(screen.getAllByText('Expected site exposure')).toHaveLength(2));
-    expect((screen.getByLabelText('City, state or coordinates') as HTMLInputElement).value).toBe('Test, KS');
   } finally { if (exported) await released; click.mockRestore(); }
 }, 15000);

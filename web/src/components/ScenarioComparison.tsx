@@ -201,18 +201,6 @@ export function ScenarioComparison() {
                   )
                 })}
               </tr>
-              <tr className="decision-row">
-                <th scope="row" className="row-header">Recommendation</th>
-                {savedScenarios.map(scen => {
-                  const decision = scen.locationEstimate ? 'Expected value only' : scen.result.decision
-                  const stateClass = decision === 'worth it' ? 'pos' : decision === 'not worth it' ? 'neg' : 'neu'
-                  return (
-                    <td key={scen.id}>
-                      <span className={`scen-decision-badge ${stateClass}`}>{decision.toUpperCase()}</span>
-                    </td>
-                  )
-                })}
-              </tr>
             </tbody>
           </table>
         </div>

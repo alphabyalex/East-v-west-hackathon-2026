@@ -57,7 +57,7 @@ describe('exposure surface inspection', () => {
     fireEvent.click(value);
     expect(readProvenance()).toEqual(rows[1].p99);
     fireEvent.keyDown(document, { key: 'Escape' });
-    fireEvent.click(screen.getByRole('button', { name: /p99 percentile definition:/ }));
+    fireEvent.click(within(document.querySelector('.surface-inspected-value') as HTMLElement).getByRole('button', { name: /^p99\./ }));
     expect(readProvenance()).toEqual({ value: 99, source_type: 'assumption', ref: 'mock://display/surface/percentile/99; cumulative percentile, not probability density' });
     fireEvent.keyDown(document, { key: 'Escape' });
     const inspector = screen.getByLabelText('Selected supplied quantile');
