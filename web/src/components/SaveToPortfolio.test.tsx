@@ -31,6 +31,7 @@ async function scenario(zone = 'CSWS') {
 
 describe('unified portfolio save', () => {
   beforeEach(() => {
+    window.history.replaceState({}, '', '/app')
     localStorage.clear(); sessionStorage.clear()
     vi.stubEnv('VITE_ESTIMATE_MODE', 'api')
     Object.defineProperty(window, 'matchMedia', { configurable: true, value: () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }) })
