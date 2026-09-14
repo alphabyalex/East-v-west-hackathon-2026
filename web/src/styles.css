@@ -661,7 +661,3 @@ button.confidence-badge { font: 600 11px var(--font-heading); color: var(--text-
 .workspace-tabs [role="tab"]:focus-visible { outline-offset: -4px; }
 .workspace-tab-panel { min-height: 60vh; padding: 28px 0; }
 .workspace-tab-panel .workspace-heading { padding-top: 8px; }
-.workspace-overview { max-width: 740px; padding: 32px 0 64px; }
-.workspace-overview h1 { margin: 16px 0 24px; }
-.workspace-overview p { max-width: 660px; color: var(--text-muted); font-size: 15px; line-height: 1.7; margin: 0 0 20px; }
-.workspace-overview .button { margin-top: 12px; }

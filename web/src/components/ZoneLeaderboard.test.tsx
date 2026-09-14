@@ -73,7 +73,7 @@ describe('ZoneLeaderboard', () => {
 
     // Assert rows and ranking metrics
     expect(screen.getByText('OKGE BA Zone')).toBeTruthy()
-    expect(screen.getByText('WICHITA (Illustrative)')).toBeTruthy()
+    expect(screen.getByText('WICHITA (Scenario)')).toBeTruthy()
     
     // Check composite scores are rendered
     expect(screen.getByText('85.0')).toBeTruthy()
@@ -143,7 +143,8 @@ describe('ZoneLeaderboard', () => {
     render(<ZoneLeaderboard />)
     await screen.findByText('Composite ranking unavailable')
     fireEvent.change(screen.getByRole('combobox', { name: 'Sort leaderboard' }), { target: { value: 'wind' } })
-    const table = screen.getByRole('table', { name: 'Available wind-screening evidence — not composite ranks' })
+    const table = screen.getByRole('table', { name: 'Wind evidence' })
+    expect(table.querySelector('caption')).toBeNull()
     expect(within(table).getAllByRole('row')[1].textContent).toContain('LES · LES_LES')
     fireEvent.change(screen.getByRole('searchbox', { name: 'Search SPP zones' }), { target: { value: 'OKGE' } })
     expect(within(table).getAllByRole('row')).toHaveLength(2)

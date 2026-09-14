@@ -150,7 +150,7 @@ export function ZoneLeaderboard() {
         <p>No zones meet the evidence requirements for this composite. Missing inputs are not filled with assumed scores.</p>
       </div>}
       {viewMode === 'table' && !!data.available_wind_evidence?.length && <div className="leaderboard-table-wrap">
-        <table className="leaderboard-table"><caption>Available wind-screening evidence — not composite ranks</caption>
+        <table className="leaderboard-table" aria-label="Wind evidence">
           <thead><tr><th>Zone reference</th><th>Observed period (UTC)</th><th>High-wind / nonpositive-price hours</th><th>Evaluable hours</th><th>Unknown hours</th></tr></thead>
           <tbody>{windRows.map(item => <tr key={item.location_id}>
             <td>{item.location_id} · {item.reference_location_id}</td>
@@ -186,7 +186,7 @@ export function ZoneLeaderboard() {
             {sortedRankings.map(item => {
               const isExpanded = expandedRow === item.location_id
               const displayLabel = item.location_id.startsWith('spp-')
-                ? item.location_id.replace('spp-', '').replace('-demo', '').toUpperCase() + ' (Illustrative)'
+                ? item.location_id.replace('spp-', '').replace('-demo', '').toUpperCase() + ' (Scenario)'
                 : item.location_id + ' BA Zone'
 
               return (

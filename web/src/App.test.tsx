@@ -39,12 +39,16 @@ describe('scenario workspace interactions', () => {
     const url = window.location.href;
     render(<App />);
     expect(screen.getByRole('tab', { name: 'Overview' }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.queryByText('NO LIVE GRID FETCHES')).toBeNull();
+    expect(screen.queryByText(/Every number has a source\. Click/)).toBeNull();
     expect(screen.getByRole('heading', { name: 'Connect sooner. Understand the trade-off.' })).toBeTruthy();
     expect(screen.queryByLabelText('SPP LOCATION')).toBeNull();
     expect(screen.queryByRole('region', { name: 'Site portfolio' })).toBeNull();
     expect(screen.queryByRole('searchbox', { name: 'Search SPP zones' })).toBeNull();
     expect(requests.mock.calls.some(([url]) => String(url).endsWith('/api/zone-rankings'))).toBe(false);
+    fireEvent.change(screen.getByRole('slider', { name: 'Preview site exposure factor' }), { target: { value: '0.9' } });
     fireEvent.click(screen.getByRole('button', { name: 'Open scenario stress test' }));
+    expect((screen.getByRole('slider', { name: 'Site exposure factor' }) as HTMLInputElement).value).toBe('0.4');
     fireEvent.change(screen.getByLabelText('VPP ORCHESTRATION'), { target: { value: '500' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save Active Scenario' }));
     fireEvent.click(screen.getByRole('tab', { name: 'Zone Analytics' }));

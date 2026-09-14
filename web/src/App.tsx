@@ -4,6 +4,7 @@ import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip,
 import { ScenarioProvider, useScenario } from './ScenarioContext';
 import { ScenarioErrorBoundary } from './components/ScenarioErrorBoundary';
 import { ScenarioComparison } from './components/ScenarioComparison';
+import { Overview } from './components/Overview';
 import { PortfolioPanel } from './components/PortfolioPanel';
 import { ZoneLeaderboard } from './components/ZoneLeaderboard';
 import { LocationConnection, LocationResultPanels } from './components/LocationEstimate';
@@ -445,19 +446,15 @@ function Workspace() {
     </div>
     <main id="main">
       <div key={tab} id={`panel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`} tabIndex={0} className="workspace-tab-panel">
-        {tab === 'overview' && <section className="workspace-overview" aria-labelledby="overview-title">
-          <span className="eyebrow muted">FLEXIBLE GRID INTERCONNECTION</span>
-          <h1 id="overview-title">Connect sooner. Understand the trade-off.</h1>
-          <p>Fluxline helps you weigh earlier grid access against modeled interruption exposure and the cost of waiting. Change your assumptions to see what would change the decision.</p>
-          <p>We never fabricate a score — if evidence is insufficient, we say so. Public grid stress is not a site forecast; you set the site exposure assumption, and every number has a source.</p>
-          <button className="button" onClick={() => { setTab('scenario'); document.getElementById('tab-scenario')?.focus(); }}>Open scenario stress test<ArrowRight size={14} /></button>
-        </section>}
+        {tab === 'overview' && <Overview
+          onScenario={() => { setTab('scenario'); document.getElementById('tab-scenario')?.focus(); }}
+          onZones={() => { setTab('zones'); document.getElementById('tab-zones')?.focus(); }} />}
         {tab === 'scenario' && <><ScenarioHeading /><Inputs /><ExposureControl />{location.enabled ? <LocationResultPanels /> : <><div className="results-grid"><ExposurePanel /><EconomicsPanel /></div><GridImpactPanel /><SensitivityPanel sensitivity={sensitivity} /></>}<Assumptions /><ScenarioComparison /></>}
         {tab === 'zones' && <ZoneLeaderboard />}
         {tab === 'portfolio' && <PortfolioPanel />}
       </div>
     </main>
-    <footer><span className="flex items-center gap-2"><Unplug size={12} />{location.enabled ? 'HISTORICAL LOCATION COMPARISON' : 'NO LIVE GRID FETCHES'}</span><span>Every number has a source. Click a value or its info control.</span></footer>
+    {tab !== 'overview' && <footer><span className="flex items-center gap-2"><Unplug size={12} />{location.enabled ? 'HISTORICAL LOCATION COMPARISON' : 'NO LIVE GRID FETCHES'}</span></footer>}
   </div>;
 }
 
