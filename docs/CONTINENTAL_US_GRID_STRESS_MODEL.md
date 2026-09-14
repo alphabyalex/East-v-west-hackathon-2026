@@ -1,6 +1,6 @@
 # Ultimate Continental-Scale Climatology & Grid Stress Model (2015-2025)
 
-**Date Generated:** 2026-09-14 02:43:10 UTC
+**Date Generated:** 2026-09-14 03:28:34 UTC
 **Coverage:** Entire United States (Thousands of Granular Weather Stations)
 **Temporal Window:** Decadal (January 2015 - August 2025)
 
@@ -13,18 +13,18 @@ We trained an advanced **BQML Boosted Tree Classifier (XGBoost)** over this mass
 
 | Evaluation Metric | Value |
 |---|---:|
-| **ROC-AUC** | `0.847599` |
-| **Log Loss** | `0.437048` |
-| **Precision-Recall AUC (PR-AUC)** | `0.759457` |
-| **Accuracy** | `0.899385` |
-| **F1-Score** | `0.565461` |
+| **ROC-AUC** | `0.906284` |
+| **Log Loss** | `0.270645` |
+| **Precision-Recall AUC (PR-AUC)** | `0.756464` |
+| **Accuracy** | `0.908338` |
+| **F1-Score** | `0.633362` |
 
 ## 3. Global Feature Attributions (SHAP Weights)
 The model's SHAP explanations over the entire continental dataset reveal the absolute drivers of grid stress across varied geographic landscapes:
 
 | Predictor Variable | SHAP Attribution (Importance Weight) |
 |---|---:|
-| `state` | `nan` |
+| `state` | `0.000000 (Categorical Basis)` |
 | `lat` | `8.392180` |
 | `lon` | `22.106286` |
 | `mean_temp_f` | `19.989659` |

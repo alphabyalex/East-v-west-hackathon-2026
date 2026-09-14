@@ -242,7 +242,8 @@ def run_continental_study():
     ]
     
     for _, row in importance_df.iterrows():
-        report_lines.append(f"| `{row['feature']}` | `{row['importance']:.6f}` |")
+        val_str = "0.000000 (Categorical Basis)" if pd.isna(row['importance']) else f"{row['importance']:.6f}"
+        report_lines.append(f"| `{row['feature']}` | `{val_str}` |")
         
     report_lines += [
         "",
