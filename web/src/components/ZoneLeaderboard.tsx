@@ -4,6 +4,7 @@ import { apiUrl } from '../api/client'
 import type { Source, SourcedValue } from '../model'
 import { Sourced, SourcedTick } from './Sourced'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
+import shippedManifest from '../../../data/processed/national_stack/zone_rankings.json'
 
 interface ZoneRankingItem {
   location_id: string
@@ -37,6 +38,7 @@ interface ZoneRankingsResponse {
 
 const integer = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 })
 const decimal = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 })
+const shippedRankings = shippedManifest as unknown as ZoneRankingsResponse
 
 export function ZoneLeaderboard() {
   const [data, setData] = useState<ZoneRankingsResponse | null>(null)
@@ -76,9 +78,16 @@ export function ZoneLeaderboard() {
           throw new Error(`HTTP error! status: ${response.status}`)
         }
         const json = await response.json()
-        if (active) setData(json)
-      } catch (err: any) {
-        if (active) setError(err.message || 'Failed to fetch rankings')
+        if (active) {
+          setError(null)
+          setData(json)
+        }
+      } catch (err: unknown) {
+        if (active) {
+          const message = err instanceof Error ? err.message : 'Failed to fetch rankings'
+          setError(message)
+          setData(shippedRankings)
+        }
       } finally {
         if (active) setLoading(false)
       }
@@ -99,7 +108,7 @@ export function ZoneLeaderboard() {
     )
   }
 
-  if (error || !data) {
+  if (!data) {
     return (
       <div className="panel leaderboard-panel error-state" role="alert">
         <span className="eyebrow error-text">LEADERBOARD OFFLINE: {error || 'No data available'}</span>
@@ -117,6 +126,11 @@ export function ZoneLeaderboard() {
         </div>
         <span className="eyebrow muted">COGNITIVE SPATIAL SEARCH LEADERBOARD</span>
       </div>
+
+      {error && <div className="leaderboard-intro" role="status">
+        <h3>API unavailable · showing shipped local evidence</h3>
+        <p>{error}. The local manifest is shown without inventing composite scores or filling missing observations.</p>
+      </div>}
 
       <div className="leaderboard-intro">
         <p>{data.description}</p>

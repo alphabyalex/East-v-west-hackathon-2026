@@ -18,8 +18,12 @@ function HeroDemo() {
   const cost = useAnimatedNumber(result.economics.annual_loss_usd.value);
   const state = result.decision === 'worth it' ? 'positive' : result.decision === 'not worth it' ? 'negative' : 'neutral';
   return (
-    <div className="hero-demo">
+    <div className="hero-demo" aria-label="Interactive exposure preview">
       <div className="hero-demo-label">
+        <div className="hero-demo-heading">
+          <span className="eyebrow">LIVE SCENARIO INPUT</span>
+          <strong>Site exposure factor</strong>
+        </div>
         <span className="hero-demo-value">{exposure.toFixed(2)}</span>
       </div>
       <div className="slider-track-wrap">
@@ -51,28 +55,29 @@ function HeroDemo() {
 }
 
 export function Landing() {
-  return <div className="landing">
+  return <div id="top" className="landing landing-redesign">
     <a href="#main" className="skip-link">Skip to the problem</a>
-    <header className="app-header land-header">
+    <header className="app-header land-header reveal">
       <a href="/" className="brand" aria-label="fluxline home"><BrandMark />fluxline<span className="brand-divider" /><span className="brand-subtitle">INTERCONNECTION RISK</span></a>
       <a className="button" href="/app">Run your scenario<ArrowRight size={14} /></a>
     </header>
 
     <section className="hero">
-      <span className="eyebrow land-eyebrow">SPP · CHILLS / LIVE JULY <span className="num">1, 2026</span></span>
-      <h1>The contract won&rsquo;t tell you<br />when they&rsquo;ll cut your power.</h1>
-      <p className="hero-lede">So we learned it from what they actually do.</p>
-      <p className="hero-sub">Enter a location, a load size, and how much of your compute can pause. Get a modeled exposure range, a cost, and a break-even point, with every number traced to a dataset, a filed tariff clause, or an assumption you set yourself.</p>
-      <div className="hero-actions">
-        <a className="button button-primary" href="/app">Run your scenario<ArrowRight size={14} /></a>
-        <a className="text-button" href="#main">See how it&rsquo;s priced &darr;</a>
+      <div className="hero-copy">
+        <span className="eyebrow land-eyebrow">SPP · CHILLS / LIVE JULY <span className="num">1, 2026</span></span>
+        <h1>The contract won&rsquo;t tell you<br />when they&rsquo;ll cut your power.</h1>
+        <p className="hero-lede">So we learned it from what they actually do.</p>
+        <p className="hero-sub">Enter a location, a load size, and how much of your compute can pause. Get a modeled exposure range, a cost, and a break-even point, with every number traced to a dataset, a filed tariff clause, or an assumption you set yourself.</p>
+        <div className="hero-actions">
+          <a className="button button-primary" href="/app">Run your scenario<ArrowRight size={14} /></a>
+          <a className="text-button" href="#main">See how it&rsquo;s priced &darr;</a>
+        </div>
       </div>
+      <HeroDemo />
     </section>
 
-    <HeroDemo />
-
     <main id="main">
-      <section className="land-section land-problem">
+      <section className="land-section land-problem reveal">
         <div>
           <span className="eyebrow land-eyebrow">THE PROBLEM</span>
           <h2>A faster grid connection with an unpriced catch</h2>
@@ -90,13 +95,13 @@ export function Landing() {
         <span className="eyebrow land-eyebrow">HOW IT WORKS</span>
         <h2>Three layers, one honest number</h2>
         <ol className="land-layer-list">
-          <li><span className="land-layer-tag">LAYER <span className="num">01</span></span><div><h3>Exposure model</h3><p>An ensemble trained on years of public SPP grid data (load, reserves, binding transmission constraints) learns when the system was actually under stress. Not a guess from the contract&rsquo;s vague language.</p></div></li>
-          <li><span className="land-layer-tag">LAYER <span className="num">02</span></span><div><h3>Tariff extraction</h3><p>A second model reads the FERC-filed tariff text itself and pulls out the curtailment triggers it can find, with a citation back to the filing for each one.</p></div></li>
-          <li><span className="land-layer-tag">LAYER <span className="num">03</span></span><div><h3>Confidence</h3><p>A third layer measures how much the model&rsquo;s members agree with each other, and how much historical precedent exists for a grid state like this one. Every exposure number carries a High, Medium, or Low read on how far to trust it.</p></div></li>
+          <li className="reveal"><span className="land-layer-tag">LAYER <span className="num">01</span></span><div><h3>Exposure model</h3><p>An ensemble trained on years of public SPP grid data (load, reserves, binding transmission constraints) learns when the system was actually under stress. Not a guess from the contract&rsquo;s vague language.</p></div></li>
+          <li className="reveal"><span className="land-layer-tag">LAYER <span className="num">02</span></span><div><h3>Tariff extraction</h3><p>A second model reads the FERC-filed tariff text itself and pulls out the curtailment triggers it can find, with a citation back to the filing for each one.</p></div></li>
+          <li className="reveal"><span className="land-layer-tag">LAYER <span className="num">03</span></span><div><h3>Confidence</h3><p>A third layer measures how much the model&rsquo;s members agree with each other, and how much historical precedent exists for a grid state like this one. Every exposure number carries a High, Medium, or Low read on how far to trust it.</p></div></li>
         </ol>
       </section>
 
-      <section className="land-section land-why">
+      <section className="land-section land-why reveal">
         <span className="eyebrow land-eyebrow">WHY IT MATTERS</span>
         <p className="land-why-lede">There are two ways to connect the new demand from AI data centers: build a new power plant, usually gas, or make the load flexible enough to back off when the grid is strained. Flexibility is the option that avoids the plant. Almost nobody takes it, because the risk of it has never been priced.</p>
         <p className="land-why-punch">The thing blocking the cleaner path is an unpriced risk.</p>
@@ -104,9 +109,15 @@ export function Landing() {
       </section>
     </main>
 
-    <footer className="app-shell land-footer">
-      <span>SCENARIO ASSUMPTIONS · NO LIVE GRID DATA</span>
+    <footer className="land-footer reveal">
+      <div className="land-footer-brand" aria-label="Fluxline interconnection risk">
+        <BrandMark />
+        <span className="land-footer-wordmark">fluxline</span>
+        <span className="land-footer-divider" aria-hidden="true" />
+        <span className="land-footer-subtitle">INTERCONNECTION RISK</span>
+      </div>
       <a className="button button-primary" href="/app">Run your scenario<ArrowRight size={14} /></a>
+      <a className="land-footer-top" href="#top">Back to top<ArrowUpRight size={14} /></a>
     </footer>
   </div>;
 }

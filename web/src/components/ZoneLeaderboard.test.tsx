@@ -111,13 +111,15 @@ describe('ZoneLeaderboard', () => {
     expect(screen.queryByText(/Diagnostic Breakdown for OKGE/i)).toBeNull()
   })
 
-  it('renders error state on API failure', async () => {
+  it('falls back to shipped wind evidence on API failure', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValueOnce(new Error('Connection timeout')))
     render(<ZoneLeaderboard />)
-    
+
     await waitFor(() => {
-      expect(screen.getByText(/LEADERBOARD OFFLINE: Connection timeout/i)).toBeTruthy()
+      expect(screen.getByText('Composite ranking unavailable')).toBeTruthy()
     })
+    expect(screen.getByText('LES · LES_LES')).toBeTruthy()
+    expect(screen.getByText(/API unavailable · showing shipped local evidence/i)).toBeTruthy()
   })
 
   it('renders shipped wind evidence and unavailable locations without raw diagnostics or invented ranks', async () => {
