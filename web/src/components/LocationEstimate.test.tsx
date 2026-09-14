@@ -44,12 +44,11 @@ it('uses the existing controls, shows expected results, exports city results and
     fireEvent.click(screen.getByRole('button', { name: 'Save to Portfolio' }));
     expect(screen.getByRole('alert').textContent).toContain('City estimates cannot be saved to the zone portfolio');
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
-    fireEvent.click(screen.getByRole('tab', { name: 'Overview' }));
     fireEvent.click(screen.getByRole('tab', { name: 'Scenario Stress Test' }));
     await waitFor(() => expect(screen.getAllByText('Expected site exposure')).toHaveLength(2));
     fireEvent.change(screen.getByLabelText('LOAD SIZE'), { target: { value: '250' } });
     expect(screen.queryAllByText('Expected site exposure')).toHaveLength(0);
-    expect((screen.getByRole('button', { name: 'Export scenario' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Exported' }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: 'Reset' }));
     expect(screen.queryByText('Median scenario')).toBeNull();
     expect((screen.getByLabelText('SPP LOCATION') as HTMLSelectElement).value).toBe('');
