@@ -4,6 +4,8 @@ import json
 import threading
 from http.server import ThreadingHTTPServer
 from unittest.mock import Mock
+from urllib.error import HTTPError, URLError
+from io import BytesIO
 
 import pytest
 from fastapi.testclient import TestClient
@@ -160,3 +162,43 @@ def test_adapter_uses_workspace_token_and_single_job_owner(tmp_path, monkeypatch
         server.shutdown()
         server.server_close()
         thread.join(timeout=2)
+
+
+@pytest.mark.parametrize("failure,detail", [
+    (URLError("connection refused"), "workbench at 127.0.0.1:8765 is not reachable"),
+    (TimeoutError(), "starting only uvicorn and Vite is not enough"),
+])
+def test_missing_workbench_reports_required_process(monkeypatch, tmp_path, failure, detail):
+    monkeypatch.setattr(adapter, "ROOT", tmp_path)
+    monkeypatch.setattr(adapter, "build_opener", lambda *args: Mock(open=Mock(side_effect=failure)))
+    response = TestClient(app).post("/api/location-estimator/search", json={"query": "Wichita, KS"})
+    assert response.status_code == 503
+    assert detail in response.json()["detail"]
+    assert response.headers["cache-control"] == "no-store"
+
+
+@pytest.mark.parametrize("page,job,expected", [
+    (b"<html>different service</html>", b"{}", "no workspace token"),
+    (b'<meta name="workspace-token" content="test-token">', b"not-json", "invalid job response"),
+    (b'<meta name="workspace-token" content="test-token">', b"{}", "invalid job response"),
+    (b'<meta name="workspace-token" content="test-token">', b"null", "invalid job response"),
+])
+def test_workbench_bad_response_is_distinct_from_stopped_service(monkeypatch, tmp_path, page, job, expected):
+    monkeypatch.setattr(adapter, "ROOT", tmp_path)
+    opener = Mock(open=Mock(side_effect=[BytesIO(page), BytesIO(job)]))
+    monkeypatch.setattr(adapter, "build_opener", lambda *args: opener)
+    response = TestClient(app).post("/api/location-estimator/search", json={"query": "Wichita, KS"})
+    assert response.status_code == 503
+    assert expected in response.json()["detail"]
+    assert "not reachable" not in response.json()["detail"]
+    assert opener.open.call_count == (1 if "token" in expected else 2)
+
+
+def test_busy_workbench_retains_conflict_response(monkeypatch, tmp_path):
+    monkeypatch.setattr(adapter, "ROOT", tmp_path)
+    opener = Mock(open=Mock(side_effect=[BytesIO(b'<meta name="workspace-token" content="test-token">'),
+                                        HTTPError(adapter.WORKSPACE_URL, 400, "busy", {}, None)]))
+    monkeypatch.setattr(adapter, "build_opener", lambda *args: opener)
+    response = TestClient(app).post("/api/location-estimator/search", json={"query": "Wichita, KS"})
+    assert response.status_code == 409
+    assert "busy" in response.json()["detail"]

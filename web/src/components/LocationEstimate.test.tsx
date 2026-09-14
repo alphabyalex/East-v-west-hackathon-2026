@@ -24,10 +24,13 @@ it('uses the existing controls, shows expected results, exports and restores loc
   }));
   try {
     render(<App />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Scenario Stress Test' }));
     fireEvent.change(screen.getByLabelText('SPP LOCATION'), { target: { value: 'custom-location' } });
     fireEvent.change(screen.getByLabelText('City, state or coordinates'), { target: { value: 'Test, KS' } });
+    fireEvent.click(screen.getByRole('tab', { name: 'Portfolio & Alerts' }));
     expect((screen.getByLabelText('Portfolio site name') as HTMLInputElement).disabled).toBe(true);
     expect(screen.getByText(/City lookup is separate from this zone portfolio/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('tab', { name: 'Scenario Stress Test' }));
     expect(screen.queryByText('Median scenario')).toBeNull();
     expect(screen.getAllByLabelText('LOAD SIZE')).toHaveLength(1);
     fireEvent.click(screen.getByRole('button', { name: 'Estimate location' }));

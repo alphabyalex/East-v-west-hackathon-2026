@@ -653,3 +653,15 @@ button.confidence-badge { font: 600 11px var(--font-heading); color: var(--text-
 .leaderboard-controls label { display: grid; gap: .4rem; font-size: .75rem; }
 .leaderboard-controls input, .leaderboard-controls select { background: var(--raised); color: var(--text-primary); border: 1px solid var(--border); padding: .5rem; border-radius: 2px; }
 .leaderboard-chart-wrap { padding: 1rem; }
+
+/* Flat top navigation; only the active workspace mounts its instrument panels. */
+.workspace-tabs { display: flex; overflow-x: auto; border-bottom: 1px solid var(--border); gap: 24px; }
+.workspace-tabs [role="tab"] { flex-shrink: 0; padding: 18px 0 15px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: var(--text-muted); font-family: var(--font-heading); font-size: 11px; font-weight: 600; letter-spacing: -.03em; text-transform: uppercase; }
+.workspace-tabs [role="tab"][aria-selected="true"] { color: var(--signal); border-bottom-color: var(--signal); }
+.workspace-tabs [role="tab"]:focus-visible { outline-offset: -4px; }
+.workspace-tab-panel { min-height: 60vh; padding: 28px 0; }
+.workspace-tab-panel .workspace-heading { padding-top: 8px; }
+.workspace-overview { max-width: 740px; padding: 32px 0 64px; }
+.workspace-overview h1 { margin: 16px 0 24px; }
+.workspace-overview p { max-width: 660px; color: var(--text-muted); font-size: 15px; line-height: 1.7; margin: 0 0 20px; }
+.workspace-overview .button { margin-top: 12px; }

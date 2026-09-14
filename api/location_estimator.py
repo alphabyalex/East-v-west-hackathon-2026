@@ -91,7 +91,7 @@ def workspace_job(payload):
             page = response.read().decode("utf-8")
         token = re.search(r'<meta name="workspace-token" content="([\w-]+)">', page)
         if not token:
-            raise HTTPException(503, "The location estimator is unavailable. Start Open Fluxline.cmd and retry.")
+            raise HTTPException(503, "The location workbench on port 8765 returned no workspace token. Check that pipeline.workbench owns this port, then restart Open Fluxline.cmd.", headers={"Cache-Control": "no-store"})
         request = UrlRequest(WORKSPACE_URL + "/api/jobs", data=json.dumps(payload).encode(), headers={
             "Content-Type": "application/json", "Origin": WORKSPACE_URL, "X-Workspace-Token": token[1],
         }, method="POST")
@@ -100,9 +100,11 @@ def workspace_job(payload):
         return {"status": "running", "job_id": job["id"]}
     except HTTPError as error:
         raise HTTPException(409 if error.code == 400 else 503,
-                            "The location estimator is busy or could not accept this request. Retry after the current estimate finishes.") from error
-    except (URLError, TimeoutError, OSError, ValueError, KeyError) as error:
-        raise HTTPException(503, "The location estimator is unavailable. Start Open Fluxline.cmd and retry.") from error
+                            "The location estimator is busy or could not accept this request. Retry after the current estimate finishes.", headers={"Cache-Control": "no-store"}) from error
+    except (URLError, TimeoutError, OSError) as error:
+        raise HTTPException(503, "The location workbench at 127.0.0.1:8765 is not reachable or did not respond. Open Fluxline.cmd starts it alongside the API and frontend; starting only uvicorn and Vite is not enough. Check data/processed/workbench/server-error.log.", headers={"Cache-Control": "no-store"}) from error
+    except (ValueError, KeyError, TypeError) as error:
+        raise HTTPException(503, "The location workbench on port 8765 returned an invalid job response. Check data/processed/workbench/server-error.log before retrying.", headers={"Cache-Control": "no-store"}) from error
 
 
 def same_point(a, b):

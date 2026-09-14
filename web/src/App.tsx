@@ -4,6 +4,7 @@ import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip,
 import { ScenarioProvider, useScenario } from './ScenarioContext';
 import { ScenarioErrorBoundary } from './components/ScenarioErrorBoundary';
 import { ScenarioComparison } from './components/ScenarioComparison';
+import { PortfolioPanel } from './components/PortfolioPanel';
 import { ZoneLeaderboard } from './components/ZoneLeaderboard';
 import { LocationConnection, LocationResultPanels } from './components/LocationEstimate';
 import { Sourced, SourceInfo, SourcedTick } from './components/Sourced';
@@ -79,6 +80,14 @@ function NumberField({ name, label, unit, min, max, step = 1, icon, compact = fa
 }
 
 function Header() {
+  const { status, location } = useScenario();
+  return <header className="app-header">
+      <a href="/" className="brand" aria-label="Fluxline home"><span className="brand-mark" aria-hidden="true"><img className="brand-image" src="/fluxline-mark.svg" width="48" height="48" alt="" /></span>fluxline<span className="brand-divider" /><span className="brand-subtitle">INTERCONNECTION RISK</span></a>
+      <div className="header-status" data-connected={status === 'api' || (location.enabled && !!location.result)}><span className="status-dot" />{location.enabled ? location.result ? 'LOCATION ESTIMATE' : location.busy ? 'ESTIMATE PENDING' : 'LOCATION SELECTED' : status === 'api' ? 'ESTIMATE SERVICE CONNECTED' : status === 'loading' ? 'ESTIMATE PENDING' : status === 'fallback' ? 'ASSUMED SCENARIO' : 'SCENARIO WORKSPACE'}</div>
+    </header>;
+}
+
+function ScenarioHeading() {
   const { inputs, result, sensitivity, reset, mode, status, location } = useScenario();
   const [exported, setExported] = useState(false);
   useEffect(() => { if (exported) { const timer = setTimeout(() => setExported(false), 2400); return () => clearTimeout(timer); } }, [exported]);
@@ -96,10 +105,6 @@ function Header() {
     setExported(true);
   }
   return <>
-    <header className="app-header">
-      <a href="/" className="brand" aria-label="Fluxline home"><span className="brand-mark" aria-hidden="true"><img className="brand-image" src="/fluxline-mark.svg" width="48" height="48" alt="" /></span>fluxline<span className="brand-divider" /><span className="brand-subtitle">INTERCONNECTION RISK</span></a>
-      <div className="header-status" data-connected={status === 'api' || (location.enabled && !!location.result)}><span className="status-dot" />{location.enabled ? location.result ? 'LOCATION ESTIMATE' : location.busy ? 'ESTIMATE PENDING' : 'LOCATION SELECTED' : status === 'api' ? 'ESTIMATE SERVICE CONNECTED' : status === 'loading' ? 'ESTIMATE PENDING' : status === 'fallback' ? 'ASSUMED SCENARIO' : 'SCENARIO WORKSPACE'}</div>
-    </header>
     <div className="workspace-heading">
       <div><div className="eyebrow breadcrumb">SPP <span>/</span> SCENARIO ANALYSIS</div><h1>Flexible connection analysis</h1><p>Earlier grid access, modeled interruption exposure, and the cost of waiting.</p></div>
       <div className="workspace-actions"><button className="button button-quiet" onClick={reset}><RotateCcw size={14} />Reset</button><button className="button" onClick={exportScenario} disabled={location.enabled && !location.result}>{exported ? <Check size={14} /> : <Download size={14} />}{exported ? 'Exported' : 'Export scenario'}</button><span className="sr-only" role="status">{exported ? 'Scenario JSON exported.' : ''}</span></div>
@@ -410,9 +415,50 @@ function Assumptions() {
   </section>;
 }
 
+const workspaceTabs = [
+  ['overview', 'Overview'],
+  ['scenario', 'Scenario Stress Test'],
+  ['zones', 'Zone Analytics'],
+  ['portfolio', 'Portfolio & Alerts'],
+] as const;
+type WorkspaceTab = typeof workspaceTabs[number][0];
+
 function Workspace() {
   const { sensitivity, location } = useScenario();
-  return <div className="app-shell"><a className="skip-link" href="#main">Skip to analysis</a><Header /><main id="main"><Inputs /><ExposureControl />{location.enabled ? <LocationResultPanels /> : <><div className="results-grid"><ExposurePanel /><EconomicsPanel /></div><GridImpactPanel /><SensitivityPanel sensitivity={sensitivity} /></>}<Assumptions /><ScenarioComparison /><ZoneLeaderboard /></main><footer><span className="flex items-center gap-2"><Unplug size={12} />{location.enabled ? 'HISTORICAL LOCATION COMPARISON' : 'NO LIVE GRID FETCHES'}</span><span>Every number has a source. Click a value or its info control.</span></footer></div>;
+  const [tab, setTab] = useState<WorkspaceTab>('overview');
+  return <div className="app-shell">
+    <a className="skip-link" href="#main">Skip to workspace</a>
+    <Header />
+    <div className="workspace-tabs" role="tablist" aria-label="Workspace sections">
+      {workspaceTabs.map(([id, label], index) => <button key={id} type="button" role="tab"
+        id={`tab-${id}`} aria-selected={tab === id} aria-controls={`panel-${id}`}
+        tabIndex={tab === id ? 0 : -1} onClick={() => setTab(id)}
+        onKeyDown={event => {
+          const next = event.key === 'ArrowRight' ? (index + 1) % workspaceTabs.length
+            : event.key === 'ArrowLeft' ? (index + workspaceTabs.length - 1) % workspaceTabs.length
+              : event.key === 'Home' ? 0 : event.key === 'End' ? workspaceTabs.length - 1 : null;
+          if (next === null) return;
+          event.preventDefault();
+          setTab(workspaceTabs[next][0]);
+          document.getElementById(`tab-${workspaceTabs[next][0]}`)?.focus();
+        }}>{label}</button>)}
+    </div>
+    <main id="main">
+      <div key={tab} id={`panel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`} tabIndex={0} className="workspace-tab-panel">
+        {tab === 'overview' && <section className="workspace-overview" aria-labelledby="overview-title">
+          <span className="eyebrow muted">FLEXIBLE GRID INTERCONNECTION</span>
+          <h1 id="overview-title">Connect sooner. Understand the trade-off.</h1>
+          <p>Fluxline helps you weigh earlier grid access against modeled interruption exposure and the cost of waiting. Change your assumptions to see what would change the decision.</p>
+          <p>We never fabricate a score — if evidence is insufficient, we say so. Public grid stress is not a site forecast; you set the site exposure assumption, and every number has a source.</p>
+          <button className="button" onClick={() => { setTab('scenario'); document.getElementById('tab-scenario')?.focus(); }}>Open scenario stress test<ArrowRight size={14} /></button>
+        </section>}
+        {tab === 'scenario' && <><ScenarioHeading /><Inputs /><ExposureControl />{location.enabled ? <LocationResultPanels /> : <><div className="results-grid"><ExposurePanel /><EconomicsPanel /></div><GridImpactPanel /><SensitivityPanel sensitivity={sensitivity} /></>}<Assumptions /><ScenarioComparison /></>}
+        {tab === 'zones' && <ZoneLeaderboard />}
+        {tab === 'portfolio' && <PortfolioPanel />}
+      </div>
+    </main>
+    <footer><span className="flex items-center gap-2"><Unplug size={12} />{location.enabled ? 'HISTORICAL LOCATION COMPARISON' : 'NO LIVE GRID FETCHES'}</span><span>Every number has a source. Click a value or its info control.</span></footer>
+  </div>;
 }
 
 export default function App() { return <ScenarioErrorBoundary><ScenarioProvider><Workspace /></ScenarioProvider></ScenarioErrorBoundary>; }

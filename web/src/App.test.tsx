@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeAll, beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, cleanup, within } from '@testing-library/react';
+import { fireEvent, render, screen, cleanup, within, waitFor, configure } from '@testing-library/react';
 import { cloneElement, type ReactElement } from 'react';
 import App from './App';
 import { createMockEstimate } from './model';
@@ -16,19 +16,75 @@ vi.mock('recharts', async importOriginal => {
 });
 
 beforeAll(() => {
+  // Mounting the full instrument tab plus the debounced provider can exceed
+  // Testing Library's one-second default on a busy workstation. Keep assertions
+  // on the completed state; production request timing is unchanged.
+  configure({ asyncUtilTimeout: 5000 });
   Object.defineProperty(window, 'matchMedia', { writable: true, value: (query: string) => ({ matches: query.includes('prefers-reduced-motion'), media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() }) });
   globalThis.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
 });
 beforeEach(() => {
+  localStorage.clear();
+  sessionStorage.clear();
   vi.stubEnv('VITE_ESTIMATE_MODE', 'local');
   // Companion panels still load in local mode; keep these tests off the live network.
   vi.stubGlobal('fetch', withEconomics(vi.fn().mockRejectedValue(new Error('Unexpected estimate request'))));
 });
-afterEach(() => { cleanup(); vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
+afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
 describe('scenario workspace interactions', () => {
+  it('opens on Overview and mounts only the selected tab without changing the URL', async () => {
+    const errors = vi.spyOn(console, 'error');
+    const requests = vi.spyOn(globalThis, 'fetch');
+    const url = window.location.href;
+    render(<App />);
+    expect(screen.getByRole('tab', { name: 'Overview' }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByRole('heading', { name: 'Connect sooner. Understand the trade-off.' })).toBeTruthy();
+    expect(screen.queryByLabelText('SPP LOCATION')).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Site portfolio' })).toBeNull();
+    expect(screen.queryByRole('searchbox', { name: 'Search SPP zones' })).toBeNull();
+    expect(requests.mock.calls.some(([url]) => String(url).endsWith('/api/zone-rankings'))).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Open scenario stress test' }));
+    fireEvent.change(screen.getByLabelText('VPP ORCHESTRATION'), { target: { value: '500' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Active Scenario' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Zone Analytics' }));
+    expect(await screen.findByRole('region', { name: 'Optimal Zones for Flexible Computes' })).toBeTruthy();
+    expect(screen.queryByLabelText('SPP LOCATION')).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Scenario Comparison Ledger' })).toBeNull();
+    fireEvent.click(screen.getByRole('tab', { name: 'Portfolio & Alerts' }));
+    expect(screen.getByRole('region', { name: 'Site portfolio' })).toBeTruthy();
+    expect(screen.queryByRole('region', { name: 'Optimal Zones for Flexible Computes' })).toBeNull();
+    fireEvent.click(screen.getByRole('tab', { name: 'Scenario Stress Test' }));
+    expect((screen.getByLabelText('VPP ORCHESTRATION') as HTMLInputElement).value).toBe('500');
+    expect(screen.getByText('Scenario 1: SPP System (100 MW)')).toBeTruthy();
+    expect(document.querySelectorAll('[data-sensitivity-bar]')).toHaveLength(3);
+    fireEvent.click(screen.getByRole('tab', { name: 'Overview' }));
+    expect(screen.getAllByRole('tabpanel')).toHaveLength(1);
+    expect(screen.queryByText('Connection economics')).toBeNull();
+    expect(window.location.href).toBe(url);
+    await waitFor(() => expect(screen.getByRole('tab', { name: 'Overview' }).getAttribute('aria-selected')).toBe('true'));
+    expect(errors).not.toHaveBeenCalled();
+    errors.mockRestore();
+  });
+
+  it('supports keyboard navigation through the top tab strip', () => {
+    render(<App />);
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Overview' }), { key: 'ArrowRight' });
+    expect(document.activeElement).toBe(screen.getByRole('tab', { name: 'Scenario Stress Test' }));
+    expect(screen.getByLabelText('SPP LOCATION')).toBeTruthy();
+    fireEvent.keyDown(document.activeElement!, { key: 'End' });
+    expect(document.activeElement).toBe(screen.getByRole('tab', { name: 'Portfolio & Alerts' }));
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowRight' });
+    expect(document.activeElement).toBe(screen.getByRole('tab', { name: 'Overview' }));
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowLeft' });
+    expect(document.activeElement).toBe(screen.getByRole('tab', { name: 'Portfolio & Alerts' }));
+    fireEvent.keyDown(document.activeElement!, { key: 'Home' });
+    expect(document.activeElement).toBe(screen.getByRole('tab', { name: 'Overview' }));
+  });
+
   it.each([1, 50, 500, 10000])('keeps the scenario and current sensitivity visible with %s VPP homes', homes => {
     render(<App />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Scenario Stress Test' }));
     const field = screen.getByRole('spinbutton', { name: 'VPP ORCHESTRATION' });
     expect(() => fireEvent.change(field, { target: { value: String(homes) } })).not.toThrow();
     expect(screen.getByText('Connection economics')).toBeTruthy();
@@ -53,6 +109,7 @@ describe('scenario workspace interactions', () => {
       ] }), { status: 200 }))
       : supplied(url, options));
     render(<App />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Scenario Stress Test' }));
     await screen.findByRole('option', { name: 'CSWS · SPP load zone' });
     fireEvent.change(screen.getByRole('combobox', { name: 'SPP LOCATION' }), { target: { value: 'CSWS' } });
     expect(screen.getByText('SPP load zone · zone-specific model data; site exposure is your assumption')).toBeTruthy();
@@ -79,6 +136,7 @@ describe('scenario workspace interactions', () => {
     const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
     try {
       render(<App />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Scenario Stress Test' }));
       fireEvent.change(screen.getByRole('slider', { name: 'Site exposure factor' }), { target: { value: '0' } });
       fireEvent.click(screen.getByRole('button', { name: 'Export scenario' }));
       const json = await new Promise<string>((resolve, reject) => {
@@ -103,6 +161,7 @@ describe('scenario workspace interactions', () => {
 
   it('removes repeated source badges while keeping section status and the site caveats', () => {
     render(<App />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Scenario Stress Test' }));
     expect(screen.queryByText('ILLUSTRATIVE DATA')).toBeNull();
     expect(screen.queryByText('MOCK ECONOMICS')).toBeNull();
     expect(screen.queryByText('Assumed exposure')).toBeNull();
@@ -131,6 +190,7 @@ describe('scenario workspace interactions', () => {
       return Promise.resolve(new Response(JSON.stringify(response), { status: 200 }));
     })));
     render(<App />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Scenario Stress Test' }));
     await screen.findByText(/Estimate service connected · current inputs synchronized/);
     expect(screen.queryByText('Assumed exposure')).toBeNull();
     expect(screen.queryByText('Assumed quantiles')).toBeNull();
@@ -156,6 +216,7 @@ describe('scenario workspace interactions', () => {
       return Promise.resolve(new Response(JSON.stringify(response), { status: 200 }));
     })));
     render(<App />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Scenario Stress Test' }));
     await screen.findByText(/Estimate service connected · current inputs synchronized/);
     expect(screen.queryByText('Assumed economics')).toBeNull();
     expect(screen.queryByText('Assumed decision')).toBeNull();
@@ -173,6 +234,7 @@ describe('scenario workspace interactions', () => {
 
   it('opens the inline transparency panel and restores trigger focus on Escape', () => {
     render(<App />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Scenario Stress Test' }));
     const trigger = screen.getByRole('button', { name: 'Model & evidence' });
     expect(trigger.getAttribute('aria-expanded')).toBe('false');
     fireEvent.click(trigger);
@@ -198,6 +260,7 @@ describe('scenario workspace interactions', () => {
     });
     vi.stubGlobal('fetch', withEconomics(fetcher));
     render(<App />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Scenario Stress Test' }));
     expect(screen.getByText(/current inputs shown as assumed scenario values/)).toBeTruthy();
     fireEvent.click(await screen.findByRole('button', { name: 'Retry estimate' }));
     expect(await screen.findByText(/Estimate service connected · current inputs synchronized/)).toBeTruthy();
@@ -208,6 +271,7 @@ describe('scenario workspace interactions', () => {
     const fetcher = vi.fn().mockImplementation((_url, options) => Promise.resolve(new Response(JSON.stringify(createMockEstimate(JSON.parse(options.body))), { status: 200 })));
     vi.stubGlobal('fetch', withEconomics(fetcher));
     render(<App />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Scenario Stress Test' }));
     expect(await screen.findByText(/Estimate service connected · current inputs synchronized/)).toBeTruthy();
     const gpuValue = screen.getByRole('spinbutton', { name: 'LOST COMPUTE VALUE' });
     fireEvent.change(gpuValue, { target: { value: '5' } });
@@ -220,6 +284,7 @@ describe('scenario workspace interactions', () => {
 
   it('starts with the fan chart without initializing a graphics context', () => {
     render(<App />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Scenario Stress Test' }));
     expect(screen.getByRole('button', { name: 'Fan chart' }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.queryByRole('group', { name: 'Interactive modeled exposure quantile surface' })).toBeNull();
     expect(document.querySelector('canvas')).toBeNull();
@@ -228,6 +293,7 @@ describe('scenario workspace interactions', () => {
 
   it('falls back without WebGL and keeps the upper-tail source available after recomputation', async () => {
     render(<App />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Scenario Stress Test' }));
     fireEvent.click(screen.getByRole('button', { name: 'Surface' }));
     // The cold, lazy Three.js import can exceed RTL's one-second default when
     // the complete real-Recharts suite runs concurrently; keep a bounded wait.
@@ -249,6 +315,7 @@ describe('scenario workspace interactions', () => {
 
   it('moves through every decision state and resets the scenario', () => {
     render(<App />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Scenario Stress Test' }));
     const slider = screen.getByRole('slider', { name: 'Site exposure factor' });
     expect(screen.getByRole('heading', { name: 'worth it' })).toBeTruthy();
     fireEvent.change(slider, { target: { value: '0.55' } });
@@ -262,6 +329,7 @@ describe('scenario workspace interactions', () => {
 
   it('normalizes cleared and out-of-range fields on blur and handles zero interruption cost', () => {
     render(<App />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Scenario Stress Test' }));
     const load = screen.getByRole('spinbutton', { name: 'LOAD SIZE' }) as HTMLInputElement;
     fireEvent.change(load, { target: { value: '' } });
     fireEvent.blur(load);
@@ -280,6 +348,7 @@ describe('scenario workspace interactions', () => {
 
   it('keeps exact source metadata with intentional inspection and Escape dismissal, without a raw JSON box', () => {
     render(<App />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Scenario Stress Test' }));
     const input = screen.getByRole('spinbutton', { name: 'LOAD SIZE' });
     fireEvent.change(input, { target: { value: '120' } });
     const source = screen.getByRole('button', { name: /LOAD SIZE provenance/ });
@@ -309,6 +378,7 @@ describe('scenario workspace interactions', () => {
 
   it('keeps sourced annual values synchronized with the horizon, location, and slider', () => {
     render(<App />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Scenario Stress Test' }));
     fireEvent.click(screen.getByRole('button', { name: 'Inspect annual values' }));
     const table = screen.getByRole('table', { name: /Sourced annual modeled exposure/ });
     expect(within(table).getAllByRole('row')).toHaveLength(8);
@@ -325,6 +395,7 @@ describe('scenario workspace interactions', () => {
 
   it('toggles and displays detailed climate telemetry and schematic for SPP selections', () => {
     render(<App />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Scenario Stress Test' }));
     
     // Telemetry drawer should be closed by default
     expect(screen.queryByRole('region', { name: 'Climate telemetry nodes' })).toBeNull();
@@ -382,6 +453,7 @@ describe('scenario workspace interactions', () => {
 
   it('manages scenario comparison ledger saving, loading, and deleting side-by-side', () => {
     render(<App />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Scenario Stress Test' }));
 
     // Initially, comparison panel is empty
     const ledgerEmptyMsg = screen.getByText(/Comparison ledger is currently empty/);

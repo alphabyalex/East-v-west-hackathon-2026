@@ -96,8 +96,8 @@ export function PortfolioPanel() {
       <p className="muted">Static checks of current precomputed data. No live monitoring or notifications. Session-only storage; restarting the API or a day of inactivity loses saved sites. Do not enter confidential information.</p>
       <p className="muted">Uses current server economics assumptions; workspace economics overrides are not saved. Published zone scores do not change with scenario inputs.</p>
       <form onSubmit={save} className="portfolio-save"><label>Site name<input aria-label="Portfolio site name" value={name} onChange={e => setName(e.target.value)} maxLength={80} required disabled={busy || expired || location?.enabled} /></label><button className="button" disabled={busy || expired || !name.trim() || location?.enabled}>Save current site to portfolio</button></form>
-      {location?.enabled && <p role="status">City lookup is separate from this zone portfolio. Select an SPP zone to save it here; city results can be saved in the comparison ledger below.</p>}
-      <p className="muted">Current selection: {inputs.location_id}. Adjust location, load, term, flexibility, site exposure and VPP above before saving.</p>
+      {location?.enabled && <p role="status">City lookup is separate from this zone portfolio. Select an SPP zone to save it here; city results can be saved in the comparison ledger in Scenario Stress Test.</p>}
+      <p className="muted">Current selection: {inputs.location_id}. Adjust location, load, term, flexibility, site exposure and VPP in Scenario Stress Test before saving.</p>
       {(portfolio || sessionId) && !expired && <button className="button button-quiet" disabled={busy} onClick={() => void run(signal => portfolioRequest(`/${encodeURIComponent(portfolio?.id ?? sessionId!)}`, 'GET', undefined, signal))}>Refresh evidence and checks</button>}
       {error && <p role="alert">{error} {portfolio && 'Previously displayed comparison has not been refreshed.'}</p>}
       {expired && <button className="button" disabled={busy} onClick={() => void run(signal => portfolioRequest('', 'POST', undefined, signal))}>Start new portfolio session</button>}
