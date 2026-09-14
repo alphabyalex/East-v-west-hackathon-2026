@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, cleanup, within } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { ZoneLeaderboard } from './ZoneLeaderboard'
 import shippedManifest from '../../../data/processed/national_stack/zone_rankings.json'
@@ -136,5 +136,36 @@ describe('ZoneLeaderboard', () => {
     fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${les.proxy_hours.value}.*assumption provenance`) }))
     const source = JSON.parse(screen.getByRole('tooltip').getAttribute('data-provenance')!)
     expect(source).toEqual(les.proxy_hours)
+  })
+
+  it('filters and sorts supported wind evidence while preserving every exclusion in chart view', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(shippedManifest))))
+    render(<ZoneLeaderboard />)
+    await screen.findByText('Composite ranking unavailable')
+    fireEvent.change(screen.getByRole('combobox', { name: 'Sort leaderboard' }), { target: { value: 'wind' } })
+    const table = screen.getByRole('table', { name: 'Available wind-screening evidence — not composite ranks' })
+    expect(within(table).getAllByRole('row')[1].textContent).toContain('LES · LES_LES')
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search SPP zones' }), { target: { value: 'OKGE' } })
+    expect(within(table).getAllByRole('row')).toHaveLength(2)
+    fireEvent.click(screen.getByRole('button', { name: 'Chart' }))
+    expect(screen.getByText('Wind-screening evidence — not composite ranks')).toBeTruthy()
+    expect(screen.getByText('OKGE:', { exact: false })).toBeTruthy()
+    fireEvent.click(screen.getByText('Excluded locations and missing evidence'))
+    expect(document.querySelectorAll('details.leaderboard-intro li')).toHaveLength(21)
+    expect(screen.queryByText('#1')).toBeNull()
+  })
+
+  it('sorts published risk by ascending hours and supports composite/wind/carbon selection', async () => {
+    render(<ZoneLeaderboard />)
+    await screen.findByText('OKGE BA Zone')
+    const sort = screen.getByRole('combobox', { name: 'Sort leaderboard' })
+    fireEvent.change(sort, { target: { value: 'risk' } })
+    expect(screen.getAllByRole('button', { name: /^Rank / })[0].textContent).toContain('WICHITA')
+    for (const metric of ['wind', 'carbon', 'composite']) {
+      fireEvent.change(sort, { target: { value: metric } })
+      expect(screen.getAllByRole('button', { name: /^Rank / })[0].textContent).toContain('OKGE')
+    }
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search SPP zones' }), { target: { value: 'missing' } })
+    expect(screen.queryByRole('button', { name: /^Rank / })).toBeNull()
   })
 })

@@ -148,8 +148,11 @@ def test_listing_does_not_override_insufficient_annual_evidence(catalog_path, cl
     """Catalog membership cannot make the unchanged annual guard pass."""
     payload["location_id"] = "CSWS"
     pd.DataFrame([
-        {**row, "location_id": "CSWS", "confidence_level": "Low", "confidence_score": 0.8,
-         "n_similar_historical_hours": 1000, "model_version": payload["model_version"]}
+        {**row, "location_id": "CSWS",
+         "confidence_level": payload["confidence"]["level"],
+         "confidence_score": payload["confidence"]["score"],
+         "n_similar_historical_hours": payload["confidence"]["n_similar_historical_hours"],
+         "model_version": payload["model_version"]}
         for row in payload["by_year"]
     ]).to_parquet(catalog_path, index=False)
     write_manifests(catalog_path, payload)

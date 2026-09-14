@@ -298,30 +298,25 @@ def get_pipeline_location(location_id: str) -> LocationEstimate:
     except (OSError, ValueError, TypeError, AttributeError) as error:
         logger.exception("Invalid pipeline artifact provenance")
         raise PipelineDataError(f"Precomputed artifact provenance is invalid: {error}") from error
-    
+    # Explicit opt-in only. The launcher must never enable this automatically.
+    # Valid provenance/schema are still required; missing coverage is not repaired.
     import os
     if readiness_issue and os.getenv("FLUXLINE_ALLOW_PROVISIONAL", "0") == "1":
-        logger.warning("Using provisional/seasonal exposure estimate for %s: %s", location_id, readiness_issue)
-        test = card.get("splits", {}).get("test", {})
-        span_hours = (datetime.fromisoformat(test["end"].replace("Z", "+00:00")) - datetime.fromisoformat(test["start"].replace("Z", "+00:00"))).total_seconds() / 3600 + 1
-        count = card.get("test_by_location", {}).get(location_id, {}).get("n_hours", 0)
+        logger.warning("Using provisional seasonal exposure for %s: %s", location_id, readiness_issue)
         provisional_ref = (
-            f"pipeline/simulate.py model_version={data.model_version}; provisional seasonal estimate; "
-            f"held-out span={span_hours:g} hours, local scored hours={count} for {location_id}; "
-            "explicitly flagged as an assumption and not a validated annual number; review pending"
+            f"{exposure_ref}; provisional seasonal estimate; {readiness_issue}; "
+            "explicit assumption, not a validated annual number; review pending"
         )
         return LocationEstimate(
             by_year=tuple(BaselineYear(**row.model_dump()) for row in data.by_year),
             confidence=Confidence(
-                level="Low",
-                score=data.confidence.score,
+                level="Low", score=data.confidence.score,
                 basis="provisional_seasonal_estimate_unvalidated",
                 source=Source(source_type="assumption", ref=provisional_ref),
             ),
             source=Source(source_type="assumption", ref=provisional_ref),
             tariff=placeholder_tariff(),
         )
-
     if readiness_issue:
         reason = f"model_version={data.model_version}; {readiness_issue}"
         try:

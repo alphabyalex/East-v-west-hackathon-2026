@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useMemo } from 'react'
-import { Award, Leaf, Wind, ShieldAlert, ChevronDown, ChevronUp, ClipboardList, Info, Search, ArrowUpDown, LayoutGrid, BarChart3 } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
+import { Award, Leaf, Wind, ShieldAlert, ChevronDown, ChevronUp, ClipboardList, Info } from 'lucide-react'
 import { apiUrl } from '../api/client'
-import { Sourced } from './Sourced'
 import type { Source, SourcedValue } from '../model'
+import { Sourced, SourcedTick } from './Sourced'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 
 interface ZoneRankingItem {
   location_id: string
@@ -26,7 +26,7 @@ interface ZoneRankingsResponse {
   composite_weight_formula: string
   description: string
   rankings: ZoneRankingItem[]
-  status?: 'available' | 'unavailable' | 'provisional'
+  status?: 'available' | 'unavailable'
   excluded_locations?: { location_id: string; reasons: string[]; source: Source }[]
   available_wind_evidence?: {
     location_id: string; reference_location_id: string
@@ -43,11 +43,29 @@ export function ZoneLeaderboard() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
-  
-  // Custom interactive state for sorting, filtering, and visual charts
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState<'composite' | 'risk' | 'wind' | 'carbon'>('composite')
   const [viewMode, setViewMode] = useState<'table' | 'chart'>('table')
+  const matches = (id: string) => id.toLowerCase().includes(searchQuery.trim().toLowerCase())
+  const sortedRankings = useMemo(() => {
+    if (!data || data.status === 'unavailable') return []
+    return data.rankings.filter(row => row.location_id.toLowerCase().includes(searchQuery.trim().toLowerCase()))
+      .filter(row => !data.excluded_locations?.some(excluded => excluded.location_id === row.location_id))
+      .sort((a, b) => sortBy === 'risk' ? a.avg_p90_risk_hours - b.avg_p90_risk_hours
+        : sortBy === 'wind' ? b.wind_absorption_mwh_per_year - a.wind_absorption_mwh_per_year
+          : sortBy === 'carbon' ? b.carbon_absorbed_tonnes_per_year - a.carbon_absorbed_tonnes_per_year
+            : b.composite_score - a.composite_score)
+  }, [data, searchQuery, sortBy])
+  const windRows = (data?.available_wind_evidence ?? []).filter(row => matches(row.location_id))
+    .sort((a, b) => sortBy === 'wind' ? b.proxy_hours.value - a.proxy_hours.value : a.location_id.localeCompare(b.location_id))
+  const chartSource: Source = { source_type: 'assumption', ref: 'api://zone-rankings; display of supplied evidence only, no imputation' }
+  const chartRows: { name: string; value: number; source: Source }[] = data?.status === 'unavailable'
+    ? windRows.map(row => ({ name: row.location_id, value: row.proxy_hours.value, source: row.proxy_hours }))
+    : sortedRankings.map(row => ({ name: row.location_id,
+      value: sortBy === 'risk' ? row.avg_p90_risk_hours : sortBy === 'wind' ? row.wind_absorption_mwh_per_year : sortBy === 'carbon' ? row.carbon_absorbed_tonnes_per_year : row.composite_score,
+      source: { source_type: 'assumption' as const, ref: `${row.wind_source_ref}; published ${sortBy} comparison; api://zone-rankings` } }))
+  const chartUnit = data?.status === 'unavailable' ? 'screened hours in supplied observation period'
+    : sortBy === 'risk' ? 'p90 modeled exposure · h/year' : sortBy === 'wind' ? 'wind absorption · MWh/year' : sortBy === 'carbon' ? 'supplied carbon estimate · tonnes/year' : 'published composite score'
 
   useEffect(() => {
     let active = true
@@ -72,31 +90,6 @@ export function ZoneLeaderboard() {
   const toggleRow = (locationId: string) => {
     setExpandedRow(prev => (prev === locationId ? null : locationId))
   }
-
-  // Filter & Sort rankings dynamically
-  const sortedRankings = useMemo(() => {
-    if (!data) return []
-    return [...data.rankings]
-      .filter(item => item.location_id.toLowerCase().includes(searchQuery.toLowerCase()))
-      .sort((a, b) => {
-        if (sortBy === 'composite') return b.composite_score - a.composite_score
-        if (sortBy === 'risk') return a.score_risk - b.score_risk // Low risk is better!
-        if (sortBy === 'wind') return b.score_wind - a.score_wind
-        if (sortBy === 'carbon') return b.score_carbon - a.score_carbon
-        return 0
-      })
-  }, [data, searchQuery, sortBy])
-
-  // Map data specifically for Recharts BarChart
-  const chartData = useMemo(() => {
-    return sortedRankings.map(item => ({
-      name: item.location_id.startsWith('spp-')
-        ? item.location_id.replace('spp-', '').replace('-demo', '').toUpperCase()
-        : item.location_id,
-      'Composite Score': item.composite_score,
-      original: item
-    }))
-  }, [sortedRankings])
 
   if (loading) {
     return (
@@ -133,254 +126,159 @@ export function ZoneLeaderboard() {
         </div>
       </div>
 
-      {/* Strict Unavailability blocks from teammate origin/main */}
-      {data.status === 'unavailable' && (
-        <div className="leaderboard-intro mt-4 p-2 bg-strong radius-4" role="status">
-          <h3 className="bold flex items-center gap-2 text-secondary"><ShieldAlert size={14} className="text-amber" /> Composite ranking unavailable</h3>
-          <p className="text-muted text-xs">No zones meet the evidence requirements for this composite. Missing inputs are not filled with assumed scores.</p>
-        </div>
-      )}
+      <div className="leaderboard-controls">
+        <label>Search zones<input type="search" aria-label="Search SPP zones" placeholder="Search SPP zones..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} /></label>
+        <label>Sort evidence<select aria-label="Sort leaderboard" value={sortBy} onChange={e => setSortBy(e.target.value as typeof sortBy)}>
+          <option value="composite">Composite score</option><option value="risk">Lowest p90 modeled exposure</option><option value="wind">Highest wind evidence</option><option value="carbon">Highest supplied carbon estimate</option>
+        </select></label>
+        <div className="segmented-control" aria-label="Leaderboard view"><button aria-pressed={viewMode === 'table'} onClick={() => setViewMode('table')}>Table</button><button aria-pressed={viewMode === 'chart'} onClick={() => setViewMode('chart')}>Chart</button></div>
+      </div>
+      {data.status === 'unavailable' && sortBy !== 'wind' && <p className="field-note">Composite, annual risk and carbon rankings are unavailable. Available wind references are listed alphabetically; choose wind to sort by screened hours.</p>}
+      {viewMode === 'chart' && <div className="leaderboard-chart-wrap">
+        <h3>{data.status === 'unavailable' ? 'Wind-screening evidence — not composite ranks' : 'Published zone comparison'}</h3><p className="field-note">{chartUnit}</p>
+        {chartRows.length ? <><ResponsiveContainer width="100%" height={Math.max(220, chartRows.length * 42)}>
+          <BarChart data={chartRows} layout="vertical" margin={{ top: 10, right: 30, left: 20, bottom: 15 }}>
+            <XAxis type="number" tick={<SourcedTick source={chartSource} />} /><YAxis type="category" dataKey="name" width={110} tick={<SourcedTick source={chartSource} />} />
+            <Tooltip content={({ active, payload }) => active && payload?.length ? <div className="chart-tooltip"><Sourced value={payload[0].payload.value} source={payload[0].payload.source} /> {chartUnit}</div> : null} />
+            <Bar dataKey="value" fill="var(--text-muted)" barSize={16} isAnimationActive={false} />
+          </BarChart>
+        </ResponsiveContainer><details><summary>Inspect supplied chart values</summary><ul>{chartRows.map(row => <li key={row.name}>{row.name}: <Sourced value={row.value} source={row.source} /> {chartUnit}</li>)}</ul></details></> : <p>No matching evidence to plot.</p>}
+      </div>}
 
-      {data.status === 'unavailable' && !!data.available_wind_evidence?.length && (
-        <div className="leaderboard-table-wrap mt-4" tabIndex={0} aria-label="Available wind evidence">
-          <table className="leaderboard-table">
-            <caption>Available wind-screening evidence — not composite ranks</caption>
-            <thead>
-              <tr>
-                <th scope="col" className="text-left">Zone reference</th>
-                <th scope="col" className="text-left">Observed period (UTC)</th>
-                <th scope="col" className="text-center">High-wind / nonpositive-price hours</th>
-                <th scope="col" className="text-center">Evaluable hours</th>
-                <th scope="col" className="text-center">Unknown hours</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.available_wind_evidence.map(item => (
-                <tr key={item.location_id} className="leaderboard-row">
-                  <td className="text-left font-sans font-medium text-primary">{item.location_id} · {item.reference_location_id}</td>
-                  <td className="text-left font-mono text-xs">
-                    <Sourced value={`${item.period_start_utc.slice(0, 10)} to ${item.period_end_exclusive_utc.slice(0, 10)} (end exclusive)`} source={item.proxy_hours} />
-                  </td>
-                  <td className="text-center font-mono">
-                    <Sourced value={item.proxy_hours.value} source={item.proxy_hours} animate={false} />
-                  </td>
-                  <td className="text-center font-mono">
-                    <Sourced value={item.evaluable_hours.value} source={item.evaluable_hours} animate={false} />
-                  </td>
-                  <td className="text-center font-mono">
-                    <Sourced value={item.unknown_hours.value} source={item.unknown_hours} animate={false} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <p className="field-note mt-2">These are documented within-zone settlement-point references, not measured recoverable wind or site deliverability. Unknown hours are not filled; the evidence retains its timing and screening assumptions.</p>
-        </div>
-      )}
+      {data.status === 'unavailable' && <div className="leaderboard-intro" role="status">
+        <h3>Composite ranking unavailable</h3>
+        <p>No zones meet the evidence requirements for this composite. Missing inputs are not filled with assumed scores.</p>
+      </div>}
+      {viewMode === 'table' && !!data.available_wind_evidence?.length && <div className="leaderboard-table-wrap">
+        <table className="leaderboard-table"><caption>Available wind-screening evidence — not composite ranks</caption>
+          <thead><tr><th>Zone reference</th><th>Observed period (UTC)</th><th>High-wind / nonpositive-price hours</th><th>Evaluable hours</th><th>Unknown hours</th></tr></thead>
+          <tbody>{windRows.map(item => <tr key={item.location_id}>
+            <td>{item.location_id} · {item.reference_location_id}</td>
+            <td><Sourced value={`${item.period_start_utc.slice(0, 10)} to ${item.period_end_exclusive_utc.slice(0, 10)} (end exclusive)`} source={item.proxy_hours} /></td>
+            <td><Sourced value={item.proxy_hours.value} source={item.proxy_hours} animate={false} /></td>
+            <td><Sourced value={item.evaluable_hours.value} source={item.evaluable_hours} animate={false} /></td>
+            <td><Sourced value={item.unknown_hours.value} source={item.unknown_hours} animate={false} /></td>
+          </tr>)}</tbody>
+        </table>
+        <p className="field-note">These are documented within-zone settlement-point references, not measured recoverable wind or site deliverability. Unknown hours are not filled; the evidence retains its timing and screening assumptions.</p>
+      </div>}
+      {!!data.excluded_locations?.length && <details className="leaderboard-intro">
+        <summary>Excluded locations and missing evidence</summary>
+        <ul>{data.excluded_locations.map(item => <li key={item.location_id}>
+          <Sourced value={item.location_id} source={item.source} />: {item.reasons.join(' ')}
+        </li>)}</ul>
+      </details>}
 
-      {data.status === 'unavailable' && !!data.excluded_locations?.length && (
-        <details className="leaderboard-intro mt-4 border border-strong p-2 radius-4 cursor-pointer">
-          <summary className="bold text-xs text-secondary">Excluded locations and missing evidence</summary>
-          <ul className="mt-2 text-xs text-muted pl-4">
-            {data.excluded_locations.map(item => (
-              <li key={item.location_id} className="mt-1">
-                <Sourced value={item.location_id} source={item.source} />: {item.reasons.join(' ')}
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
+      {viewMode === 'table' && data.status !== 'unavailable' && <div className="leaderboard-table-wrap" tabIndex={0} aria-label="Spatial rankings list">
+        <table className="leaderboard-table">
+          <thead>
+            <tr>
+              <th scope="col" className="text-center w-12">Rank</th>
+              <th scope="col" className="text-left">Zone / Node ID</th>
+              <th scope="col" className="text-center w-40">Risk Factor Score</th>
+              <th scope="col" className="text-center w-40">Wind Potential Score</th>
+              <th scope="col" className="text-center w-40">Carbon Offset Score</th>
+              <th scope="col" className="text-right w-24">Composite</th>
+              <th scope="col" className="w-10"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {sortedRankings.map(item => {
+              const isExpanded = expandedRow === item.location_id
+              const displayLabel = item.location_id.startsWith('spp-')
+                ? item.location_id.replace('spp-', '').replace('-demo', '').toUpperCase() + ' (Illustrative)'
+                : item.location_id + ' BA Zone'
 
-      {/* Active Rankings table: shown only when status is available/provisional */}
-      {data.status !== 'unavailable' && (
-        <>
-          {/* Interactivity Bar: Filter, Sorting, and View Toggles */}
-          <div className="leaderboard-controls flex items-center justify-between gap-4 wrap mt-4 p-2 border-y border-dashed border-strong">
-            <div className="flex items-center gap-2 flex-1 min-w-xs">
-              <Search size={14} className="text-muted" />
-              <input 
-                type="search" 
-                className="filter-input w-full bg-transparent text-primary" 
-                placeholder="Search SPP zones..." 
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-              />
-            </div>
-            
-            <div className="flex items-center gap-4 wrap">
-              <div className="flex items-center gap-1">
-                <ArrowUpDown size={12} className="text-muted" />
-                <select 
-                  className="sort-select bg-transparent text-secondary bold cursor-pointer"
-                  value={sortBy}
-                  onChange={e => setSortBy(e.target.value as any)}
-                >
-                  <option value="composite">Sort by: Composite Score</option>
-                  <option value="risk">Sort by: Lowest Risk</option>
-                  <option value="wind">Sort by: Highest Wind Absorption</option>
-                  <option value="carbon">Sort by: Deepest Decarbonization</option>
-                </select>
-              </div>
-
-              <div className="view-segmented-control flex p-0-5 bg-strong radius-4">
-                <button 
-                  className={`view-btn flex items-center gap-1 py-1 px-2 border-0 radius-3 cursor-pointer text-xs bold ${viewMode === 'table' ? 'bg-panel-bg text-primary' : 'bg-transparent text-secondary'}`}
-                  onClick={() => setViewMode('table')}
-                  title="Table View"
-                >
-                  <LayoutGrid size={12} />
-                  <span>Table</span>
-                </button>
-                <button 
-                  className={`view-btn flex items-center gap-1 py-1 px-2 border-0 radius-3 cursor-pointer text-xs bold ${viewMode === 'chart' ? 'bg-panel-bg text-primary' : 'bg-transparent text-secondary'}`}
-                  onClick={() => setViewMode('chart')}
-                  title="Chart View"
-                >
-                  <BarChart3 size={12} />
-                  <span>Chart</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {viewMode === 'table' ? (
-            <div className="leaderboard-table-wrap mt-4" tabIndex={0} aria-label="Spatial rankings list">
-              <table className="leaderboard-table">
-                <thead>
-                  <tr>
-                    <th scope="col" className="text-center w-12">Rank</th>
-                    <th scope="col" className="text-left">Zone / Node ID</th>
-                    <th scope="col" className="text-center w-40">Risk Factor Score</th>
-                    <th scope="col" className="text-center w-40">Wind Potential Score</th>
-                    <th scope="col" className="text-center w-40">Carbon Offset Score</th>
-                    <th scope="col" className="text-right w-24">Composite</th>
-                    <th scope="col" className="w-10"></th>
+              return (
+                <React.Fragment key={item.location_id}>
+                  <tr 
+                    className={`leaderboard-row ${isExpanded ? 'active' : ''}`}
+                    onClick={() => toggleRow(item.location_id)}
+                    tabIndex={0}
+                    onKeyDown={(e) => e.key === 'Enter' && toggleRow(item.location_id)}
+                    role="button"
+                    aria-expanded={isExpanded}
+                    aria-label={`Rank ${item.rank}: ${displayLabel}, Composite Score: ${item.composite_score}`}
+                  >
+                    <td className="text-center font-mono text-teal bold">#{item.rank}</td>
+                    <td className="text-left font-sans font-medium text-primary">
+                      {displayLabel}
+                    </td>
+                    <td className="text-center">
+                      <div className="score-meter-container">
+                        <div className="score-meter-bar" style={{ width: `${item.score_risk * 100}%`, background: 'var(--teal)' }} />
+                        <span className="score-meter-value">{(item.score_risk * 100).toFixed(0)}%</span>
+                      </div>
+                    </td>
+                    <td className="text-center">
+                      <div className="score-meter-container">
+                        <div className="score-meter-bar" style={{ width: `${item.score_wind * 100}%`, background: 'var(--accent)' }} />
+                        <span className="score-meter-value">{(item.score_wind * 100).toFixed(0)}%</span>
+                      </div>
+                    </td>
+                    <td className="text-center">
+                      <div className="score-meter-container">
+                        <div className="score-meter-bar" style={{ width: `${item.score_carbon * 100}%`, background: 'var(--text-mint)' }} />
+                        <span className="score-meter-value">{(item.score_carbon * 100).toFixed(0)}%</span>
+                      </div>
+                    </td>
+                    <td className="text-right font-mono text-primary bold">{item.composite_score.toFixed(1)}</td>
+                    <td className="text-center text-muted">
+                      {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {sortedRankings.map(item => {
-                    const isExpanded = expandedRow === item.location_id
-                    const displayLabel = item.location_id.startsWith('spp-')
-                      ? item.location_id.replace('spp-', '').replace('-demo', '').toUpperCase() + ' (Illustrative)'
-                      : item.location_id + ' BA Zone'
 
-                    return (
-                      <React.Fragment key={item.location_id}>
-                        <tr 
-                          className={`leaderboard-row ${isExpanded ? 'active' : ''}`}
-                          onClick={() => toggleRow(item.location_id)}
-                          tabIndex={0}
-                          onKeyDown={(e) => e.key === 'Enter' && toggleRow(item.location_id)}
-                          role="button"
-                          aria-expanded={isExpanded}
-                          aria-label={`Rank ${item.rank}: ${displayLabel}, Composite Score: ${item.composite_score}`}
-                        >
-                          <td className="text-center font-mono text-teal bold">#{item.rank}</td>
-                          <td className="text-left font-sans font-medium text-primary">
-                            {displayLabel}
-                          </td>
-                          <td className="text-center">
-                            <div className="score-meter-container">
-                              <div className="score-meter-bar" style={{ width: `${item.score_risk * 100}%`, background: 'var(--teal)' }} />
-                              <span className="score-meter-value">{(item.score_risk * 100).toFixed(0)}%</span>
+                  {isExpanded && (
+                    <tr className="leaderboard-expanded-row">
+                      <td colSpan={7}>
+                        <div className="leaderboard-expanded-card">
+                          <h4>
+                            <Info size={12} className="text-teal" />
+                            Diagnostic Breakdown for {item.location_id}
+                          </h4>
+                          <div className="leaderboard-breakdown-grid">
+                            <div className="breakdown-col">
+                              <span className="breakdown-label flex items-center gap-1"><ShieldAlert size={11} className="text-amber" /> CURTAILMENT RISK</span>
+                              <dl className="breakdown-details">
+                                <dt>p50 (Median)</dt>
+                                <dd>{decimal.format(item.avg_p50_risk_hours)} h/yr</dd>
+                                <dt>p90 (Upper-Tail)</dt>
+                                <dd>{decimal.format(item.avg_p90_risk_hours)} h/yr</dd>
+                                <dt>p99 (Extreme)</dt>
+                                <dd>{decimal.format(item.avg_p99_risk_hours)} h/yr</dd>
+                                <dt>Worst Contiguous</dt>
+                                <dd>{integer.format(item.avg_worst_contiguous_hours)} h/yr</dd>
+                              </dl>
                             </div>
-                          </td>
-                          <td className="text-center">
-                            <div className="score-meter-container">
-                              <div className="score-meter-bar" style={{ width: `${item.score_wind * 100}%`, background: 'var(--accent)' }} />
-                              <span className="score-meter-value">{(item.score_wind * 100).toFixed(0)}%</span>
+                            <div className="breakdown-col">
+                              <span className="breakdown-label flex items-center gap-1"><Wind size={11} className="text-teal" /> RENEWABLE WIND ALIGNMENT</span>
+                              <dl className="breakdown-details">
+                                <dt>Wind Absorption</dt>
+                                <dd>{integer.format(item.wind_absorption_mwh_per_year)} MWh/yr</dd>
+                                <dt>Data Sourcing</dt>
+                                <dd className="text-muted text-wrap-any">{item.wind_source_ref}</dd>
+                              </dl>
                             </div>
-                          </td>
-                          <td className="text-center">
-                            <div className="score-meter-container">
-                              <div className="score-meter-bar" style={{ width: `${item.score_carbon * 100}%`, background: 'var(--text-mint)' }} />
-                              <span className="score-meter-value">{(item.score_carbon * 100).toFixed(0)}%</span>
+                            <div className="breakdown-col">
+                              <span className="breakdown-label flex items-center gap-1"><Leaf size={11} className="text-mint" /> ENVIRONMENTAL DECARBONIZATION</span>
+                              <dl className="breakdown-details">
+                                <dt>CO2 Prevented</dt>
+                                <dd className="text-mint">{integer.format(item.carbon_absorbed_tonnes_per_year)} tonnes/yr</dd>
+                                <dt>Methodology</dt>
+                                <dd className="text-muted">Supplied ranking evidence only; associated wind operating emissions are not verified avoided emissions.</dd>
+                              </dl>
                             </div>
-                          </td>
-                          <td className="text-right font-mono text-primary bold">{item.composite_score.toFixed(1)}</td>
-                          <td className="text-center text-muted">
-                            {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                          </td>
-                        </tr>
-
-                        {isExpanded && (
-                          <tr className="leaderboard-expanded-row">
-                            <td colSpan={7}>
-                              <div className="leaderboard-expanded-card">
-                                <h4>
-                                  <Info size={12} className="text-teal" />
-                                  Diagnostic Breakdown for {item.location_id}
-                                </h4>
-                                <div className="leaderboard-breakdown-grid">
-                                  <div className="breakdown-col">
-                                    <span className="breakdown-label flex items-center gap-1"><ShieldAlert size={11} className="text-amber" /> CURTAILMENT RISK</span>
-                                    <dl className="breakdown-details">
-                                      <dt>p50 (Median)</dt>
-                                      <dd>{decimal.format(item.avg_p50_risk_hours)} h/yr</dd>
-                                      <dt>p90 (Upper-Tail)</dt>
-                                      <dd>{decimal.format(item.avg_p90_risk_hours)} h/yr</dd>
-                                      <dt>p99 (Extreme)</dt>
-                                      <dd>{decimal.format(item.avg_p99_risk_hours)} h/yr</dd>
-                                      <dt>Worst Contiguous</dt>
-                                      <dd>{integer.format(item.avg_worst_contiguous_hours)} h/yr</dd>
-                                    </dl>
-                                  </div>
-                                  <div className="breakdown-col">
-                                    <span className="breakdown-label flex items-center gap-1"><Wind size={11} className="text-teal" /> RENEWABLE WIND ALIGNMENT</span>
-                                    <dl className="breakdown-details">
-                                      <dt>Wind Absorption</dt>
-                                      <dd>{integer.format(item.wind_absorption_mwh_per_year)} MWh/yr</dd>
-                                      <dt>Data Sourcing</dt>
-                                      <dd className="text-muted text-wrap-any">{item.wind_source_ref}</dd>
-                                    </dl>
-                                  </div>
-                                  <div className="breakdown-col">
-                                    <span className="breakdown-label flex items-center gap-1"><Leaf size={11} className="text-mint" /> ENVIRONMENTAL DECARBONIZATION</span>
-                                    <dl className="breakdown-details">
-                                      <dt>CO2 Prevented</dt>
-                                      <dd className="text-mint">{integer.format(item.carbon_absorbed_tonnes_per_year)} tonnes/yr</dd>
-                                      <dt>Methodology</dt>
-                                      <dd className="text-muted">Calculated as 0.45 tCO2 displaced per MWh wind integrated.</dd>
-                                    </dl>
-                                  </div>
-                                </div>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            /* Visual Chart View: Horizontal BarChart comparing the scores cleanly */
-            <div className="leaderboard-chart-wrap mt-6 p-4 border border-strong radius-6">
-              <h4 className="flex items-center gap-2 mb-4 font-sans text-secondary text-sm bold">
-                <BarChart3 size={14} className="text-teal" />
-                Composite Suitability Ranking Comparison
-              </h4>
-              <ResponsiveContainer width="100%" height={Math.max(200, chartData.length * 40)}>
-                <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
-                  <XAxis type="number" domain={[0, 100]} stroke="var(--border-strong)" />
-                  <YAxis dataKey="name" type="category" stroke="var(--border-strong)" width={120} tickStyle={{ fill: 'var(--text-secondary)', fontSize: 11 }} />
-                  <Tooltip 
-                    contentStyle={{ background: 'var(--panel-bg)', borderColor: 'var(--border-strong)', borderRadius: 4 }} 
-                    labelStyle={{ color: 'var(--text-primary)', fontWeight: 'bold' }}
-                  />
-                  <Bar dataKey="Composite Score" radius={[0, 4, 4, 0]} barSize={16}>
-                    {chartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={index === 0 ? 'var(--signal)' : 'var(--teal)'} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-              <p className="field-note mt-4 text-center">First-ranked zone (highlighted in custom <span className="text-signal bold">Signal</span> orange) has the optimal mathematical blend of low curtailment risk and renewable potential.</p>
-            </div>
-          )}
-        </>
-      )}
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>}
     </section>
   )
 }
