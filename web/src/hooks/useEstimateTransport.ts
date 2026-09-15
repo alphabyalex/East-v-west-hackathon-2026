@@ -26,6 +26,11 @@ export function useEstimateTransport(request: EstimateRequest, mode: EstimateMod
   const [retryCount, setRetryCount] = useState(0);
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const sequence = useRef(0);
+  // Last real (non-mock) response actually returned by the API, kept across
+  // in-flight requests so a caller can show it instead of an unrelated
+  // placeholder while a fresh debounced request for the same location is
+  // still pending. Never itself treated as the answer to the current key.
+  const lastResponse = useRef<EstimateResponse | undefined>(undefined);
 
   useEffect(() => {
     const current = ++sequence.current;
@@ -45,7 +50,10 @@ export function useEstimateTransport(request: EstimateRequest, mode: EstimateMod
       ]).then(async ([response, assumptions]) => {
         if (!active()) return;
         const sensitivity = await buildEstimateSensitivity(response, assumptions, { signal: controller.signal });
-        if (active()) setAttempt({ key, retry: retryCount, response, assumptions, sensitivity });
+        if (active()) {
+          lastResponse.current = response;
+          setAttempt({ key, retry: retryCount, response, assumptions, sensitivity });
+        }
       }).catch(() => {
         if (!active()) return;
         setAttempt({ key, retry: retryCount, error: 'Estimate service unavailable or returned an invalid estimate. Showing assumed scenario values.' });
@@ -64,5 +72,9 @@ export function useEstimateTransport(request: EstimateRequest, mode: EstimateMod
   const response = matches ? attempt.response : undefined;
   const error = matches ? attempt.error : undefined;
   const status: EstimateStatus = !enabled || mode === 'local' ? 'local' : response ? 'api' : error ? 'fallback' : 'loading';
-  return { response, assumptions: matches ? attempt.assumptions : undefined, sensitivity: matches ? attempt.sensitivity : undefined, error, status, retry: () => setRetryCount(previous => previous + 1) };
+  return {
+    response, assumptions: matches ? attempt.assumptions : undefined, sensitivity: matches ? attempt.sensitivity : undefined,
+    lastResponse: enabled && mode === 'api' ? lastResponse.current : undefined,
+    error, status, retry: () => setRetryCount(previous => previous + 1),
+  };
 }

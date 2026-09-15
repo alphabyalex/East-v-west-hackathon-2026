@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
 import { ScenarioProvider, useScenario } from './ScenarioContext';
 import { createMockEstimate, defaultInputs, deriveScenario, toEstimateRequest, type EstimateRequest, type EstimateResponse } from './model';
+import { createLocationPreview } from './model/location-preview';
 import type { EstimateMode } from './hooks/useEstimateTransport';
 import { withEconomics } from './api/test-fixtures';
 import economicSnapshot from './model/economics-assumptions.json';
@@ -150,7 +151,7 @@ describe('scenario HTTP provider', () => {
     expect(result.current.status).toBe('api');
   });
 
-  it('replaces a previous API result immediately with a matching local preview when inputs change', async () => {
+  it('replaces a previous API result immediately with an exact rescaled preview when only site_exposure changes', async () => {
     const next = deferred<Response>();
     const serverResponse = createMockEstimate(initialRequest);
     serverResponse.confidence.level = 'High';
@@ -161,11 +162,45 @@ describe('scenario HTTP provider', () => {
     expect(result.current.result.confidence.level).toBe('High');
     act(() => result.current.update('site_exposure', 0.7));
     expect(result.current.status).toBe('loading');
-    expect(result.current.result.confidence.level).toBe('Medium');
-    expect(result.current.result.annual_exposure.p50.value).toBe(deriveScenario({ ...defaultInputs, site_exposure: 0.7 }).annual_exposure.p50.value);
+    // Never a flash to a different, unrelated preview model: while the fresh request for
+    // the same location/term/economics is in flight, the last real response is rescaled
+    // exactly (site_exposure is a pure linear multiplier), so confidence carries over and
+    // the exposure value matches the real p50 times the exposure ratio precisely.
+    expect(result.current.result.confidence.level).toBe('High');
+    expect(result.current.result.annual_exposure.p50.value).toBe(serverResponse.modeled_exposure.p50 * (0.7 / 0.4));
     expect(result.current.result.canonical_response.inputs_echo.site_exposure).toBe(0.7);
     await tick();
     await act(async () => { next.resolve(jsonResponse(createMockEstimate({ ...initialRequest, site_exposure: 0.7 }))); });
+    expect(result.current.status).toBe('api');
+  });
+
+  it('never flashes an unrelated placeholder location while dragging exposure for a real zone outside the small preview catalog', async () => {
+    // 'LES' is a real SPP zone with no entry in mockResponse.locations, so before this
+    // fix, a mid-drag gap fell back to the unrelated SPP_SYSTEM fixture instead of this
+    // zone's own data. Built from spp-lincoln-demo's differently scaled fixture (never
+    // spp-wichita-demo, which shares SPP_SYSTEM's 1x scale and would make this
+    // assertion vacuous) so any SPP_SYSTEM substitution is numerically distinguishable.
+    const lesRequest: EstimateRequest = { ...initialRequest, location_id: 'LES' };
+    const firstResponse = createMockEstimate({ ...initialRequest, location_id: 'spp-lincoln-demo' });
+    firstResponse.inputs_echo = { ...lesRequest };
+    firstResponse.modeled_exposure.source.ref = 'pipeline/simulate.py model_version=test_LES&site_exposure=0.4';
+    const next = deferred<Response>();
+    const fetcher = vi.fn().mockResolvedValueOnce(jsonResponse(firstResponse)).mockReturnValueOnce(next.promise);
+    vi.stubGlobal('fetch', withEconomics(fetcher));
+    const { result } = setup('api');
+    act(() => result.current.update('location_id', 'LES'));
+    await tick();
+    expect(result.current.result.canonical_response.inputs_echo.location_id).toBe('LES');
+    const beforeP50 = result.current.result.annual_exposure.p50.value;
+    act(() => result.current.update('site_exposure', 0.81));
+    expect(result.current.status).toBe('loading');
+    const wrongPlaceholder = createLocationPreview({ ...lesRequest, site_exposure: 0.81 });
+    expect(result.current.result.annual_exposure.p50.value).not.toBeCloseTo(wrongPlaceholder.modeled_exposure.p50, 3);
+    expect(result.current.result.canonical_response.modeled_exposure.source.ref).not.toMatch(/SPP_SYSTEM/);
+    expect(result.current.result.annual_exposure.p50.value).toBeCloseTo(beforeP50 * (0.81 / 0.4), 10);
+    await tick();
+    const settled: EstimateResponse = { ...firstResponse, inputs_echo: { ...lesRequest, site_exposure: 0.81 } };
+    await act(async () => { next.resolve(jsonResponse(settled)); });
     expect(result.current.status).toBe('api');
   });
 

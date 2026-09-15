@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { adaptEstimateResponse, defaultInputs, mockResponse, toEstimateRequest, type ScenarioInputs, type Source, type SourcedInputs } from './model';
-import { createLocationPreview } from './model/location-preview';
+import { compatibleRealBaseline, createLocationPreview, rescaleModeledExposure } from './model/location-preview';
 import { useEstimateTransport, type EstimateMode } from './hooks/useEstimateTransport';
 import { validateEconomicsAssumptions, type EconomicsAssumptions } from './api/assumptions';
 import economicSnapshot from './model/economics-assumptions.json';
@@ -81,24 +81,36 @@ function useScenarioState(initialMode: EstimateMode) {
     }
     return mockResponse.defaults[key];
   }
+  // Never leave an older server response beneath newly edited controls.
+  // While a fresh debounced request for the same location/term is still in
+  // flight (e.g. mid-drag on the exposure slider), prefer exactly rescaling
+  // the last real response over a different, unrelated placeholder location:
+  // site_exposure is a pure linear multiplier server-side, so this is exact,
+  // not an approximation, and never flashes a wrong-scale number. The sensitivity
+  // baseline below must use the same real-vs-placeholder choice, or its own
+  // matching-provenance check rejects a real result paired with a mock baseline.
+  const realBaseline = useMemo(() => compatibleRealBaseline(transport.response, transport.lastResponse, request),
+    [transport.response, transport.lastResponse, request]);
   const result = useMemo(() => {
-    // Never leave an older server response beneath newly edited controls.
-    const derived = transport.response
-      ? adaptEstimateResponse(transport.response, inputs, decisionPolicy)
-      : adaptEstimateResponse(createLocationPreview(toEstimateRequest(inputs), inputs, decisionPolicy), inputs, decisionPolicy);
+    const source = realBaseline
+      ? rescaleModeledExposure(realBaseline, request.site_exposure, decisionPolicy.value)
+      : createLocationPreview(toEstimateRequest(inputs), inputs, decisionPolicy);
+    const derived = adaptEstimateResponse(source, inputs, decisionPolicy);
     // Keep exported input provenance identical to the controls on screen.
     derived.inputs = Object.fromEntries(Object.entries(inputs).map(([key, value]) => [key, {
       value,
       ...sourceFor(key as keyof ScenarioInputs),
     }])) as SourcedInputs;
     return derived;
-  }, [inputs, edited, transport.response, economicDefaults, decisionPolicy]);
+  }, [inputs, edited, realBaseline, request, economicDefaults, decisionPolicy]);
   const sensitivity = useMemo(() => transport.sensitivity ?? buildSensitivity(
     result.canonical_response,
-    createLocationPreview({ ...toEstimateRequest(inputs), site_exposure: 1 }, inputs, decisionPolicy),
+    realBaseline
+      ? rescaleModeledExposure(realBaseline, 1, decisionPolicy.value)
+      : createLocationPreview({ ...toEstimateRequest(inputs), site_exposure: 1 }, inputs, decisionPolicy),
     inputs,
     economicDefaults ?? offlineAssumptions,
-  ), [transport.sensitivity, result, inputs, decisionPolicy, economicDefaults]);
+  ), [transport.sensitivity, realBaseline, result, inputs, decisionPolicy, economicDefaults]);
 
   function saveScenario(name?: string) {
     if (location.enabled && !location.result) return;
